@@ -95,9 +95,9 @@ https://nordicenergy.app
 7. Team and project developments
 8. Web developments and graphics desings
 9. Brand & Logo
-10.Infographics, illustrations
-11.Web & Wallet application
-12.ICO/STO management and user dashboard
+10. Infographics, illustrations
+11. Web & Wallet application
+12. ICO/STO management & user dashboard
 
 
 
