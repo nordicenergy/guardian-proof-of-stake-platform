@@ -1,6 +1,6 @@
 # The Guardian - Proof of Stake Consensus Protocol (idea)
 
-Guardian is an open source multichain platform and proof-of-stake consensus protocol to preventing pandemics. Nordic Energy´s Guardian cross-platform based of Nxt blockchain.
+Guardian is an open source multichain platform and proof-of-stake consensus protocol to preventing pandemics. 
 
 
 ### Free the globe from pandemic
@@ -12,6 +12,11 @@ Nordic Energy´s innovation saves lives and human suffering for billions. It hel
 
 
 ## About Guardian Blockchain
+
+
+### Technology
+
+Guardian cross-platform based of Ethereum and Nxt blockchains.
 
 
 ### Proof of Stake Consensus
