@@ -93,6 +93,9 @@ https://nordicenergy.app
 5. Native token
 6. Social media and marketing
 7. Team and project developments
+8. Web developments and graphics desings
+9. Brand & Logo
+10.Infographics, illustrations
 
 
 
