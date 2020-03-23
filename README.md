@@ -6,9 +6,8 @@ Guardian is an open source multichain platform and proof-of-stake consensus prot
 ### Free the globe from pandemic
 
 We have to save the world. Peoples is dying in front of our eyes. And without community, there is no humanity. If we want to breathe, we need t healthier environment, trees, clean air, energy, water, electricity, better recycling and plastic waste, If we want nature around us, we have to maintain the “circle of life”. If there is no habitat for animals to live in, it affects not only them – it affects us! Fires, floods , hurricanes, droughts, air pollution, human-to-human diseases and viruses – and the list goes on, very long and expands day by day. In each of these cases, nature shows us clearly that it doesn’t need people. However, people need nature, community and will always need it.
-This innovation saves lives and human suffering for billions. It helps communities to build healthier environment and Businesses create trust and stability. 
+Nordic Energy´s innovation saves lives and human suffering for billions. It helps communities to build healthier environment and Businesses create trust and stability. 
 
-Donation platform connects people who can help others in need and those who are in need. When you register to platform you can either provide your help to someone or request help to yourself or to your elder family member. Especially this app aims to help the elderly and other Covid-19 risk groups.
 
 
 
@@ -20,9 +19,14 @@ Donation platform connects people who can help others in need and those who are 
 Guardian blockchain is transparent, scalability and implement a pure proof-of-stake consensus protocol. Reliable and energy efficient, with minimal hardware requirements
 
 
-### Preventing pandemics
+### Preventing Pandemics
 
 The Guardian consensus platform on assets, research priorities and cross-chain protocols. The right strategy for short-circuiting transmission and preventing future pandemics.
+
+
+### Community & Donate Platform
+
+Donation platform connects people who can help others in need and those who are in need. When you register to platform you can either provide your help to someone or request help to yourself or to your elder family member. Especially this app aims to help the elderly and other Covid-19 risk groups.
 
 
 ### Blockchain Framework
@@ -37,5 +41,5 @@ Blockchain to launch a user-friendly and yet fully decentralized asset exchange.
 
 ### Stability
 
-The Guardian blockchain based of Nxt has been live in production for nearly 6 years with virtually no downtime, no major bugs, and no successful exploits. Millions of Nxt transactions have been conducted reliably, establishing its reputation as one of the most secure platforms in the blockchain industry.
+The Guardian blockchain based of Nxt blockchain technology has been live in production for nearly 6 years with virtually no downtime, no major bugs, and no successful exploits. Millions of multi-token transactions have been conducted reliably, establishing its reputation as one of the most secure platforms in the blockchain industry.
 
