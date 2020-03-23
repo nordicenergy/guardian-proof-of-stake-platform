@@ -1,6 +1,6 @@
 # The Guardian - Proof of Stake Consensus Protocol (idea)
 
-## Guardian is an open source multichain platform and proof-of-stake consensus protocol to preventing pandemics. 
+### Guardian is an open source multichain platform and proof-of-stake consensus protocol to preventing pandemics. 
 
 
 ### Free the globe from pandemic
