@@ -33,9 +33,9 @@ Donation platform connects people who can help others in need and those who are 
 
 ### Crowdsale Platform
 
-Here is idea 
+Multiple tokens can be distributed in a variety of ways, and one popular method is holding a crowdsale, like an initial coin offering (ICO) and Security Token Offering (STO). Crowdsales are a way for a company or societies to raise capital for the help crisis or business by creating our own token is ERC-20 standard token that can be purchased with cryptocurrencies like Bitcoin, Ethereum’s native currency. Whenever a crowdsale takes place, a company gets liquid capital in the form of ether that was paid in by investors in exchange for the token. The company is also able to reserve some amount of ERC-20 tokens that were sold in the crowdsale.
 
-https://nordicenergy.app
+In order to participate, an investor must connect to the ethereum blockchain with an account. This account has a wallet address that can store ether, as well as the ERC 20 tokens that are purchased in the crowdsale. The investor must visit a crowdsale website that talks to a smart contract, and this smart contract governs all the rules about how crowdsale works. Whenever an investor purchases tokens on the crowdsale website, they send ether to a smart contract, and smart contract instantly dispensers the tokens that they purchased to their wallet.
 
 
 ### Blockchain Framework
@@ -72,6 +72,24 @@ Guardian admin dashboard is a complete web wallet that where user can use to buy
 
 Guardian mobile wallet app is a complete web wallet that our user can use to buy coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
 
+
+#### Developments
+
+Here is the additional project to use this project source code to develop Guardian dashboard
+
+https://nordicenergy.app
+
+1. Blockchain developments, installations and protocol
+2. Token economy and development
+3. Smart Contracts (ERC20)
+4. Project Website
+5. Server installation
+6. Domain
+7. Whitepaper development and technical writings
+8. Token/coin functionality
+5. Native token
+6. Social media and marketing
+7. Team and project developments
 
 
 
