@@ -31,6 +31,12 @@ The Guardian consensus platform on assets, research priorities and cross-chain p
 
 Donation platform connects people who can help others in need and those who are in need. When you register to platform you can either provide your help to someone or request help to yourself or to your elder family member. Especially this app aims to help the elderly and other Covid-19 risk groups.
 
+### Crowdsale Platform
+
+Here is idea 
+
+https://nordicenergy.app
+
 
 ### Blockchain Framework
 
@@ -50,4 +56,22 @@ The Guardian blockchain based of Nxt blockchain technology has been live in prod
 ### Token Economies
 
 Nordic Energy´s COVI token and Guardian native token innovations saves lives and human suffering for billions. It helps communities to build healthier environment and Businesses create trust and stability. 
+
+
+## The Highly Secured Cryptocurrency Wallet
+
+#### User panel:
+
+Guardian app is a complete web wallet that where user can use to buy coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
+
+#### Admin Panel:
+
+Guardian admin dashboard is a complete web wallet that where user can use to buy our coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
+
+### Mobile App
+
+Guardian mobile wallet app is a complete web wallet that our user can use to buy coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
+
+
+
 
