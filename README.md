@@ -73,11 +73,14 @@ Guardian admin dashboard is a complete web wallet that where user can use to buy
 Guardian mobile wallet app is a complete web wallet that our user can use to buy coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
 
 
-#### Developments
+## Developments
 
 Here is the additional project to use this project source code to develop Guardian dashboard
 
 https://nordicenergy.app
+
+
+### TODO
 
 1. Blockchain developments, installations and protocol
 2. Token economy and development
