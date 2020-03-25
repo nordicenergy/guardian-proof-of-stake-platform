@@ -1,13 +1,13 @@
 # The Guardian - Proof of Stake Consensus Protocol (idea)
 
-### Guardian is an open source multichain platform and proof-of-stake consensus protocol to preventing pandemics. 
+### Guardian is an open source multichain platform and proof-of-stake consensus protocol to preventing pandemics and global catastrophe.
 
 
 ### Free the globe from pandemic
 
 We have to save the world. Peoples is dying in front of our eyes. And without community, there is no humanity. If we want to breathe, we need t healthier environment, trees, clean air, energy, water, electricity, better recycling and plastic waste, If we want nature around us, we have to maintain the “circle of life”. If there is no habitat for animals to live in, it affects not only them – it affects us! Fires, floods , hurricanes, droughts, air pollution, human-to-human diseases and viruses – and the list goes on, very long and expands day by day. In each of these cases, nature shows us clearly that it doesn’t need people. However, people need nature, community and will always need it.
 
-
+We do not yet know whether the final toll will be measured in thousands or hundreds of thousands. For all our advances in medicine, humanity remains much more vulnerable to pandemics than we would like to believe. To understand our vulnerability, and to determine what steps must be taken to end it, it is useful to ask about the very worst-case scenarios. Just how bad could a pandemic be? This is why we need worst-case thinking to prevent pandemics.
 
 ## About Guardian Blockchain
 
