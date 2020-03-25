@@ -16,13 +16,11 @@ We do not yet know whether the final toll will be measured in thousands or hundr
 
 ## Features of Guardian Blockchain
 
-
-### Blockchain: 
-
 - One parent chain with multiple child chains
 
 - Only the parent chain token (GRD) is used in the proof-of-stake consensus, and thus provides security for all side chains.
-- side (child) chain tokens example: Nordic Energy token, Green Ventures token and PowerChain tokens can be used as transactional units of value only.
+
+- side (child) chain tokens example: Nordic Energy, Green Ventures, and PowerChain tokens can be used as transactional units of value only.
 
 ### Transaction fees: 
 
