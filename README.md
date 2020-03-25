@@ -1,260 +1,116 @@
-# The Guardian - Proof of Stake Consensus Protocol (idea)
+[![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/nordicenergy/guardian-proof-of-stake-platform) 
 
-### Guardian is an open source multichain platform and proof-of-stake consensus protocol to preventing pandemics and global catastrophe.
+----
+# Blockchain Creation Kit #
 
+This package is intended to allow easy creation of new blockchain projects
+based on Net, satisfying the requirements of the Nordic Energy Public License
+version 1.1 for the Nordic Energy Public Blockchain Platform.
 
-### Free the globe from pandemic
+This is a starter kit for developers, not for end users. If you just install
+it and run it, you will get a blockchain with no tokens, no accounts, and no
+peers configured. To actually start a new blockchain using this kit, at least
+the genesis block parameters and accounts must be defined in
+conf/data/genesisParameters.json and conf/data/genesisAccounts.json.
 
-We have to save the world. Peoples is dying in front of our eyes. And without community, there is no humanity. If we want to breathe, we need t healthier environment, trees, clean air, energy, water, electricity, better recycling and plastic waste, If we want nature around us, we have to maintain the “circle of life”. If there is no habitat for animals to live in, it affects not only them – it affects us! Fires, floods , hurricanes, droughts, air pollution, human-to-human diseases and viruses – and the list goes on, very long and expands day by day. In each of these cases, nature shows us clearly that it doesn’t need people. However, people need nature, community and will always need it.
+Edit the genesisParameters.json file to define the timestamp of the genesis
+block for your new blockchain (epochBeginning), and the public key of the
+genesis account (genesisPublicKey).
 
-We do not yet know whether the final toll will be measured in thousands or hundreds of thousands. For all our advances in medicine, humanity remains much more vulnerable to pandemics than we would like to believe. To understand our vulnerability, and to determine what steps must be taken to end it, it is useful to ask about the very worst-case scenarios. Just how bad could a pandemic be? This is why we need worst-case thinking to prevent pandemics.
+The genesisAccounts.json file, and genesisAccounts-testnet.json for testnet,
+should contain the list of accounts to be created in the genesis block of the
+new blockchain, and their corresponding balances and public keys. The supplied
+genesisAccounts.json file is empty. To generate such a file containing both
+new user accounts, and the accounts of NET holders from the Nxt public
+blockchain, you must use the JPLSnapshot utility from the Nxt Reference
+Software (NRS) v1.15.1 or later.
 
+----
+### Using the JPLSnapshot NRS add-on ###
 
-# Business and Platform Developments
+Download and install the latest Nxt package from the Nordic Energy repository:
 
+https://github.com/nordicenergy/proof-of-stake-cryptocurrency/net/downloads
 
+Enable the JPLSnapshot add-on in conf/nxt.properties by setting:
 
-## Features of Guardian Blockchain
+nxt.addOns=nxt.addons.JPLSnapshot
 
-- One parent chain with multiple child chains
+Make sure your node is configured as full node (not light client), and let it
+download the full blockchain.
 
-- Only the parent chain token (GRD) is used in the proof-of-stake consensus, and thus provides security for all side chains.
+The add-on downloadJPLSnapshot API should be available under:
 
-- side (child) chain tokens example: Nordic Energy, Green Ventures, and PowerChain tokens can be used as transactional units of value only.
+http://localhost:7876/test?requestTag=ADDONS
 
-### Transaction fees: 
 
-- On each chain transaction fees are paid in the Guardian native token (coin) of that chain. End users do not need to own Guardian (GRD) tokens. 
+Below is the documentation for how to use this API:
 
-- A business can sponsor the transaction fees for specific child chain or transaction type by running a custom bundler, in which case end users do need to pay fees at all.
+----
+The downloadJPLSnapshot API can be used to generate a genesis block JSON for a
+clone to satisfy the JPL 10% sharedrop requirement to existing NXT holders.
 
-### Main Features: 
+This utility takes a snapshot of account balances and public keys on the Nxt
+blockchain as of the specified height, scales down the balance of each account
+proportionately so that the total of balances of sharedrop accounts is equal to
+10% of the total of all balances, and merges this data with the supplied new
+genesis accounts and balances.
 
-- All these features are also present in Guardian, and are available on each side chain.
+Note that using a height more than 800 blocks in the past will normally require
+a blockchain rescan, which takes a few hours to complete. Do not interrupt this
+process.
 
-- A Side chain can optionally be restricted not to enable some features.
+Request parameters
 
-- The parent chain supports a limited subset of features, as it is intended to be used for consensus establishing only and not for everyday transactions.
+    newGenesisAccounts - a JSON formatted file containing all new account
+    public keys and balances to be included in the clone genesis block
+    
+    height - the Nordic Energy blockchain height at which to take the snapshot
 
-### Accounts:
+Response
 
-The same mapping of passphrases to account numbers is used as in GRD. Accounts are global across all side chains, and an account can have balances in each of the existing side chain coins, as well as in Guardian.
+    A JSON formatted file, genesisAccounts.json, containing all public keys,
+    new accounts and sharedrop accounts, and their initial balances, which
+    should be placed in the conf/data directory of the clone blockchain.
 
-### Holdings: 
 
-- Each blockchain has its own coin. Assets and multi-currencies can be issued on any side chain, and are available for trading globally.
+Input file format
 
-- Assets or multiple currencies can optionally be restricted* to some side chains only.
+The input file should contain a map of account numbers to coin balances, and a
+list of account public keys. Account numbers can be specified in either numeric
+or RS format. Supplying the public key for each account is optional, but
+recommended. Forging requires a public key, so the accounts that are going to
+forge the first blocks of the blockchain must have their public keys in the file.
+Here is an example input file, which allocates 300M each to the
+accounts with passwords "0", "1" and "2", for a total of 900M to new accounts,
+resulting in 100M automatically allocated to existing NXT holders:
 
-### Trading:
-
-Assets and multiple currencies can be traded on any child chain, with price denominated in the corresponding side chain coin.
-
-### Exchange:
-
-Coin Exchange, allows trading of side chain coins to each other, and also to the parent blockchain native coin Guardian (GRD).
-
-
-### Dividends:
-
-Asset dividends can be paid in any of the side chain coins, by simply issuing the payment transaction on the corresponding chain.
-
-
-### Asset Quantity:
-
-A transaction type has been added, allowing the asset issuer to create new shares, in order to perform stock split or capital increase our corporate actions and additional projects.
-
-### Asset Properties:
-
-The Asset Properties feature allows assets to be tagged with arbitrary name/value metadata.
-
-
-### Crowdfunding:
-
-Crowdfunding feature is available on all child chains, and on each side chain the funds are collected in the corresponding coin. Reserve and claim transactions must happen on the side chain the currency was issued on.
-
-### Suffling:
-
-On each side chain, shuffling of the corresponding coin, or any Asset or Multi-Currency, is supported. Shuffling-as-a-Service is provided by an automated Standby Shuffling add-on.
-
-### Aliases:
-
-Alias names are unique within each side chain only.
-
-### Multi-Currencies:
-
-Currency codes and names are unique within a side chain only.
-
-### Pruning:
-
-- Pruning and retrieving of all prunable data is available as in GDR.
-
-- In addition, the child chain transactions themselves are designed to be prunable and will not need to be stored permanently or re-downloaded by every new node. The actual pruning of transactions will be implemented later.
-
-### Transaction Identifiers:
-
-The 64-bit transaction IDs are no longer guaranteed to be globally unique for side chains. 256-bit transaction hashes (sha256 digests) are used instead as transaction identifiers.
-
-### Blockchain Generation:
-
-- The same forging algorithm is used as in GRD, dependent on Guardian account balances only.
-
-### Bundling:
-
-- A process, "bundling", is used to group side chain transactions into a parent chain transaction ("side chain block"), which is then included in the parent chain.
-
-- Any account can play the role of a bundler. The bundling process also performs the exchange of fees paid by users in side chain tokens into Guardian (GRD) coin fees accepted by the block forgers.
-
-### Phasing:
-
-Same voting models as in GRD, but phasing is possible on side chains only. Approval transactions can be on a different child chain from the phased transaction, and the by-transaction voting model also supports linking to a transaction hash on a different side chain.
-
-### Composite Phasing:
-
-The new "Smart Phasing" feature allows the conditions for the execution of a phased transaction to be combined using AND, OR, and NOT Boolean operators, in a composite voting model. In this way declarative smart contracts can be built on top of the already available voting model primitives.
-
-### By-Property Voting Model:
-
-A "by-property" voting model has been added, making the execution of a phased transaction conditional on its sender account having a specified property set. This can be combined with the new Asset Control feature, to allow only authorized or KYC-verified accounts to transact with some asset.
-
-### Account Control:
-
-Same as in Guardian, but accounts under phasing-only restriction cannot submit transactions on the parent chain, as those cannot be phased.
-
-### Asset Control:
-
-The asset issuer can impose a phasing-only restriction on all transactions affecting the asset. This allows enforcing shareholder agreements that require shareholder approval, or board of directors approval, on all transactions with company shares.
-
-### Side Chain Control:
-
-Side Chain Control can be used to make a Side chain permissioned, with configurable user authorization levels, allowing the chain administrators to grant or revoke transaction privileges to the users of such permissioned Side chain.
-
-### Secret Sharing
-
-The Guardian platform support the use of Secret Sharing for splitting an account passphrase into several pieces, and reconstructing it from only a few of those pieces.
-
-### Smart Contracts:
-
-Smart Contracts represent a framework for developing a layer of automation on top of the existing Guardian APIs. Smart Contracts do not run on all nodes, only on those who elect to execute them. Being stateless, contracts do not store data on the blockchain and do not manipulate blockchain objects directly, but only submit standard blockchain transactions as a result of their execution.
-
-### Transaction Vouchers:
-
-Users can request a payment by preparing a digitally signed transaction template (voucher), and sending it to the payer off-blockchain. The payer then simply loads the template, verifies the amount and other details, signs and submits the transaction.
-
-### Peer Networking
-
-Completely re-written and optimized based of Ardor blockchain, using native Java sockets and binary messages between peers. Block and transaction propagation has been significantly improved, by exchanging and caching information about currently available blocks and transactions between peers and only propagating the missing data pieces.
-
-### API
-
-#### Mostly unchanged, except:
-
-1. A "chain" parameter has been added to each API that is side chain specific.
-
-2. 64-bit long transaction IDs have been replaced with 256-bit hashes.
-
-3. All prices and rates that were previously defined relative to the smallest indivisible holding amount ("QNT") are now defined relative to a unit of the holding (share).
-
-### Scalability
-
-All side chain transactions will be possible to prune completely, without affecting blockchain security, thus allowing the blockchain size to be kept much smaller. A new node joining the network only needs to download the parent chain transactions, followed by the latest snapshot of the current system state.*
-
-
-# Technology
-
-Guardian cross-platform based of Nxt / Ardor blockchains.
-
-
-### Proof of Stake Consensus
-
-Guardian blockchain is transparent, scalability and implement a pure proof-of-stake consensus protocol. Reliable and energy efficient, with minimal hardware requirements
-
-
-### Preventing Pandemics
-
-The Guardian consensus platform on assets, research priorities and cross-chain protocols. The right strategy for short-circuiting transmission and preventing future pandemics.
-
-
-### Community & Donate Platform
-
-Donation platform connects people who can help others in need and those who are in need. When you register to platform you can either provide your help to someone or request help to yourself or to your elder family member. Especially this app aims to help the elderly and other Covid-19 risk groups.
-
-### Crowdsale & Digital Asset Platform
-
-Multiple tokens can be distributed in a variety of ways, and one popular method is holding a crowdsale, like an initial coin offering (ICO) and Security Token Offering (STO). Crowdsales are a way for a company or societies to raise capital for the help crisis or business by creating our own token is ERC-20 standard token that can be purchased with cryptocurrencies like Bitcoin, Ethereum’s native currency. Whenever a crowdsale takes place, a company gets liquid capital in the form of ether that was paid in by investors in exchange for the token. The company is also able to reserve some amount of ERC-20 tokens that were sold in the crowdsale.
-
-In order to participate, an investor must connect to the ethereum blockchain with an account. This account has a wallet address that can store ether, as well as the ERC 20 tokens that are purchased in the crowdsale. The investor must visit a crowdsale website that talks to a smart contract, and this smart contract governs all the rules about how crowdsale works. Whenever an investor purchases tokens on the crowdsale website, they send ether to a smart contract, and smart contract instantly dispensers the tokens that they purchased to their wallet.
-
-### Fundraising platform (consept development)
-
-On GreenVentures platform, we've seen how far a great fundraiser title can go towards fundraising success.
-
-https://greenventures.app
-
-
-### Blockchain Framework
-
-The Guardian software is designed as a universal framework for the ongoing distributed ledger technology transformation. Its simple but flexible architecture makes blockchain adoption easy, and can be extended to fit any public or private use case.
-
-
-### Decentralized Asset Exchange
-
-Blockchain to launch a user-friendly and yet fully decentralized asset exchange. Anyone can issue and trade tokens on top of Guardian, and orders are matched and executed directly on the blockchain itself.
-
-
-### Stability
-
-The Guardian blockchain based of Nxt blockchain technology has been live in production for nearly 6 years with virtually no downtime, no major bugs, and no successful exploits. Millions of multi-token transactions have been conducted reliably, establishing its reputation as one of the most secure platforms in the blockchain industry.
-
-
-### Token Economies
-
-Nordic Energy´s COVI token and Guardian native token innovations saves lives and human suffering for billions. It helps communities to build healthier environment and Businesses create trust and stability. 
-
-
-## The Highly Secured Cryptocurrency Wallet
-
-#### User panel:
-
-Guardian app is a complete web wallet that where user can use to buy coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
-
-#### Admin Panel:
-
-Guardian admin dashboard is a complete web wallet that where user can use to buy our coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
-
-### Mobile App
-
-Guardian mobile wallet app is a complete web wallet that our user can use to buy coin using fiat and cryptocurrency and can withdrawals. The wallet is polished with an interesting color combination with modern design, clean code, and easy to customize very easy to use for all users. It has a variety of features such as the Crypto Wallet, Affiliate System, and many other features in the system.
-
-
-## Developments
-
-By using Green Ventures name for the company?
-
-Here is the additional project to use this project source code to develop Guardian token management dashboard
-
-https://nordicenergy.app
-
-
-### TODO
-
-1. Blockchain developments, installations and protocol
-2. Token economy and development
-3. Smart Contracts (ERC20)
-4. Project Website
-5. Server installation
-6. Domain
-7. Whitepaper development and technical writings
-8. Token/coin functionality
-5. Native token
-6. Social media and marketing
-7. Team and project developments
-8. Web developments and graphics desings
-9. Brand & Logo
-10. Infographics, illustrations
-11. Web & Wallet application
-12. ICO/STO management & user dashboard
-13. Disaster assistance application.
-
-
+```
+{
+    "balances": {
+         "NXT-NZKH-MZRE-2CTT-98NPZ": 30000000000000000,
+         "NXT-X5JH-TJKJ-DVGC-5T2V8": 30000000000000000,
+         "NXT-LTR8-GMHB-YG56-4NWSE": 30000000000000000
+     },
+     "publicKeys": [
+         "bf0ced0472d8ba3df9e21808e98e61b34404aad737e2bae1778cebc698b40f37",
+         "39dc2e813bb45ff063a376e316b10cd0addd7306555ca0dd2890194d37960152",
+         "011889a0988ccbed7f488878c62c020587de23ebbbae9ba56dd67fd9f432f808"
+     ]
+ }
+```
+
+----
+
+The generated genesisAccounts.json file should be placed in the conf/data
+directory for the new blockchain package, replacing the existing empty file.
+Changes in genesisAccounts.json are applied only when blockchain is started
+from scratch, i.e. previous database is missing.
+
+There are multiple other customizations that should be made for the newly
+created Net clone, such as changing the default peer ports in
+nxt/peer/Peer.java, defining default peers in net-default.properties, changing
+the coin name and software name in nxt/Nxt.java, customizing the UI, etc.
+Such customization work should be done by a competent developer, and is beyond
+the scope of this document.
 
