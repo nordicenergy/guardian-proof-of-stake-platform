@@ -162,7 +162,7 @@ All side chain transactions will be possible to prune completely, without affect
 
 # Technology
 
-Guardian cross-platform based of Ethereum and Nxt blockchains.
+Guardian cross-platform based of Nxt / Ardor blockchains.
 
 
 ### Proof of Stake Consensus
