@@ -77,7 +77,7 @@ in such a way that no trusted third parties are required anymore.
     - https://guardian.nordicenergy.io/docs/Getting_started
 
   - on the forums:
-    - https://forum.nordicenergy.co/guardian/ (under construction)
+    - https://forum.nordicenergy.co/blockchain/guardian/ (under construction)
     
 ----
 
