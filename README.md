@@ -1,12 +1,13 @@
-----
-# Welcome to Guardian! #
+
+# Welcome to Guardian Blockchain Platform! #
 
 ----
 ## What is Guardian? ##
-Guardian is a modern economic system based on cryptography and blockchain technology. The Guardian multi-chain
- blockchain platform with a unique parent - side chain architecture. The security of the whole network is provided by the parent Guardian blockchain while the interoperable side chains have all the rich functionality. This elegant design and access to hybrid user permissioning capabilities are the key to the flexibility necessary for a variety of use cases and opens the door towards mainstream adoption of blockchain technology. Not only that - Guardian is created with scalability in mind and solves many existing industry problems such as blockchain bloat, single token dependency and the need for easily customizable-yet-compatible blockchain solutions.
 
-With Guardian, you can manage and interact with
+Guardian is a modern economic system based on cryptography and blockchain technology. The Guardian multi-chain blockchain platform with a unique parent - side chain architecture. The security of the whole network is provided by the parent Guardian blockchain while the interoperable side chains have all the rich functionality. This elegant design and access to hybrid user permissioning capabilities are the key to the flexibility necessary for a variety of use cases and opens the door towards mainstream adoption of blockchain technology. Not only that - Guardian is created with scalability in mind and solves many existing industry problems such as blockchain bloat, single token dependency and the need for easily customizable-yet-compatible blockchain solutions.
+ 
+ ----
+## With Guardian, you can manage and interact with: ##
 
  - your **assets**
  - your **businesses**
@@ -18,13 +19,11 @@ in such a way that no trusted third parties are required anymore.
 ## Get it! ##
 
   - *pre-packaged* - `https://www.guardian.nordicenergy.io/`
-
   - *dependencies*:
-    - *general* - Java 8
-    - *Ubuntu* - `http://www.webupd8.org/2012/09/install-oracle-java-8-in-ubuntu-via-ppa.html`
-    - *Debian* - `http://www.webupd8.org/2014/03/how-to-install-oracle-java-8-in-debian.html`
-    - *FreeBSD* - `pkg install openjdk8`
-
+  - *general* - Java 8
+  - *Ubuntu* - `http://www.webupd8.org/2012/09/install-oracle-java-8-in-ubuntu-via-ppa.html`
+  - *Debian* - `http://www.webupd8.org/2014/03/how-to-install-oracle-java-8-in-debian.html`
+  - *FreeBSD* - `pkg install openjdk8`
   - *repository* - `https://github.com/nordicenergy/guardian-proof-of-stake-platform.git`
   
 ----
@@ -34,9 +33,7 @@ in such a way that no trusted third parties are required anymore.
   - Unix: `./start.sh`
   - Mac: `./run.command`
   - Window: `run.bat`
-
-  - wait for the JavaFX wallet window to open
-  - on platforms without JavaFX, open http://localhost:27876/ in a browser
+  - wait for the JavaFX wallet window to open on platforms without JavaFX, open http://localhost:27876/ in a browser
 
 ----
 ## Compile it! ##
@@ -77,7 +74,7 @@ in such a way that no trusted third parties are required anymore.
     - OPERATORS-GUIDE.md
 
   - in the wiki:
-    - https://guardian.nordicenergy.io/docks/Getting_started
+    - https://guardian.nordicenergy.io/docs/Getting_started
 
   - on the forums:
     - https://guardian.nordicenergy.info/
