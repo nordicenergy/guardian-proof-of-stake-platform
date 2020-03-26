@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,10 +16,11 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Alias;
-import nxt.Attachment;
 import nxt.NxtException;
+import nxt.account.Account;
+import nxt.aliases.AliasDeleteAttachment;
+import nxt.aliases.AliasHome;
+import nxt.blockchain.Attachment;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
@@ -36,14 +38,14 @@ public final class DeleteAlias extends CreateTransaction {
 
     @Override
     protected JSONStreamAware processRequest(final HttpServletRequest req) throws NxtException {
-        final Alias alias = ParameterParser.getAlias(req);
+        final AliasHome.Alias alias = ParameterParser.getAlias(req);
         final Account owner = ParameterParser.getSenderAccount(req);
 
         if (alias.getAccountId() != owner.getId()) {
             return INCORRECT_ALIAS_OWNER;
         }
 
-        final Attachment attachment = new Attachment.MessagingAliasDelete(alias.getAliasName());
+        final Attachment attachment = new AliasDeleteAttachment(alias.getAliasName());
         return createTransaction(req, owner, attachment);
     }
 }

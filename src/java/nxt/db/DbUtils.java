@@ -1,12 +1,12 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2018 Jelurida IP B.V.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -105,7 +105,13 @@ public final class DbUtils {
         Array array = rs.getArray(columnName);
         if (array != null) {
             Object[] objects = (Object[]) array.getArray();
-            return Arrays.copyOf(objects, objects.length, cls);
+            if (Long[].class.equals(cls)) {
+                //H2 converts array of Long to array of Integer when compacting
+                Long[] result = Arrays.stream(objects).map(o -> ((Number) o).longValue()).toArray(Long[]::new);
+                return (T[]) result;
+            } else {
+                return Arrays.copyOf(objects, objects.length, cls);
+            }
         } else {
             return ifNull;
         }

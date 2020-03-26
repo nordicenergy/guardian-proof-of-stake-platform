@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,13 +16,14 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Attachment;
-import nxt.Attachment.MessagingPollCreation.PollBuilder;
 import nxt.Constants;
 import nxt.Nxt;
 import nxt.NxtException;
+import nxt.account.Account;
+import nxt.blockchain.Attachment;
 import nxt.util.Convert;
+import nxt.voting.PollCreationAttachment.PollBuilder;
+import nxt.voting.VoteWeighting;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
@@ -104,15 +106,17 @@ public final class CreatePoll extends CreateTransaction {
                 minNumberOfOptions, maxNumberOfOptions, minRangeValue, maxRangeValue);
 
         long minBalance = ParameterParser.getLong(req, "minBalance", 0, Long.MAX_VALUE, false);
-
+        byte minBalanceModel = 0;
         if (minBalance != 0) {
-            byte minBalanceModel = ParameterParser.getByte(req, "minBalanceModel", (byte)0, (byte)3, true);
+            minBalanceModel = ParameterParser.getByte(req, "minBalanceModel", (byte)0, (byte)3, true);
             builder.minBalance(minBalanceModel, minBalance);
         }
 
         long holdingId = ParameterParser.getUnsignedLong(req, "holding", false);
         if (holdingId != 0) {
             builder.holdingId(holdingId);
+        } else if (votingModel == VoteWeighting.VotingModel.COIN.getCode() || minBalanceModel == VoteWeighting.MinBalanceModel.COIN.getCode()) {
+            builder.holdingId(ParameterParser.getChildChain(req).getId());
         }
 
         Account account = ParameterParser.getSenderAccount(req);

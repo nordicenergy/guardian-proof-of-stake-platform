@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -165,7 +165,7 @@ var NRS = (function(NRS, $, undefined) {
                     plugin['nrs_compatibility_msg'] = $.t('pnc_compatibility_minor_release_diff_msg', 'Plugin build for another minor release version');
                 } else {
                     plugin['nrs_compatibility'] = NRS.constants.PNC_COMPATIBILITY_MAJOR_RELEASE_DIFF;
-                    plugin['nrs_compatibility_msg'] = $.t('pnc_compatibility_minor_release_diff_msg', 'Plugin build for another major release version');
+                    plugin['nrs_compatibility_msg'] = $.t('pnc_compatibility_minor_release_diff_msg', 'Plugin build for another major release version');      
                 }
             }
 		}
@@ -362,11 +362,11 @@ var NRS = (function(NRS, $, undefined) {
         if (100 <= plugin['validity'] && plugin['validity'] < 200) {
             validityText = $.t('valid', 'Valid');
             validityHTML = "<span class='label label-success show_popover' " + validityPopoverHTML + " style='display:inline-block;min-width:85px;'>";
-            validityHTML += validityText + " <i class='fa fa-check'></i></span>";
+            validityHTML += validityText + " <i class='far fa-check'></i></span>";
         } else {
             validityText = $.t('invalid', 'Invalid');
             validityHTML = "<span class='label label-danger show_popover' " + validityPopoverHTML + " style='display:inline-block;min-width:85px;'>";
-            validityHTML += validityText + " <i class='fa fa-times-circle'></i></span>";
+            validityHTML += validityText + " <i class='far fa-times-circle'></i></span>";
         }
         html += "<td style='text-align:center;'>" + validityHTML + "</td>";
 
@@ -410,7 +410,7 @@ var NRS = (function(NRS, $, undefined) {
 
     NRS.pages.plugins_overview = function() {
         var rows = "";
-
+        
         $.each(NRS.plugins, function(pluginId) {
             rows += NRS.getPluginRowHTML(pluginId);
         });

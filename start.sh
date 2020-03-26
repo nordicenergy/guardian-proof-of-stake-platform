@@ -1,22 +1,27 @@
 #!/bin/sh
-APPLICATION="nxt-clone"
-if [ -e ~/.${APPLICATION}/nxt.pid ]; then
-    PID=`cat ~/.${APPLICATION}/nxt.pid`
+
+echo "***********************************************"
+echo "** DEPRECATED: Use 'run.sh --daemon' instead **"
+echo "***********************************************"
+sleep 1
+
+if [ -e ~/.ardor/nxt.pid ]; then
+    PID=`cat ~/.ardor/nxt.pid`
     ps -p $PID > /dev/null
     STATUS=$?
     if [ $STATUS -eq 0 ]; then
-        echo "Nxt server already running"
+        echo "Ardor server already running"
         exit 1
     fi
 fi
-mkdir -p ~/.${APPLICATION}/
+mkdir -p ~/.ardor/
 DIR=`dirname "$0"`
 cd "${DIR}"
-if [ -x jre/bin/java ]; then
-    JAVA=./jre/bin/java
+if [ -x jdk/bin/java ]; then
+    JAVA=./jdk/bin/java
 else
     JAVA=java
 fi
-nohup ${JAVA} -cp classes:lib/*:conf:addons/classes:addons/lib/* -Dnxt.runtime.mode=desktop nxt.Nxt > /dev/null 2>&1 &
-echo $! > ~/.${APPLICATION}/nxt.pid
+nohup ${JAVA} -Xms256M -cp classes:lib/*:conf:addons/classes:addons/lib/*:javafx-sdk/lib/* nxt.Nxt > /dev/null 2>&1 &
+echo $! > ~/.ardor/nxt.pid
 cd - > /dev/null

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,11 +16,12 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Attachment;
 import nxt.NxtException;
-import nxt.Shuffling;
-import nxt.ShufflingParticipant;
+import nxt.account.Account;
+import nxt.shuffling.ShufflingAttachment;
+import nxt.shuffling.ShufflingHome;
+import nxt.shuffling.ShufflingParticipantHome;
+import nxt.shuffling.ShufflingStage;
 import nxt.util.Convert;
 import nxt.util.JSON;
 import org.json.simple.JSONObject;
@@ -35,13 +37,13 @@ public final class ShufflingProcess extends CreateTransaction {
 
     private ShufflingProcess() {
         super(new APITag[]{APITag.SHUFFLING, APITag.CREATE_TRANSACTION},
-                "shuffling", "recipientSecretPhrase", "recipientPublicKey");
+                "shufflingFullHash", "recipientSecretPhrase", "recipientPublicKey");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-        Shuffling shuffling = ParameterParser.getShuffling(req);
-        if (shuffling.getStage() != Shuffling.Stage.PROCESSING) {
+        ShufflingHome.Shuffling shuffling = ParameterParser.getShuffling(req);
+        if (shuffling.getStage() != ShufflingStage.PROCESSING) {
             JSONObject response = new JSONObject();
             response.put("errorCode", 11);
             response.put("errorDescription", "Shuffling is not in processing, stage " + shuffling.getStage());
@@ -56,7 +58,7 @@ public final class ShufflingProcess extends CreateTransaction {
                     Convert.rsAccount(senderId), Convert.rsAccount(shuffling.getAssigneeAccountId())));
             return JSON.prepare(response);
         }
-        ShufflingParticipant participant = shuffling.getParticipant(senderId);
+        ShufflingParticipantHome.ShufflingParticipant participant = shuffling.getParticipant(senderId);
         if (participant == null) {
             JSONObject response = new JSONObject();
             response.put("errorCode", 13);
@@ -71,7 +73,7 @@ public final class ShufflingProcess extends CreateTransaction {
             return INCORRECT_PUBLIC_KEY; // do not allow existing account to be used as recipient
         }
 
-        Attachment.ShufflingAttachment attachment = shuffling.process(senderId, secretPhrase, recipientPublicKey);
+        ShufflingAttachment attachment = shuffling.process(senderId, secretPhrase, recipientPublicKey);
         return createTransaction(req, senderAccount, attachment);
     }
 

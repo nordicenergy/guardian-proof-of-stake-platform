@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,10 +16,12 @@
 
 package nxt.http;
 
-import nxt.Attachment;
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.Transaction;
+import nxt.blockchain.Attachment;
+import nxt.blockchain.ChildChain;
+import nxt.blockchain.Transaction;
+import nxt.taggeddata.TaggedDataAttachment;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
@@ -34,27 +37,28 @@ public final class VerifyTaggedData extends APIServlet.APIRequestHandler {
     static final VerifyTaggedData instance = new VerifyTaggedData();
 
     private VerifyTaggedData() {
-        super("file", new APITag[]{APITag.DATA}, "transaction",
+        super("file", new APITag[]{APITag.DATA}, "transactionFullHash",
                 "name", "description", "tags", "type", "channel", "isText", "filename", "data");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
-        long transactionId = ParameterParser.getUnsignedLong(req, "transaction", true);
-        Transaction transaction = Nxt.getBlockchain().getTransaction(transactionId);
+        byte[] transactionFullHash = ParameterParser.getBytes(req, "transactionFullHash", true);
+        ChildChain childChain = ParameterParser.getChildChain(req);
+        Transaction transaction = Nxt.getBlockchain().getTransaction(childChain, transactionFullHash);
         if (transaction == null) {
             return UNKNOWN_TRANSACTION;
         }
 
-        Attachment.TaggedDataUpload taggedData = ParameterParser.getTaggedData(req);
+        TaggedDataAttachment taggedData = ParameterParser.getTaggedData(req);
         Attachment attachment = transaction.getAttachment();
 
-        if (! (attachment instanceof Attachment.TaggedDataUpload)) {
+        if (! (attachment instanceof TaggedDataAttachment)) {
             return INCORRECT_TRANSACTION;
         }
 
-        Attachment.TaggedDataUpload myTaggedData = (Attachment.TaggedDataUpload)attachment;
+        TaggedDataAttachment myTaggedData = (TaggedDataAttachment)attachment;
         if (!Arrays.equals(myTaggedData.getHash(), taggedData.getHash())) {
             return HASHES_MISMATCH;
         }

@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -22,6 +22,7 @@
     "use strict";
     var lastScript = $('script.sitebuild').last();
     var progress = $('#progress');
+    var progressStatic = $('#progress-static-img');
 
     var action = lastScript.attr('data-action');
     var path = lastScript.attr('data-path');
@@ -39,7 +40,8 @@
     var done = parseInt(progress.attr('data-done')) + 1;
     var progressPercent = (done / total) * 100;
 
-    progress.attr('style', 'width: ' + progressPercent + '%');
+    progress.css('width', progressPercent + '%');
+    progressStatic.css('filter', 'grayscale(' + Math.floor(100 - progressPercent) + '%)');
     progress.attr('data-done', done);
 })();
 

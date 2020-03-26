@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,11 +16,20 @@
 
 package nxt;
 
+import nxt.blockchain.Block;
+import nxt.blockchain.BlockchainImpl;
+import nxt.blockchain.BlockchainProcessor;
+import nxt.blockchain.BlockchainProcessorImpl;
+import nxt.blockchain.Generator;
+import nxt.blockchain.TransactionProcessorImpl;
+import nxt.configuration.Setup;
 import nxt.crypto.Crypto;
 import nxt.util.Listener;
 import nxt.util.Logger;
 import org.junit.Assert;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Properties;
 
 public abstract class AbstractBlockchainTest {
@@ -45,12 +55,16 @@ public abstract class AbstractBlockchainTest {
         testProperties.setProperty("nxt.debugTraceAccounts", "");
         testProperties.setProperty("nxt.debugLogUnconfirmed", "false");
         testProperties.setProperty("nxt.debugTraceQuote", "\"");
+        testProperties.setProperty("nxt.runtime.mode", "");
         //testProperties.setProperty("nxt.numberOfForkConfirmations", "0");
         return testProperties;
     }
 
     protected static void init(Properties testProperties) {
-        Nxt.init(testProperties);
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            Nxt.init(Setup.UNIT_TEST, testProperties);
+            return null;
+        });
         blockchain = BlockchainImpl.getInstance();
         blockchainProcessor = BlockchainProcessorImpl.getInstance();
         blockchainProcessor.setGetMoreBlocks(false);

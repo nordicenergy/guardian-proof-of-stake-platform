@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -116,7 +116,8 @@ var NRS = (function(NRS, $) {
         	secretPhrase = _password;
 		}
         var token = NRS.generateToken(website, secretPhrase);
-        tokenOutput.html($.t("generated_token_is") + "<br/><br/><textarea readonly style='width:100%' rows='3'>" + token + "</textarea>");
+        tokenOutput.html($.t("generated_token_is") + "<br/><br/><textarea id='generated_token_is' readonly style='width:100%' rows='3'>" + token + "</textarea><br>" +
+            "<span><a class='btn btn-default btn-xs copy_link' href='#' data-clipboard-target='#generated_token_is'><span class='far fa-copy'></span></a></span>");
         tokenOutput.addClass("callout-info").removeClass("callout-danger").show();
         NRS.generateQRCode("#generate_token_output_qr_code", token, 14);
         outputQrCodeContainer.show();

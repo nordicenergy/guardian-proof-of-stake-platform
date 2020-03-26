@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,9 +16,10 @@
 
 package nxt.http;
 
-import nxt.Poll;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
 import nxt.util.Convert;
+import nxt.voting.PollHome;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -33,7 +35,7 @@ public final class SearchPolls extends APIServlet.APIRequestHandler {
     }
 
     @Override
-    protected JSONStreamAware processRequest(HttpServletRequest req) {
+    protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
         String query = Convert.nullToEmpty(req.getParameter("query"));
         if (query.isEmpty()) {
             return JSONResponses.missing("query");
@@ -41,10 +43,11 @@ public final class SearchPolls extends APIServlet.APIRequestHandler {
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
         boolean includeFinished = "true".equalsIgnoreCase(req.getParameter("includeFinished"));
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONObject response = new JSONObject();
         JSONArray jsonArray = new JSONArray();
-        try (DbIterator<Poll> polls = Poll.searchPolls(query, includeFinished, firstIndex, lastIndex)) {
+        try (DbIterator<PollHome.Poll> polls = childChain.getPollHome().searchPolls(query, includeFinished, firstIndex, lastIndex)) {
             while (polls.hasNext()) {
                 jsonArray.add(JSONData.poll(polls.next()));
             }

@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -57,14 +57,20 @@ var NRS = (function(NRS, $) {
                 entryDetails.entryTime = NRS.formatTimestamp(entryDetails.timestamp);
             }
             if (entryDetails.holding) {
-                entryDetails.holding_formatted_html = NRS.getTransactionLink(entry.holding);
+                if (entryDetails.holdingTypeCode <= 2) {
+                    entryDetails.holding_formatted_html = NRS.getChainLink(entry.holding);
+                } else {
+                    entryDetails.holding_formatted_html = NRS.getLedgerHoldingLink(entry.holding, entryDetails.holdingTypeCode);
+                }
                 delete entryDetails.holding;
+                delete entryDetails.holdingTypeCode;
+                delete entryDetails.holdingTypeIsUnconfirmed;
             }
             entryDetails.height_formatted_html = NRS.getBlockLink(entry.height);
             delete entryDetails.block;
             delete entryDetails.height;
             if (entryDetails.isTransactionEvent) {
-                entryDetails.transaction_formatted_html = NRS.getTransactionLink(entry.event);
+                entryDetails.transaction_formatted_html = NRS.getTransactionLink(entry.eventHash, NRS.formatTimestamp(entry.timestamp), false, entry.chain);
             }
             delete entryDetails.event;
             delete entryDetails.isTransactionEvent;

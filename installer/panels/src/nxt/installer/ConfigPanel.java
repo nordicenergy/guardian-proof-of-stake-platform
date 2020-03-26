@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -30,16 +31,18 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import static nxt.installer.ConfigHandler.Setting;
-import static nxt.installer.ConfigHandler.VAR_CLEAN_INSTALL_DIR;
-import static nxt.installer.ConfigHandler.VAR_FILE_CONTENTS;
-import static nxt.installer.ConfigHandler.VAR_SHUTDOWN_SERVER;
+import static nxt.installer.ConfigHandler.*;
 
+/**
+ * Defined in setup.xml
+ */
+@SuppressWarnings("unused")
 public class ConfigPanel extends IzPanel implements ItemListener {
     private final ConfigHandler handler = new ConfigHandler();
     private List<JCheckBox> settingsChecks;
@@ -50,6 +53,7 @@ public class ConfigPanel extends IzPanel implements ItemListener {
         this(panel, parent, installData, new IzPanelLayout(log), resources);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public ConfigPanel(Panel panel, InstallerFrame parent, GUIInstallData installData, LayoutManager2 layout, Resources resources) {
         super(panel, parent, installData, layout, resources);
     }
@@ -74,13 +78,13 @@ public class ConfigPanel extends IzPanel implements ItemListener {
             List<Setting> settings = handler.readSettings();
             add(IzPanelLayout.createVerticalStrut(20));
             add(LabelFactory.create("Below you can define custom settings for this installation.", LEADING), NEXT_LINE);
-            add(LabelFactory.create("They will be stored in file " + ConfigHandler.FILE_PATH +
-                                    " which you can edit later.", LEADING), NEXT_LINE);
-            for (Setting s: settings) {
-                String toolTipText = "<html>" + s.description.replaceAll("\n", "<br>") + "</html>";
+            add(LabelFactory.create("They will be stored in file " + Paths.get(installData.getInstallPath(), FILE_PATH).toAbsolutePath(), LEADING), NEXT_LINE);
+            for (Setting s : settings) {
+                String toolTipText = "<html>" + s.getDescription().replaceAll("\n", "<br>") + "</html>";
                 JCheckBox check = new JCheckBox(s.getName());
                 check.setToolTipText(toolTipText);
                 check.putClientProperty("setting", s);
+                check.setSelected(s.isDefault());
                 check.addItemListener(this);
                 settingsChecks.add(check);
 
@@ -98,7 +102,7 @@ public class ConfigPanel extends IzPanel implements ItemListener {
     @Override
     public boolean isValidated() {
         List<Setting> settings = new LinkedList<>();
-        for (JCheckBox check: settingsChecks) {
+        for (JCheckBox check : settingsChecks) {
             if (check.isSelected()) {
                 settings.add((Setting) check.getClientProperty("setting"));
             }
@@ -118,21 +122,20 @@ public class ConfigPanel extends IzPanel implements ItemListener {
     public void itemStateChanged(ItemEvent ev) {
         Map<String, String> properties = new HashMap<>();
         // Compile the complete set of properties currently enabled
-        for (JCheckBox check: settingsChecks) {
+        for (JCheckBox check : settingsChecks) {
             if (check.isSelected()) {
                 Setting setting = (Setting) check.getClientProperty("setting");
-                properties.putAll(setting.properties);
+                properties.putAll(setting.getProperties());
             }
         }
         // Disable those settings that conflict with enabled ones
-        for (JCheckBox check: settingsChecks) {
-            if (! check.isSelected()) {
+        for (JCheckBox check : settingsChecks) {
+            if (!check.isSelected()) {
                 Setting setting = (Setting) check.getClientProperty("setting");
                 boolean enable = true;
-                for (Map.Entry<String, String> e : setting.properties.entrySet()) {
+                for (Map.Entry<String, String> e : setting.getProperties().entrySet()) {
                     if (properties.containsKey(e.getKey()) &&
-                        ! properties.get(e.getKey()).equals(e.getValue()))
-                    {
+                            !properties.get(e.getKey()).equals(e.getValue())) {
                         enable = false;
                         break;
                     }

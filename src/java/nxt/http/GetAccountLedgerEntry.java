@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,9 +16,9 @@
 
 package nxt.http;
 
-import nxt.AccountLedger;
-import nxt.AccountLedger.LedgerEntry;
 import nxt.NxtException;
+import nxt.account.AccountLedger;
+import nxt.account.AccountLedger.LedgerEntry;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
@@ -146,8 +147,8 @@ import javax.servlet.http.HttpServletRequest;
  *       <td>Change in the currency balance.  The currency identifier is the 'holding'.</td>
  *     </tr>
  *     <tr>
- *       <td>NXT_BALANCE</td>
- *       <td>Change in the NXT balance for the account.  There is no 'holding'.</td>
+ *       <td>COIN_BALANCE</td>
+ *       <td>Change in the coin balance for the account.  The chain identifier is the 'holding'.</td>
  *     </tr>
  *     <tr>
  *       <td>UNCONFIRMED_ASSET_BALANCE</td>
@@ -158,8 +159,8 @@ import javax.servlet.http.HttpServletRequest;
  *       <td>Change in the unconfirmed currency balance.  The currency identifier is the 'holding'.</td>
  *     </tr>
  *     <tr>
- *       <td>UNCONFIRMED_NXT_BALANCE</td>
- *       <td>Change in the unconfirmed NXT balance for the account.  There is no 'holding'.</td>
+ *       <td>UNCONFIRMED_COIN_BALANCE</td>
+ *       <td>Change in the unconfirmed coin balance for the account.  The chain identifier is the 'holding'.</td>
  *     </tr>
  *   </tbody>
  * </table>
@@ -215,4 +216,10 @@ public class GetAccountLedgerEntry extends APIServlet.APIRequestHandler {
     protected boolean allowRequiredBlockParameters() {
         return false;
     }
+
+    @Override
+    protected boolean isChainSpecific() {
+        return false;
+    }
+
 }

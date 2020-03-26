@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,11 +17,11 @@
 package nxt.http.twophased;
 
 import nxt.BlockchainTest;
-import nxt.Constants;
 import nxt.Nxt;
-import nxt.VoteWeighting;
+import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
 import nxt.util.Logger;
+import nxt.voting.VoteWeighting;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.junit.Assert;
@@ -37,7 +38,7 @@ public class TestCreateTwoPhased extends BlockchainTest {
         Logger.logMessage("two-phased sendMoney: " + twoPhased.toJSONString());
 
         generateBlock();
-        String transactionId = (String)twoPhased.get("transaction");
+        String transactionId = (String)twoPhased.get("fullHash");
         if (!shouldFail && transactionId == null || shouldFail && transactionId != null) {
             Assert.fail();
         }
@@ -52,9 +53,9 @@ public class TestCreateTwoPhased extends BlockchainTest {
             int height = Nxt.getBlockchain().getHeight();
 
             secretPhrase(ALICE.getSecretPhrase());
-            feeNQT(2*Constants.ONE_NXT);
+            feeNQT(2* ChildChain.IGNIS.ONE_COIN);
             recipient(BOB.getId());
-            param("amountNQT", 50 * Constants.ONE_NXT);
+            param("amountNQT", 50 * ChildChain.IGNIS.ONE_COIN);
             param("phased", "true");
             param("phasingVotingModel", VoteWeighting.VotingModel.ACCOUNT.getCode());
             param("phasingQuorum", 1);
@@ -146,7 +147,7 @@ public class TestCreateTwoPhased extends BlockchainTest {
         for(int i=0; i < 10; i++){
             APICall apiCall = new TwoPhasedMoneyTransferBuilder().build();
             JSONObject transactionJSON = issueCreateTwoPhased(apiCall, false);
-            String idString = (String) transactionJSON.get("transaction");
+            String idString = (String) transactionJSON.get("fullHash");
             transactionIds.add(idString);
         }
 

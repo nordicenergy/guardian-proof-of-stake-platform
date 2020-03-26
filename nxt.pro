@@ -1,11 +1,11 @@
 -injars classes
--outjars nxt/classes
+-outjars ardor/classes
 
 -libraryjars <java.home>/lib/rt.jar
 -libraryjars <java.home>/lib/jce.jar
 -libraryjars <java.home>/lib/ext/jfxrt.jar
 -libraryjars conf
--libraryjars lib
+-libraryjars lib(!META-INF/versions/**)
 
 -dontoptimize
 -printmapping ../nxt.map
@@ -22,8 +22,10 @@
 -keep class nxt.env.service.NxtService_ServiceManagement
 -keep class * extends nxt.env.DirProvider
 -keep class * extends nxt.addons.AddOn
+-keep class * extends nxt.blockchain.Bundler$Filter
 -keep class nxt.addons.AddOn
--keep,includedescriptorclasses class nxtdesktop.JavaScriptBridge, nxtdesktop.DesktopApplication, nxtdesktop.WalletContextMenu {
+-keep class nxt.blockchain.Bundler$Filter
+-keep,includedescriptorclasses class nxtdesktop.JavaScriptBridge, nxtdesktop.DesktopApplication, nxtdesktop.WalletContextMenu, nxt.env.service.ArdorService_ServiceManagement {
     <methods>;
 }
 -keepclassmembers class nxt.env.RuntimeEnvironment {

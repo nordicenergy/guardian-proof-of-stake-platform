@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,11 +17,11 @@
 package nxt.http.monetarysystem;
 
 import nxt.BlockchainTest;
-import nxt.Constants;
-import nxt.CurrencyMinting;
-import nxt.CurrencyType;
+import nxt.blockchain.ChildChain;
 import nxt.crypto.HashFunction;
 import nxt.http.APICall;
+import nxt.ms.CurrencyMinting;
+import nxt.ms.CurrencyType;
 import nxt.util.Convert;
 import nxt.util.Logger;
 import org.json.simple.JSONObject;
@@ -47,22 +48,21 @@ public class TestCurrencyMint extends BlockchainTest {
         // Failed attempt to mint
         APICall apiCall = new APICall.Builder("currencyMint").
                 secretPhrase(ALICE.getSecretPhrase()).
-                feeNQT(Constants.ONE_NXT).
+                feeNQT(ChildChain.IGNIS.ONE_COIN).
                 param("currency", currencyId).
                 param("nonce", 123456).
-                param("units", 1000).
+                param("unitsQNT", 1000).
                 param("counter", 1).
                 build();
         JSONObject mintResponse = apiCall.invoke();
         Logger.logDebugMessage("mintResponse: " + mintResponse);
         generateBlock();
         apiCall = new APICall.Builder("getCurrency").
-                feeNQT(Constants.ONE_NXT).
                 param("currency", currencyId).
                 build();
         JSONObject getCurrencyResponse = apiCall.invoke();
         Logger.logDebugMessage("getCurrencyResponse: " + getCurrencyResponse);
-        Assert.assertEquals("0", getCurrencyResponse.get("currentSupply"));
+        Assert.assertEquals("0", getCurrencyResponse.get("currentSupplyQNT"));
 
         // Successful attempt
         long units = 10;
@@ -77,27 +77,26 @@ public class TestCurrencyMint extends BlockchainTest {
         Logger.logDebugMessage("nonce: " + nonce);
         apiCall = new APICall.Builder("currencyMint").
                 secretPhrase(ALICE.getSecretPhrase()).
-                feeNQT(Constants.ONE_NXT).
+                feeNQT(ChildChain.IGNIS.ONE_COIN).
                 param("currency", currencyId).
                 param("nonce", nonce).
-                param("units", units).
+                param("unitsQNT", units).
                 param("counter", 1).
                 build();
         mintResponse = apiCall.invoke();
         Logger.logDebugMessage("mintResponse: " + mintResponse);
         generateBlock();
         apiCall = new APICall.Builder("getCurrency").
-                feeNQT(Constants.ONE_NXT).
                 param("currency", currencyId).
                 build();
         getCurrencyResponse = apiCall.invoke();
         Logger.logDebugMessage("getCurrencyResponse: " + getCurrencyResponse);
-        Assert.assertEquals("" + units, getCurrencyResponse.get("currentSupply"));
+        Assert.assertEquals("" + units, getCurrencyResponse.get("currentSupplyQNT"));
 
         apiCall = new APICall.Builder("getMintingTarget").
                 param("currency", currencyId).
                 param("account", ALICE.getId()).
-                param("units", "1000").
+                param("unitsQNT", "1000").
                 build();
         JSONObject getMintingTargetResponse = apiCall.invoke();
         Logger.logDebugMessage("getMintingTargetResponse: " + getMintingTargetResponse);

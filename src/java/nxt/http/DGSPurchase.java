@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,11 +16,12 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Attachment;
-import nxt.DigitalGoodsStore;
 import nxt.Nxt;
 import nxt.NxtException;
+import nxt.account.Account;
+import nxt.blockchain.Attachment;
+import nxt.dgs.DigitalGoodsHome;
+import nxt.dgs.PurchaseAttachment;
 import nxt.util.Convert;
 import org.json.simple.JSONStreamAware;
 
@@ -43,7 +45,7 @@ public final class DGSPurchase extends CreateTransaction {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
-        DigitalGoodsStore.Goods goods = ParameterParser.getGoods(req);
+        DigitalGoodsHome.Goods goods = ParameterParser.getGoods(req);
         if (goods.isDelisted()) {
             return UNKNOWN_GOODS;
         }
@@ -75,10 +77,10 @@ public final class DGSPurchase extends CreateTransaction {
         Account buyerAccount = ParameterParser.getSenderAccount(req);
         Account sellerAccount = Account.getAccount(goods.getSellerId());
 
-        Attachment attachment = new Attachment.DigitalGoodsPurchase(goods.getId(), quantity, priceNQT,
+        Attachment attachment = new PurchaseAttachment(goods.getId(), quantity, priceNQT,
                 deliveryDeadline);
         try {
-            return createTransaction(req, buyerAccount, sellerAccount.getId(), 0, attachment);
+            return transactionParameters(req, buyerAccount, attachment).setRecipientId(sellerAccount.getId()).createTransaction();
         } catch (NxtException.InsufficientBalanceException e) {
             return JSONResponses.NOT_ENOUGH_FUNDS;
         }

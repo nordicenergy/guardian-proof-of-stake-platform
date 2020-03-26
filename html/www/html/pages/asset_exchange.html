@@ -1,11 +1,12 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright 2020 Nordic Energy Core Developers                                 ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
   ~                                                                           ~
-  ~ Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
-  ~ no part of the Nxt software, including this file, may be copied, modified,~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
   ~ propagated, or distributed except according to the terms contained in the ~
   ~ LICENSE.txt file.                                                         ~
   ~                                                                           ~
@@ -125,11 +126,11 @@
     </section>
 </div>
 
-<div id="deletes_history_page" class="paginated page">
-    <section class="content-header"><h1 data-i18n="delete_history">Delete History</h1></section>
+<div class="paginated page" id="quantity_change_history_page">
+    <section class="content-header"><h1 data-i18n="quantity_change_history">Quantity Change History</h1></section>
     <section class="content">
         <div class="data-container data-loading">
-            <table class="table table-striped" id="deletes_history_table">
+            <table class="table table-striped" id="quantity_change_history_table">
                 <thead>
                 <tr>
                     <th data-i18n="transaction">Transaction</th>
@@ -143,7 +144,7 @@
                 </tbody>
             </table>
             <div class="data-loading-container"><img src="img/loading_indicator.gif" alt="Loading..." width="32" height="32" /></div>
-            <div class="data-empty-container"><p data-i18n="no_asset_deletion_history">No asset deletion history available.</p></div>
+            <div class="data-empty-container"><p data-i18n="no_quantity_change_history">No quantity change history available.</p></div>
         </div>
         <div class="data-pagination"></div>
     </section>
@@ -196,7 +197,7 @@
                                     <div class="input-group">
                                         <input type="text" name="q" class="form-control" placeholder="Search Assets..." data-i18n="[placeholder]search_assets">
                                         <span class="input-group-btn">
-                                        <button type="submit" name="search" class="btn btn-flat" style="padding-left:3px"><i class="fa fa-search"></i></button>
+                                        <button class="btn btn-flat" name="search" style="padding-left:3px" type="submit"><i class="far fa-search"></i></button>
                                         </span>
                                     </div>
                                 </form>
@@ -205,9 +206,9 @@
                                 <div style="text-align:center;padding-top:10px;"><span data-i18n="loading_please_wait">Loading, please wait</span><span class="loading_dots"><span>.</span><span>.</span><span>.</span></span></div>
                             </div>
                         </div>
-                     </div>
-                 </div>
-                 <div class="content-splitter-right">
+                    </div>
+                </div>
+                <div class="content-splitter-right">
                     <div class="content-splitter-right-inner">
                         <div id="no_assets_available" style="padding-top: 150px;text-align:center;display:none;" data-i18n="no_assets_available">You don't have any assets in your bookmark list yet. Click on "Add Asset" in the top right corner to add one.</div>
                         <div id="no_asset_search_results" style="padding-top: 150px;text-align:center;display:none;" data-i18n="no_asset_search_results">No assets found that match search query.</div>
@@ -227,9 +228,18 @@
                             <div style="color:#838383;margin-bottom:5px">
                                 <strong data-i18n="total_available">Total Available</strong>: <span id="asset_quantity"></span> |
                                 <strong data-i18n="asset_decimals">Asset Decimals</strong>: <span id="asset_decimals"></span> |
-                                <strong data-i18n="distribution">Distribution</strong>: <a href="#" data-toggle="modal" data-target="#asset_distribution_modal" data-i18n="view_asset_distribution" data-asset="" id="view_asset_distribution_link">View Asset Distribution</a> |
-                                <strong data-i18n="dividend_history">Dividend History</strong>: <a href="#" data-toggle="modal" data-target="#asset_dividend_modal" data-i18n="view_asset_dividend_history" data-asset="" id="view_asset_dividend_link">View Asset Dividend History</a>
-                                <span id="dividend_payment_link"> | <strong data-i18n="pay_dividends">Pay Dividends</strong>: <a href="#" data-toggle="modal" data-target="#dividend_payment_modal" data-i18n="dividends_payment">Dividends Payment</a></span>
+                                <a data-asset="" data-i18n="view_asset_distribution" data-target="#asset_distribution_modal" data-toggle="modal" href="#" id="view_asset_distribution_link">View Asset Distribution</a> |
+                                <a data-asset="" data-i18n="view_asset_dividend_history" data-target="#asset_dividend_modal" data-toggle="modal" href="#" id="view_asset_dividend_link">View Asset Dividend History</a> |
+                                <a class="goto-page" data-asset="" data-i18n="asset_properties" data-page="asset_properties" href="#" id="asset_properties_link">Asset Properties</a>
+                                <span id="dividend_payment_link"> | <a data-i18n="dividends_payment" data-target="#dividend_payment_modal" data-toggle="modal" href="#">Dividends Payment</a></span>
+                                <span id="asset_control_links"> |
+                                    <span id="view_asset_control_link">
+                                        <a data-i18n="view_asset_control" data-name="ASC" data-show-asset-control="true" data-target='#view_approval_model_modal' data-toggle='modal' href='#'>View Asset Control</a>
+                                    </span>
+                                    <span id="setup_asset_control_link">
+                                        <a data-i18n="setup_asset_control" data-target="#set_asset_control_modal" data-toggle="modal" href="#">Setup Asset Control</a>
+                                    </span>
+                                </span>
                             </div>
 
                             <div id="asset_description"></div>
@@ -241,11 +251,13 @@
                                         <div class="box-header" style="background-color:#DFF0D9;color: #48AB6C;">
                                         <h3 class="box-title" id="buy_asset_with_nxt"></h3>
                                            <div class="box-tools pull-right">
-                                            <button class="btn btn-info btn-sm" style="background-color: #48AB6C"><i class="fa fa-plus"></i></button>
+                                            <button class="btn btn-info btn-sm" style="background-color: #48AB6C"><i class="far fa-plus"></i></button>
                                             </div>
                                         </div>
                                         <div class="box-body no-padding" style="display:none">
-                                            <div style="background-color:#DFF0D9;color: #666;padding-left:10px;padding-right: 10px;padding-top: 0;padding-bottom:3px;" id="buy_automatic_price"><strong data-i18n="balance">Balance</strong>: <span id="your_nxt_balance"></span> <span class="coin-symbol"></span></div>
+                                            <div id="buy_automatic_price" style="background-color:#DFF0D9;color: #666;padding-left:10px;padding-right: 10px;padding-top: 0;padding-bottom:3px;">
+                                                <strong data-i18n="balance">Balance</strong>: <span id="your_nxt_balance"></span> <span class="coin-symbol"></span>
+                                            </div>
                                         
                                             <form role="form" class="form-horizontal" style="padding: 10px;;max-width:350px;margin-left:auto;margin-right:auto;" autocomplete="off">
                                                 <div style="margin-left:-20px">
@@ -279,7 +291,8 @@
                                                     <div class="form-group form-group-last">
                                                         <div class="col-sm-3"></div>
                                                         <div class="col-sm-9">
-                                                            <button type="button" class="btn btn-primary btn-lg btn-block" id="buy_asset_button" data-toggle="modal" data-target="#asset_order_modal" data-asset="" data-type="Buy"><span data-i18n="buy">Buy</span> (<span class="coin-symbol"></span> → <span class="asset_name"></span>)</button>
+                                                            <button class="btn btn-primary btn-lg btn-block" data-asset="" data-target="#asset_order_modal" data-toggle="modal" data-type="Buy" id="buy_asset_button" type="button">
+                                                                <span data-i18n="buy">Buy</span> (<span class="coin-symbol"></span> → <span class="asset_name"></span>)</button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -318,7 +331,7 @@
                                         <div class="box-header" style="background:#F2DEDE;color:#ED4348;">
                                             <h3 class="box-title" id="sell_asset_for_nxt"></h3>
                                             <div class="box-tools pull-right">
-                                                <button class="btn btn-info btn-sm" style="background-color: #ED4348"> <i class="fa fa-plus"></i></button>
+                                                <button class="btn btn-info btn-sm" style="background-color: #ED4348"> <i class="far fa-plus"></i></button>
                                             </div>
                                         </div>
                                         <div class="box-body no-padding" style="display:none">
@@ -356,7 +369,8 @@
                                                     <div class="form-group form-group-last">
                                                         <div class="col-sm-3"></div>
                                                         <div class="col-sm-9">
-                                                            <button type="button" class="btn btn-primary btn-lg btn-block" id="sell_asset_button" data-toggle="modal" data-target="#asset_order_modal" data-asset="" data-type="Sell"><span data-i18n="sell">Sell</span> (<span class="asset_name"></span> → <span class="coin-symbol"></span>)</button>
+                                                            <button class="btn btn-primary btn-lg btn-block" data-asset="" data-target="#asset_order_modal" data-toggle="modal" data-type="Sell" id="sell_asset_button" type="button">
+                                                                <span data-i18n="sell">Sell</span> (<span class="asset_name"></span> → <span class="coin-symbol"></span>)</button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -452,12 +466,12 @@
                 <thead>
                 <tr>
                     <th data-i18n="date">Date</th>
-                    <th style="width:60px;text-align:center;"><i class="fa fa-envelope-o"></i></th>
+                    <th style="width:60px;text-align:center;"><i class="far fa-envelope"></i></th>
                     <th data-i18n="type">Type</th>
                     <th class="numeric" data-i18n="amount">Amount</th>
                     <th class="numeric" data-i18n="fee">Fee</th>
                     <th data-i18n="account">Account</th>
-                    <th style="text-align:center;"><i class="fa fa-gavel"></i></th>
+                    <th style="text-align:center;"><i class="far fa-gavel"></i></th>
                     <th style="text-align:center;" data-i18n="height">Height</th>
                     <th style="text-align:center;" data-i18n="confirmations">Confirmations</th>
                     <th data-i18n="actions" style="text-align:right;">Actions</th>

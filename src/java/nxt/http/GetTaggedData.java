@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,7 +18,8 @@ package nxt.http;
 
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.TaggedData;
+import nxt.blockchain.ChildChain;
+import nxt.taggeddata.TaggedDataHome;
 import nxt.util.JSON;
 import org.json.simple.JSONStreamAware;
 
@@ -30,21 +32,22 @@ public final class GetTaggedData extends APIServlet.APIRequestHandler {
     static final GetTaggedData instance = new GetTaggedData();
 
     private GetTaggedData() {
-        super(new APITag[] {APITag.DATA}, "transaction", "includeData", "retrieve");
+        super(new APITag[] {APITag.DATA}, "transactionFullHash", "includeData", "retrieve");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-        long transactionId = ParameterParser.getUnsignedLong(req, "transaction", true);
+        byte[] transactionFullHash = ParameterParser.getBytes(req, "transactionFullHash", true);
         boolean includeData = !"false".equalsIgnoreCase(req.getParameter("includeData"));
         boolean retrieve = "true".equalsIgnoreCase(req.getParameter("retrieve"));
-
-        TaggedData taggedData = TaggedData.getData(transactionId);
+        ChildChain childChain = ParameterParser.getChildChain(req);
+        TaggedDataHome taggedDataHome = childChain.getTaggedDataHome();
+        TaggedDataHome.TaggedData taggedData = taggedDataHome.getData(transactionFullHash);
         if (taggedData == null && retrieve) {
-            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(transactionId) == null) {
+            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(childChain, transactionFullHash) == null) {
                 return PRUNED_TRANSACTION;
             }
-            taggedData = TaggedData.getData(transactionId);
+            taggedData = taggedDataHome.getData(transactionFullHash);
         }
         if (taggedData != null) {
             return JSONData.taggedData(taggedData, includeData);

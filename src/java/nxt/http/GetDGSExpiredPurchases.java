@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,9 +16,10 @@
 
 package nxt.http;
 
-import nxt.DigitalGoodsStore;
 import nxt.NxtException;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
+import nxt.dgs.DigitalGoodsHome;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -38,11 +40,12 @@ public final class GetDGSExpiredPurchases extends APIServlet.APIRequestHandler {
         long sellerId = ParameterParser.getAccountId(req, "seller", true);
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONObject response = new JSONObject();
         JSONArray purchasesJSON = new JSONArray();
 
-        try (DbIterator<DigitalGoodsStore.Purchase> purchases = DigitalGoodsStore.Purchase.getExpiredSellerPurchases(sellerId, firstIndex, lastIndex)) {
+        try (DbIterator<DigitalGoodsHome.Purchase> purchases = childChain.getDigitalGoodsHome().getExpiredSellerPurchases(sellerId, firstIndex, lastIndex)) {
             while (purchases.hasNext()) {
                 purchasesJSON.add(JSONData.purchase(purchases.next()));
             }

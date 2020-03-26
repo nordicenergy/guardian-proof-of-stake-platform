@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -25,7 +26,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.fail;
 
 public class Curve25519Test {
-
     /** Curve25519 test vectors from NaCl library: Alice's secret */
     private static final String ALICE_SECRET = "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a";
 
@@ -47,7 +47,7 @@ public class Curve25519Test {
     public void testBobVector() {
         checkVector(BOB_SECRET, BOB_PUBLIC);
     }
-
+    
     @Test
     public void testCheckVerify() {
         byte[] sig = new byte[32];
@@ -58,10 +58,10 @@ public class Curve25519Test {
         Curve25519.keygen(pub, signPriv, secret);
         new SecureRandom().nextBytes(h);
         Curve25519.sign(sig, h, secret, signPriv);
-
+        
         byte[] v = new byte[32];
         Curve25519.verify(v, sig, h, pub);
-
+        
         assertArrayEquals(v, pub);
     }
 
@@ -78,20 +78,20 @@ public class Curve25519Test {
         sig[0] += 1;
         byte[] v = new byte[32];
         Curve25519.verify(v, sig, h, pub);
-
+        
         if (Arrays.areEqual(v, pub)) {
             fail("Should not verify, as signature is altered");
         }
     }
-
+    
     private void checkVector(String secret, String pub) {
         byte[] secretKey = Convert.parseHexString(secret);
         byte[] publicKey = Convert.parseHexString(pub);
-
+        
         byte[] pubGen = new byte[32];
         byte[] privGen = new byte[32];
         Curve25519.keygen(pubGen, privGen, secretKey);
-
+        
         assertArrayEquals(publicKey, pubGen);
     }
 }

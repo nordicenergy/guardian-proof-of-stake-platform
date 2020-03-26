@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,7 +16,9 @@
 
 package nxt.util;
 
+import nxt.Constants;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.text.DateFormat;
@@ -24,14 +27,31 @@ import java.util.Date;
 import java.util.TimeZone;
 
 public class EpochTimeTest {
+    private static final int testTime = 1333920;
 
     @Test
-    public void simple() {
-        long time = Convert.fromEpochTime(47860355);
+    public void testFromEpochTimeProd() {
+        Assume.assumeFalse(Constants.isTestnet);
+
+        long time = Convert.fromEpochTime(testTime);
         DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        Assert.assertEquals("01/06/2015 10:32:34", dateFormat.format(new Date(time)));
-        Assert.assertEquals(47860355, Convert.toEpochTime(time));
+        Assert.assertEquals("16/01/2018 10:31:59", dateFormat.format(new Date(time)));
     }
 
+    @Test
+    public void testFromToEpochTimeRoundTrip() {
+        long time = Convert.fromEpochTime(testTime);
+        Assert.assertEquals(testTime, Convert.toEpochTime(time));
+    }
+
+    @Test
+    public void testFromEpochTimeTestNet() {
+        Assume.assumeTrue(Constants.isTestnet);
+
+        long time = Convert.fromEpochTime(testTime);
+        DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        Assert.assertEquals("11/01/2018 12:31:59", dateFormat.format(new Date(time)));
+    }
 }

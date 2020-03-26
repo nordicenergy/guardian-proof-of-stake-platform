@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,12 +16,13 @@
 
 package nxt.env;
 
-import nxt.Block;
 import nxt.Constants;
-import nxt.Db;
-import nxt.Generator;
 import nxt.Nxt;
+import nxt.blockchain.Block;
+import nxt.blockchain.Generator;
+import nxt.dbschema.Db;
 import nxt.http.API;
+import nxt.peer.NetworkHandler;
 import nxt.peer.Peers;
 import nxt.util.Convert;
 import nxt.util.Logger;
@@ -35,9 +37,9 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Locale;
 
-public class DesktopSystemTray {
+class DesktopSystemTray {
 
-    public static final int DELAY = 1000;
+    private static final int DELAY = 1000;
 
     private SystemTray tray;
     private final JFrame wrapper = new JFrame();
@@ -49,6 +51,7 @@ public class DesktopSystemTray {
     private MenuItem viewLog;
     private SystemTrayDataProvider dataProvider;
     private final DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.MEDIUM, Locale.getDefault());
+    private float dpi;
 
     void createAndShowGUI() {
         if (!SystemTray.isSupported()) {
@@ -56,28 +59,30 @@ public class DesktopSystemTray {
             return;
         }
         System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
+        dpi = Toolkit.getDefaultToolkit().getScreenResolution();
+        Logger.logDebugMessage("Display DPI = " + dpi);
         final PopupMenu popup = new PopupMenu();
         imageIcon = new ImageIcon("html/www/img/nxt-icon-32x32.png", "tray icon");
         trayIcon = new TrayIcon(imageIcon.getImage());
         trayIcon.setImageAutoSize(true);
         tray = SystemTray.getSystemTray();
 
-        MenuItem shutdown = new MenuItem("Shutdown");
-        openWalletInBrowser = new MenuItem("Open Wallet in Browser");
+        MenuItem shutdown = getMenuItem("Shutdown");
+        openWalletInBrowser = getMenuItem("Open Wallet in Browser");
         if (!Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
             openWalletInBrowser.setEnabled(false);
         }
-        MenuItem showDesktopApplication = new MenuItem("Show Desktop Application");
-        MenuItem refreshDesktopApplication = new MenuItem("Refresh Wallet");
-        if (!Nxt.isDesktopApplicationEnabled()) {
+        MenuItem showDesktopApplication = getMenuItem("Show Desktop Application");
+        MenuItem refreshDesktopApplication = getMenuItem("Refresh Wallet");
+        if (!RuntimeEnvironment.isDesktopApplicationEnabled()) {
             showDesktopApplication.setEnabled(false);
             refreshDesktopApplication.setEnabled(false);
         }
-        viewLog = new MenuItem("View Log File");
+        viewLog = getMenuItem("View Log File");
         if (!Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
             viewLog.setEnabled(false);
         }
-        MenuItem status = new MenuItem("Status");
+        MenuItem status = getMenuItem("Status");
 
         popup.add(status);
         popup.add(viewLog);
@@ -134,7 +139,7 @@ public class DesktopSystemTray {
 
         shutdown.addActionListener(e -> {
             if(JOptionPane.showConfirmDialog (null,
-                    "Sure you want to shutdown " + Nxt.APPLICATION + "?\n\nIf you do, this will stop forging, shufflers and account monitors.\n\n",
+                    "Sure you want to shutdown Ardor?\n\nIf you do, this will stop forging, bundling, shufflers and account monitors.\n\n",
                     "Shutdown",
                     JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
                 Logger.logInfoMessage("Shutdown requested by System Tray");
@@ -179,10 +184,10 @@ public class DesktopSystemTray {
         addDataRow(statusPanel, "Network", (Constants.isTestnet) ? "TestNet" : "MainNet");
         addDataRow(statusPanel, "Working offline", "" + Constants.isOffline);
         addDataRow(statusPanel, "Wallet", String.valueOf(API.getWelcomePageUri()));
-        addDataRow(statusPanel, "Peer port", String.valueOf(Peers.getDefaultPeerPort()));
+        addDataRow(statusPanel, "Peer port", String.valueOf(NetworkHandler.getDefaultPeerPort()));
         addDataRow(statusPanel, "Program folder", String.valueOf(Paths.get(".").toAbsolutePath().getParent()));
         addDataRow(statusPanel, "User folder", String.valueOf(Paths.get(Nxt.getUserHomeDir()).toAbsolutePath()));
-        addDataRow(statusPanel, "Database URL", Db.db == null ? "unavailable" : Db.db.getUrl());
+        addDataRow(statusPanel, "Database URL", Db.db.getUrl());
         addEmptyRow(statusPanel);
 
         if (lastBlock != null) {
@@ -209,7 +214,7 @@ public class DesktopSystemTray {
         addDataRow(statusPanel, "Updated", dateFormat.format(new Date()));
         if (statusDialog == null || !statusDialog.isVisible()) {
             JOptionPane pane = new JOptionPane(statusPanel, JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, imageIcon);
-            statusDialog = pane.createDialog(wrapper, Nxt.APPLICATION + " Server Status");
+            statusDialog = pane.createDialog(wrapper, "Ardor Server Status");
             statusDialog.setVisible(true);
             statusDialog.dispose();
         } else {
@@ -269,7 +274,7 @@ public class DesktopSystemTray {
         SwingUtilities.invokeLater(() -> tray.remove(trayIcon));
     }
 
-    public static String humanReadableByteCount(long bytes) {
+    private static String humanReadableByteCount(long bytes) {
         int unit = 1000;
         if (bytes < unit) {
             return bytes + " B";
@@ -281,5 +286,14 @@ public class DesktopSystemTray {
 
     void alert(String message) {
         JOptionPane.showMessageDialog(null, message, "Initialization Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private MenuItem getMenuItem(String label) {
+        MenuItem item = new MenuItem(label);
+        if (dpi > 120) {
+            Font f = new Font("sans-serif", Font.PLAIN, (int)dpi / 10);
+            item.setFont(f);
+        }
+        return item;
     }
 }

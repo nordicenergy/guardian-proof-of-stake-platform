@@ -1,12 +1,12 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2018 Jelurida IP B.V.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -29,12 +29,12 @@ import java.util.List;
 
 public abstract class VersionedEntityDbTable<T> extends EntityDbTable<T> {
 
-    protected VersionedEntityDbTable(String table, DbKey.Factory<T> dbKeyFactory) {
-        super(table, dbKeyFactory, true, null);
+    protected VersionedEntityDbTable(String schemaTable, DbKey.Factory<T> dbKeyFactory) {
+        super(schemaTable, dbKeyFactory, true, null);
     }
 
-    protected VersionedEntityDbTable(String table, DbKey.Factory<T> dbKeyFactory, String fullTextSearchColumns) {
-        super(table, dbKeyFactory, true, fullTextSearchColumns);
+    protected VersionedEntityDbTable(String schemaTable, DbKey.Factory<T> dbKeyFactory, String fullTextSearchColumns) {
+        super(schemaTable, dbKeyFactory, true, fullTextSearchColumns);
     }
 
     public final boolean delete(T t) {
@@ -49,14 +49,14 @@ public abstract class VersionedEntityDbTable<T> extends EntityDbTable<T> {
             throw new IllegalStateException("Not in transaction");
         }
         DbKey dbKey = dbKeyFactory.newKey(t);
-        try (Connection con = db.getConnection();
-             PreparedStatement pstmtCount = con.prepareStatement("SELECT 1 FROM " + table
+        try (Connection con = getConnection();
+             PreparedStatement pstmtCount = con.prepareStatement("SELECT 1 FROM " + schemaTable
                      + dbKeyFactory.getPKClause() + " AND height < ? LIMIT 1")) {
             int i = dbKey.setPK(pstmtCount);
             pstmtCount.setInt(i, Nxt.getBlockchain().getHeight());
             try (ResultSet rs = pstmtCount.executeQuery()) {
                 if (rs.next()) {
-                    try (PreparedStatement pstmt = con.prepareStatement("UPDATE " + table
+                    try (PreparedStatement pstmt = con.prepareStatement("UPDATE " + schemaTable
                             + " SET latest = FALSE " + dbKeyFactory.getPKClause() + " AND latest = TRUE LIMIT 1")) {
                         dbKey.setPK(pstmt);
                         pstmt.executeUpdate();
@@ -65,7 +65,7 @@ public abstract class VersionedEntityDbTable<T> extends EntityDbTable<T> {
                     }
                     return true;
                 } else {
-                    try (PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + table + dbKeyFactory.getPKClause())) {
+                    try (PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + schemaTable + dbKeyFactory.getPKClause())) {
                         dbKey.setPK(pstmtDelete);
                         return pstmtDelete.executeUpdate() > 0;
                     }
@@ -75,23 +75,23 @@ public abstract class VersionedEntityDbTable<T> extends EntityDbTable<T> {
             throw new RuntimeException(e.toString(), e);
         } finally {
             if (!keepInCache) {
-                db.getCache(table).remove(dbKey);
+                db.getCache(schemaTable).remove(dbKey);
             }
         }
     }
 
-    static void rollback(final TransactionalDb db, final String table, final int height, final DbKey.Factory dbKeyFactory) {
+    static void popOff(final TransactionalDb db, final String schema, final String schemaTable, final int height, final DbKey.Factory dbKeyFactory) {
         if (!db.isInTransaction()) {
             throw new IllegalStateException("Not in transaction");
         }
-        try (Connection con = db.getConnection();
+        try (Connection con = db.getConnection(schema);
              PreparedStatement pstmtSelectToDelete = con.prepareStatement("SELECT DISTINCT " + dbKeyFactory.getPKColumns()
-                     + " FROM " + table + " WHERE height > ?");
-             PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + table
-                     + " WHERE height > ?");
-             PreparedStatement pstmtSetLatest = con.prepareStatement("UPDATE " + table
+                     + " FROM " + schemaTable + " WHERE height > ?");
+             PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + schemaTable
+                     + " WHERE height > ? LIMIT " + Constants.BATCH_COMMIT_SIZE);
+             PreparedStatement pstmtSetLatest = con.prepareStatement("UPDATE " + schemaTable
                      + " SET latest = TRUE " + dbKeyFactory.getPKClause() + " AND height ="
-                     + " (SELECT MAX(height) FROM " + table + dbKeyFactory.getPKClause() + ")")) {
+                     + " (SELECT MAX(height) FROM " + schemaTable + dbKeyFactory.getPKClause() + ")")) {
             pstmtSelectToDelete.setInt(1, height);
             List<DbKey> dbKeys = new ArrayList<>();
             try (ResultSet rs = pstmtSelectToDelete.executeQuery()) {
@@ -99,42 +99,39 @@ public abstract class VersionedEntityDbTable<T> extends EntityDbTable<T> {
                     dbKeys.add(dbKeyFactory.newKey(rs));
                 }
             }
-            /*
-            if (dbKeys.size() > 0 && Logger.isDebugEnabled()) {
-                Logger.logDebugMessage(String.format("rollback table %s found %d records to update to latest", table, dbKeys.size()));
-            }
-            */
             pstmtDelete.setInt(1, height);
-            int deletedRecordsCount = pstmtDelete.executeUpdate();
-            /*
-            if (deletedRecordsCount > 0 && Logger.isDebugEnabled()) {
-                Logger.logDebugMessage(String.format("rollback table %s deleting %d records", table, deletedRecordsCount));
-            }
-            */
+            int count;
+            do {
+                count = pstmtDelete.executeUpdate();
+                db.commitTransaction();
+            } while (count >= Constants.BATCH_COMMIT_SIZE);
+            count = 0;
             for (DbKey dbKey : dbKeys) {
                 int i = 1;
                 i = dbKey.setPK(pstmtSetLatest, i);
                 i = dbKey.setPK(pstmtSetLatest, i);
                 pstmtSetLatest.executeUpdate();
-                //Db.getCache(table).remove(dbKey);
+                if (++count % Constants.BATCH_COMMIT_SIZE == 0) {
+                    db.commitTransaction();
+                }
             }
         } catch (SQLException e) {
             throw new RuntimeException(e.toString(), e);
         }
     }
 
-    static void trim(final TransactionalDb db, final String table, final int height, final DbKey.Factory dbKeyFactory) {
+    static void trim(final TransactionalDb db, final String schema, final String schemaTable, final int height, final DbKey.Factory dbKeyFactory) {
         if (!db.isInTransaction()) {
             throw new IllegalStateException("Not in transaction");
         }
-        try (Connection con = db.getConnection();
+        try (Connection con = db.getConnection(schema);
              PreparedStatement pstmtSelect = con.prepareStatement("SELECT " + dbKeyFactory.getPKColumns() + ", MAX(height) AS max_height"
-                     + " FROM " + table + " WHERE height < ? GROUP BY " + dbKeyFactory.getPKColumns() + " HAVING COUNT(DISTINCT height) > 1");
-             PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + table + dbKeyFactory.getPKClause()
+                     + " FROM " + schemaTable + " WHERE height < ? GROUP BY " + dbKeyFactory.getPKColumns() + " HAVING COUNT(DISTINCT height) > 1");
+             PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + schemaTable + dbKeyFactory.getPKClause()
                      + " AND height < ? AND height >= 0 LIMIT " + Constants.BATCH_COMMIT_SIZE);
-             PreparedStatement pstmtDeleteDeleted = con.prepareStatement("DELETE FROM " + table + " WHERE height < ? AND height >= 0 AND latest = FALSE "
-                     + " AND (" + dbKeyFactory.getPKColumns() + ") NOT IN (SELECT (" + dbKeyFactory.getPKColumns() + ") FROM "
-                     + table + " WHERE height >= ?) LIMIT " + Constants.BATCH_COMMIT_SIZE)) {
+             PreparedStatement pstmtDeleteDeleted = con.prepareStatement("DELETE FROM " + schemaTable + " WHERE height < ? AND height >= 0 AND latest = FALSE "
+                     + " AND (" + dbKeyFactory.getPKColumns() + ") NOT IN (SELECT " + dbKeyFactory.getPKColumns() + " FROM "
+                     + schemaTable + " WHERE height >= ?) LIMIT " + Constants.BATCH_COMMIT_SIZE)) {
             pstmtSelect.setInt(1, height);
             try (ResultSet rs = pstmtSelect.executeQuery()) {
                 int count = 0;

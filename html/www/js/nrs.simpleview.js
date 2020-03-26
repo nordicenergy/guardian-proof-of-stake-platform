@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -50,12 +50,12 @@ var NRS = (function(NRS, $, undefined) {
      *
      *      view.render();
      *
-     *    Or you can pass only the model data that changed to the render function
-     *    directly, the object passed to render will be applied on the view with
+     *    Or you can pass only the model data that changed to the render function 
+     *    directly, the object passed to render will be applied on the view with 
      *    jquery $.extend function.
      *
      *      view.render({ property: 'Good day' });
-     **/
+     **/    
 
     function SimpleView(element_id, template, scope) {
         this.__element_id = element_id;
@@ -103,7 +103,7 @@ var NRS = (function(NRS, $, undefined) {
      *      {{when true '1' false '2' true '3' }}
      *      Will render as: "1 3"
      *
-     * Both the condition and string content can be model objects (properties
+     * Both the condition and string content can be model objects (properties 
      * on SimpleView).
      */
     Handlebars.registerHelper('when', function() {

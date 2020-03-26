@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -65,10 +65,10 @@ var NRS = (function(NRS, $) {
 			"titleHTML": '<i class="fa fa-envelope"></i> <span data-i18n="messages">Messages</span>',
 			"page": 'my_messages',
 			"desiredPosition": 90,
-			"depends": {tags: [NRS.constants.API_TAGS.MESSAGES]}
+			"depends": { apis: [NRS.constants.REQUEST_TYPES.sendMessage] }
 		});
 		NRS.appendMenuItemToTSMenuItem('sidebar_messages', {
-			"titleHTML": '<i class="fa fa-comment"></i> <span data-i18n="chat">Chat</span>',
+			"titleHTML": '<i class="far fa-comment"></i> <span data-i18n="chat">Chat</span>',
 			"type": 'PAGE',
 			"page": 'messages'
 		});
@@ -76,7 +76,7 @@ var NRS = (function(NRS, $) {
 
 	NRS.jsondata = NRS.jsondata || {};
 
-	NRS.getMessageDownloadLink = function (transaction, sharedKey) {
+	NRS.getMessageDownloadLink = function(fullHash, sharedKey) {
 		var sharedKeyParam = "";
 		if (sharedKey) {
 			if (NRS.state.apiProxy) {
@@ -85,13 +85,14 @@ var NRS = (function(NRS, $) {
 			}
 			sharedKeyParam = "&sharedKey=" + sharedKey;
 		}
-		var url = NRS.getRequestPath() + "?requestType=downloadPrunableMessage&transaction=" + String(transaction).escapeHTML() + "&retrieve=true&save=true" + sharedKeyParam;
+		var url = NRS.getRequestPath() + "?requestType=downloadPrunableMessage&transactionFullHash=" + String(fullHash).escapeHTML() +
+			"&chain=" + NRS.getActiveChainId() + "&retrieve=true&save=true" + sharedKeyParam;
 		return NRS.getDownloadLink(url);
 	};
 
     NRS.jsondata.messages = function (response) {
         _messages[NRS.account].push(response);
-		var transaction = NRS.getTransactionLink(response.transaction, NRS.formatTimestamp(response.timestamp));
+		var transaction = NRS.getTransactionLink(response.fullHash, NRS.formatTimestamp(response.timestamp));
 		var from = NRS.getAccountLink(response, "sender");
 		var to = NRS.getAccountLink(response, "recipient");
 		var decoded = getMessage(response);
@@ -105,7 +106,7 @@ var NRS = (function(NRS, $) {
         }
         var shareAction = "";
         if (decoded.extra == "decrypted") {
-            shareAction = "<a href='#' class='btn btn-xs' data-toggle='modal' data-transaction='" + response.transaction + "' data-sharedkey='" + decoded.sharedKey + "' data-target='#shared_key_modal'>" + $.t("share") + "</a>";
+            shareAction = "<a href='#' class='btn btn-xs' data-toggle='modal' data-fullhash='" + response.fullHash + "' data-sharedkey='" + decoded.sharedKey + "' data-target='#shared_key_modal'>" + $.t("share") + "</a>";
         }
         var downloadAction = "";
         if (!decryptAction && !retrieveAction && decoded.hash && decoded.message == $.t("binary_data")) {
@@ -249,6 +250,7 @@ var NRS = (function(NRS, $) {
 	};
 
     function getMessage(message) {
+    	var messageIsEscaped = false;
         var decoded = {};
 		decoded.format = "";
         if (!message.attachment) {
@@ -284,6 +286,7 @@ var NRS = (function(NRS, $) {
             } else {
 				if (message.attachment.messageIsText) {
 					decoded.message = String(message.attachment.message);
+					messageIsEscaped = true; // all strings on a response are already escaped (NRS.escapeResponseObjStrings)
 				} else {
 					decoded.message = $.t("binary_data");
 					decoded.format = "<i class='fa fa-database'></i>&nbsp";
@@ -291,8 +294,8 @@ var NRS = (function(NRS, $) {
             }
         } else if (message.attachment.messageHash || message.attachment.encryptedMessageHash) {
 			// Try to read prunable message but do not retrieve it from other nodes
-            NRS.sendRequest("getPrunableMessage", { transaction: message.transaction, retrieve: "false"}, function(response) {
-				if (response.errorCode || !response.transaction) {
+            NRS.sendRequest("getPrunableMessage", { transactionFullHash: message.fullHash, retrieve: "false"}, function(response) {
+				if (response.errorCode || !response.transactionFullHash) {
 					decoded.message = $.t("message_pruned");
 					decoded.extra = "pruned";
 				} else {
@@ -308,17 +311,18 @@ var NRS = (function(NRS, $) {
             if (!decoded.message) {
                 decoded.message = $.t("message_empty");
             }
-            decoded.message = NRS.addEllipsis(String(decoded.message).escapeHTML().nl2br(), 100);
+            var escapedMessage = messageIsEscaped ? String(decoded.message) : String(decoded.message).escapeHTML();
+            decoded.message = NRS.addEllipsis(escapedMessage.nl2br(), 100);
             if (decoded.extra == "to_decrypt") {
-                decoded.format = "<i class='fa fa-warning'></i>&nbsp";
+                decoded.format = "<i class='far fa-exclamation-triangle'></i>&nbsp";
             } else if (decoded.extra == "decrypted") {
-                decoded.format += "<i class='fa fa-unlock'></i>&nbsp";
+                decoded.format += "<i class='far fa-unlock'></i>&nbsp";
             } else if (decoded.extra == "pruned") {
-                decoded.format = "<i class='fa fa-scissors'></i>&nbsp";
+                decoded.format = "<i class='far fa-cut'></i>&nbsp";
             }
         } else {
             decoded.message = $.t("error_could_not_decrypt_message");
-            decoded.format = "<i class='fa fa-warning'></i>&nbsp";
+            decoded.format = "<i class='far fa-exclamation-triangle'></i>&nbsp";
             decoded.extra = "decryption_failed";
         }
         decoded.hash = message.attachment.messageHash || message.attachment.encryptedMessageHash;
@@ -350,8 +354,8 @@ var NRS = (function(NRS, $) {
                 if (decoded.sharedKey) {
                     var inverseIcon = messages[i].recipient == NRS.account ? "" : " fa-inverse";
 					sharedKeyTag = "<a href='#' class='btn btn-xs' data-toggle='modal' data-target='#shared_key_modal' " +
-						"data-sharedkey='" + decoded.sharedKey + "' data-transaction='" + messages[i].transaction +"'>" +
-						"<i class='fa fa-link" + inverseIcon + "'></i>" +
+						"data-sharedkey='" + decoded.sharedKey + "' data-fullhash='" + messages[i].fullHash +"'>" +
+						"<i class='far fa-link" + inverseIcon + "'></i>" +
 					"</a>";
 				}
                 output += "<dd class='" + messageClass + "'><p>" + decoded.format + decoded.message + sharedKeyTag + "</p></dd>";
@@ -371,7 +375,7 @@ var NRS = (function(NRS, $) {
 		if (option == "add_contact") {
 			$("#add_contact_account_id").val(account).trigger("blur");
 			$("#add_contact_modal").modal("show");
-		} else if (option == "send_nxt") {
+		} else if (option == "send_money") {
 			$("#send_money_recipient").val(account).trigger("blur");
 			$("#send_money_modal").modal("show");
 		} else if (option == "account_info") {
@@ -386,7 +390,7 @@ var NRS = (function(NRS, $) {
 		NRS.closeContextMenu();
 		if (option == "update_contact") {
 			$("#update_contact_modal").modal("show");
-		} else if (option == "send_nxt") {
+		} else if (option == "send_money") {
 			$("#send_money_recipient").val(NRS.selectedContext.data("contact")).trigger("blur");
 			$("#send_money_modal").modal("show");
 		}
@@ -415,7 +419,7 @@ var NRS = (function(NRS, $) {
         var data = {
 			"recipient": $.trim($("#inline_message_recipient").val()),
 			"feeNXT": "1",
-			"deadline": "1440",
+			"deadline": "15",
 			"secretPhrase": $.trim(passpharse)
 		};
 
@@ -467,9 +471,9 @@ var NRS = (function(NRS, $) {
 					type: "success"
 				});
 				$("#inline_message_text").val("");
-                NRS.addUnconfirmedTransaction(response.transaction, function (alreadyProcessed) {
+                NRS.addUnconfirmedTransaction(response.fullHash, function (alreadyProcessed) {
                     if (!alreadyProcessed) {
-                        $("#message_details").find("dl.chat").append("<dd class='to tentative" + (data.encryptedMessageData ? " decrypted" : "") + "'><p>" + (data.encryptedMessageData ? "<i class='fa fa-lock'></i> " : "") + (!data["_extra"].message ? $.t("message_empty") : String(data["_extra"].message).escapeHTML()) + "</p></dd>");
+                        $("#message_details").find("dl.chat").append("<dd class='to tentative" + (data.encryptedMessageData ? " decrypted" : "") + "'><p>" + (data.encryptedMessageData ? "<i class='far fa-lock'></i> " : "") + (!data["_extra"].message ? $.t("message_empty") : String(data["_extra"].message).escapeHTML()) + "</p></dd>");
                         var splitter = $('#messages_page').find('.content-splitter-right-inner');
                         splitter.scrollTop(splitter[0].scrollHeight);
                     }
@@ -567,8 +571,8 @@ var NRS = (function(NRS, $) {
         var $invoker = $(e.relatedTarget);
 		var sharedKey = $invoker.data("sharedkey");
         $("#shared_key_text").val(sharedKey);
-		var transaction = $invoker.data("transaction");
-        $("#shared_key_transaction").html(NRS.getTransactionLink(transaction));
+		var fullHash = $invoker.data("fullhash");
+        $("#shared_key_transaction").html(NRS.getTransactionLink(fullHash));
 		if (NRS.state.apiProxy) {
 			$("#shared_key_link_container").hide();
 		} else {
@@ -576,8 +580,9 @@ var NRS = (function(NRS, $) {
 			if (url.lastIndexOf("#") == url.length-1) {
 				url = url.substr(0, url.length - 1);
 			}
-			url += "?account=" + NRS.accountRS + "&modal=transaction_info_modal" +
-				"&transaction=" + transaction +
+			url += "?account=" + NRS.accountRS + "&chain=" + NRS.getActiveChainName() +
+				"&modal=transaction_info_modal" +
+				"&fullHash=" + fullHash +
 				"&sharedKey=" + sharedKey;
 			var sharedKeyLink = $("#shared_key_link");
 	        sharedKeyLink.attr("href", url);
@@ -628,7 +633,7 @@ var NRS = (function(NRS, $) {
 	});
 
 	NRS.isTextMessage = function(transaction) {
-		return transaction.goodsIsText || transaction.attachment.messageIsText ||
+		return transaction.goodsIsText || transaction.attachment.goodsIsText || transaction.attachment.messageIsText ||
 			(transaction.attachment.encryptedMessage && transaction.attachment.encryptedMessage.isText) ||
 			(transaction.attachment.encryptToSelfMessage && transaction.attachment.encryptToSelfMessage.isText);
 	};

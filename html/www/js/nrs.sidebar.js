@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -64,7 +64,6 @@ var NRS = (function(NRS, $) {
 		$(".context_menu").hide();
 		if (NRS.selectedContext) {
 			NRS.selectedContext.removeClass("context");
-			//NRS.selectedContext = null;
 		}
 
 		$(document).off("click.contextmenu");

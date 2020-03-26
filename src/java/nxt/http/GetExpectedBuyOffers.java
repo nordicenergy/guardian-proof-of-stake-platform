@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,10 +16,11 @@
 
 package nxt.http;
 
-import nxt.Attachment;
-import nxt.MonetarySystem;
 import nxt.Nxt;
-import nxt.Transaction;
+import nxt.blockchain.ChildChain;
+import nxt.blockchain.Transaction;
+import nxt.ms.MonetarySystemTransactionType;
+import nxt.ms.PublishExchangeOfferAttachment;
 import nxt.util.Filter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -37,8 +39,8 @@ public final class GetExpectedBuyOffers extends APIServlet.APIRequestHandler {
     }
 
     private final Comparator<Transaction> rateComparator = (o1, o2) -> {
-        Attachment.MonetarySystemPublishExchangeOffer a1 = (Attachment.MonetarySystemPublishExchangeOffer)o1.getAttachment();
-        Attachment.MonetarySystemPublishExchangeOffer a2 = (Attachment.MonetarySystemPublishExchangeOffer)o2.getAttachment();
+        PublishExchangeOfferAttachment a1 = (PublishExchangeOfferAttachment)o1.getAttachment();
+        PublishExchangeOfferAttachment a2 = (PublishExchangeOfferAttachment)o2.getAttachment();
         return Long.compare(a2.getBuyRateNQT(), a1.getBuyRateNQT());
     };
 
@@ -47,16 +49,20 @@ public final class GetExpectedBuyOffers extends APIServlet.APIRequestHandler {
 
         long currencyId = ParameterParser.getUnsignedLong(req, "currency", false);
         long accountId = ParameterParser.getAccountId(req, "account", false);
+        ChildChain childChain = ParameterParser.getChildChain(req, false);
         boolean sortByRate = "true".equalsIgnoreCase(req.getParameter("sortByRate"));
 
         Filter<Transaction> filter = transaction -> {
-            if (transaction.getType() != MonetarySystem.PUBLISH_EXCHANGE_OFFER) {
+            if (transaction.getType() != MonetarySystemTransactionType.PUBLISH_EXCHANGE_OFFER) {
                 return false;
             }
             if (accountId != 0 && transaction.getSenderId() != accountId) {
                 return false;
             }
-            Attachment.MonetarySystemPublishExchangeOffer attachment = (Attachment.MonetarySystemPublishExchangeOffer)transaction.getAttachment();
+            if (childChain != null && transaction.getChain() != childChain) {
+                return false;
+            }
+            PublishExchangeOfferAttachment attachment = (PublishExchangeOfferAttachment)transaction.getAttachment();
             return currencyId == 0 || attachment.getCurrencyId() == currencyId;
         };
 
@@ -72,4 +78,8 @@ public final class GetExpectedBuyOffers extends APIServlet.APIRequestHandler {
         return response;
     }
 
+    @Override
+    String getDocsUrlPath() {
+        return "Monetary_System#Get_Buy_.2F_Sell_Offers";
+    }
 }

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,10 +16,14 @@
 
 package nxt.http;
 
-import nxt.Appendix;
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.Transaction;
+import nxt.blockchain.Chain;
+import nxt.blockchain.ChildChain;
+import nxt.blockchain.ChildTransaction;
+import nxt.blockchain.Transaction;
+import nxt.messaging.PrunableEncryptedMessageAppendix;
+import nxt.messaging.PrunablePlainMessageAppendix;
 import nxt.util.JSON;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -51,7 +56,7 @@ public final class VerifyPrunableMessage extends APIServlet.APIRequestHandler {
     }
 
     private VerifyPrunableMessage() {
-        super(new APITag[] {APITag.MESSAGES}, "transaction",
+        super(new APITag[] {APITag.MESSAGES}, "transactionFullHash",
                 "message", "messageIsText",
                 "messageToEncryptIsText", "encryptedMessageData", "encryptedMessageNonce", "compressMessageToEncrypt");
     }
@@ -59,14 +64,15 @@ public final class VerifyPrunableMessage extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
-        long transactionId = ParameterParser.getUnsignedLong(req, "transaction", true);
-        Transaction transaction = Nxt.getBlockchain().getTransaction(transactionId);
+        byte[] transactionFullHash = ParameterParser.getBytes(req, "transactionFullHash", true);
+        Chain chain = ParameterParser.getChain(req);
+        Transaction transaction = Nxt.getBlockchain().getTransaction(chain, transactionFullHash);
         if (transaction == null) {
             return UNKNOWN_TRANSACTION;
         }
 
-        Appendix.PrunablePlainMessage plainMessage = (Appendix.PrunablePlainMessage) ParameterParser.getPlainMessage(req, true);
-        Appendix.PrunableEncryptedMessage encryptedMessage = (Appendix.PrunableEncryptedMessage) ParameterParser.getEncryptedMessage(req, null, true);
+        PrunablePlainMessageAppendix plainMessage = (PrunablePlainMessageAppendix) ParameterParser.getPlainMessage(req, true);
+        PrunableEncryptedMessageAppendix encryptedMessage = (PrunableEncryptedMessageAppendix) ParameterParser.getEncryptedMessage(req, null, true);
 
         if (plainMessage == null && encryptedMessage == null) {
             return MISSING_MESSAGE_ENCRYPTED_MESSAGE;
@@ -76,7 +82,7 @@ public final class VerifyPrunableMessage extends APIServlet.APIRequestHandler {
         }
 
         if (plainMessage != null) {
-            Appendix.PrunablePlainMessage myPlainMessage = transaction.getPrunablePlainMessage();
+            PrunablePlainMessageAppendix myPlainMessage = transaction.getPrunablePlainMessage();
             if (myPlainMessage == null) {
                 return NO_SUCH_PLAIN_MESSAGE;
             }
@@ -87,7 +93,7 @@ public final class VerifyPrunableMessage extends APIServlet.APIRequestHandler {
             response.put("verify", true);
             return response;
         } else if (encryptedMessage != null) {
-            Appendix.PrunableEncryptedMessage myEncryptedMessage = transaction.getPrunableEncryptedMessage();
+            PrunableEncryptedMessageAppendix myEncryptedMessage = transaction.getPrunableEncryptedMessage();
             if (myEncryptedMessage == null) {
                 return NO_SUCH_ENCRYPTED_MESSAGE;
             }

@@ -4,9 +4,9 @@
         <property file="conf/nxt-default.properties" prefix="runtime"/>
     </properties>
     <info>
-        <appname>NET</appname>
+        <appname>Ardor</appname>
         <appversion>@{runtime.nxt.version}</appversion>
-        <url>https://www.network.nordicenergy.io/</url>
+        <url>https://www.jelurida.com/</url>
         <run-privileged condition="izpack.windowsinstall"/>
     </info>
 
@@ -22,22 +22,22 @@
     </listeners>
 
     <natives>
-        <native type="izpack" name="ShellLink.dll" stage="both">
+        <native type="izpack" name="ShellLink.dll" uninstaller="true">
             <os family="windows"/>
         </native>
-        <native type="izpack" name="ShellLink_x64.dll" stage="both">
+        <native type="izpack" name="ShellLink_x64.dll" uninstaller="true">
             <os family="windows"/>
         </native>
-        <native type="izpack" name="WinSetupAPI.dll" stage="both">
+        <native type="izpack" name="WinSetupAPI.dll" uninstaller="true">
             <os family="windows"/>
         </native>
-        <native type="izpack" name="WinSetupAPI_x64.dll" stage="both">
+        <native type="izpack" name="WinSetupAPI_x64.dll" uninstaller="true">
             <os family="windows"/>
         </native>
-        <native type="3rdparty" name="COIOSHelper.dll" stage="uninstall">
+        <native type="3rdparty" name="COIOSHelper.dll" uninstaller="true">
             <os family="windows"/>
         </native>
-        <native type="3rdparty" name="COIOSHelper_x64.dll" stage="uninstall">
+        <native type="3rdparty" name="COIOSHelper_x64.dll" uninstaller="true">
             <os family="windows"/>
         </native>
     </natives>
@@ -84,7 +84,7 @@
     </locale>
 
     <resources>
-        <res id="InfoPanel.info" src="changelogs/nxt-client-@{runtime.nxt.version}.changelog.txt" parse="yes"/>
+        <res id="InfoPanel.info" src="changelogs/ardor-client-@{runtime.nxt.version}.changelog.txt" parse="yes"/>
         <res id="LicencePanel.licence" src="LICENSE.txt"/>
         <res id="Installer.image" src="html/www/img/installer_left_pane.png"/>
         <res id="shortcutSpec.xml" src="../installer/shortcutSpec.xml"/>
@@ -96,7 +96,7 @@
     <variables>
         <variable name="$InstallerFrame.logfilePath" value="default"/>
         <variable name="DesktopShortcutCheckboxEnabled" value="true"/>
-        <variable name="TargetPanel.dir.mac" value="/Applications/nxt.app"/>
+        <variable name="TargetPanel.dir.mac" value="/Applications/ardor.app"/>
     </variables>
 
     <panels>
@@ -104,6 +104,7 @@
         <panel classname="LicencePanel"/>
         <panel classname="InfoPanel"/>
         <panel classname="TargetPanel"/>
+		<panel classname="PacksPanel"/>
         <panel classname="nxt.installer.ConfigPanel"/>
         <panel classname="ShortcutPanel" condition="!izpack.macinstall"/>
         <panel classname="InstallPanel"/>
@@ -111,21 +112,31 @@
     </panels>
 
     <packs>
-        <pack name="server" required="yes">
+        <pack name="dev.tools" required="no">
+			<description>Contract Developer Tools</description>
+            <file src="ardor-tests.jar" targetdir="${INSTALL_PATH}" override="true"/>
+			<file src="addons/project/intellij/Ardor.iml" targetdir="${INSTALL_PATH}" override="true"/>
+			<file src="addons/plugins/ContractManagerPlugin/ContractManagerPlugin.zip" targetdir="${INSTALL_PATH}" override="true"/>
+            <fileset dir="testlib" targetdir="${INSTALL_PATH}/testlib" override="true" excludes=".gitignore"/>
+            <fileset dir="addons" targetdir="${INSTALL_PATH}/addons" override="true" excludes=".gitignore"/>			
+            <fileset dir="addons/project/intellij/.idea" targetdir="${INSTALL_PATH}/.idea" override="true" excludes=".gitignore"/>
+		</pack>	
+
+        <pack name="server" required="yes" hidden="true">
             <description>Common Server Files</description>
-            <file src="nxt.jar" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="ardor.jar" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="README.txt" targetdir="${INSTALL_PATH}" override="true"/>
-            <file src="Wallet.url" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="Ardor_Wallet.url" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="3RD-PARTY-LICENSES.txt" targetdir="${INSTALL_PATH}" override="true"/>
-            <file src="AUTHORS.txt" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="LICENSE.txt" targetdir="${INSTALL_PATH}" override="true"/>
-            <file src="JPL-NRS.pdf" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="JPL-Ardor.pdf" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="DEVELOPERS-GUIDE.md" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="OPERATORS-GUIDE.md" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="README.md" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="USERS-GUIDE.md" targetdir="${INSTALL_PATH}" override="true"/>
-            <file src="nxt.policy" targetdir="${INSTALL_PATH}" override="true"/>
-            <file src="nxtdesktop.policy" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="ardor.policy" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="ardordesktop.policy" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="contractManager.policy" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="conf/nxt-default.properties" targetdir="${INSTALL_PATH}/conf" override="true"/>
             <file src="conf/logging-default.properties" targetdir="${INSTALL_PATH}/conf" override="true"/>
             <fileset dir="conf/data" targetdir="${INSTALL_PATH}/conf/data" override="true"/>
@@ -136,7 +147,6 @@
             <fileset dir="src" targetdir="${INSTALL_PATH}/src" override="true" excludes=".gitignore nxt-private.iml"/>
             <fileset dir="contrib" targetdir="${INSTALL_PATH}/contrib" override="true" excludes=".gitignore"/>
             <fileset dir="logs" targetdir="${INSTALL_PATH}/logs" override="true" excludes=".gitignore"/>
-            <fileset dir="addons" targetdir="${INSTALL_PATH}/addons" override="true" excludes=".gitignore"/>
             <updatecheck>
                 <include name="*.desktop" />
                 <include name="lib/**" />
@@ -145,29 +155,29 @@
                 <exclude name="html/www/plugins/**" />
             </updatecheck>
         </pack>
-
-        <pack name="server.windows" os="windows" required="yes">
+		
+        <pack name="server.windows" os="windows" required="yes" hidden="true">
             <description>Windows Specific Resources</description>
             <os family="windows"/>
-            <file src="nxt.exe" targetdir="${INSTALL_PATH}" override="true"/>
-            <file src="nxtservice.exe" targetdir="${INSTALL_PATH}" override="true"/>
-            <file src="nxtservice.jar" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="ardor.exe" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="ardorservice.exe" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="ardorservice.jar" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="run.bat" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="mint.bat" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="compact.bat" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="html/www/favicon.ico" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="sign.bat" targetdir="${INSTALL_PATH}" override="true"/>
             <file src="passphraseRecovery.bat" targetdir="${INSTALL_PATH}" override="true"/>
+            <file src="contractManager.bat" targetdir="${INSTALL_PATH}" override="true"/>
             <parsable targetfile="${INSTALL_PATH}/run.bat"/>
-            <singlefile src="resource/nxt.properties" target="${INSTALL_PATH}/resource/nxt.properties" override="true"/>
-            <singlefile src="resource/nxtservice.properties" target="${INSTALL_PATH}/resource/nxtservice.properties" override="true"/>
+            <singlefile src="resource/ardor.properties" target="${INSTALL_PATH}/resource/ardor.properties" override="true"/>
+            <singlefile src="resource/ardorservice.properties" target="${INSTALL_PATH}/resource/ardorservice.properties" override="true"/>
         </pack>
 
-        <pack name="server.unix" os="unix" required="yes">
+        <pack name="server.unix" os="unix" required="yes" hidden="true">
             <description>Unix Specific Resources</description>
             <file src="run.sh" targetdir="${INSTALL_PATH}" override="true"/>
             <executable targetfile="${INSTALL_PATH}/run.sh"/>
-            <file src="run-tor.sh" targetdir="${INSTALL_PATH}" override="true"/>
-            <executable targetfile="${INSTALL_PATH}/run-tor.sh"/>
             <file src="run-desktop.sh" targetdir="${INSTALL_PATH}" override="true"/>
             <executable targetfile="${INSTALL_PATH}/run-desktop.sh"/>
             <file src="start.sh" targetdir="${INSTALL_PATH}" override="true"/>
@@ -190,24 +200,28 @@
             <executable targetfile="${INSTALL_PATH}/sign.sh"/>
             <file src="passphraseRecovery.sh" targetdir="${INSTALL_PATH}" override="true"/>
             <executable targetfile="${INSTALL_PATH}/passphraseRecovery.sh"/>
+            <file src="contractManager.sh" targetdir="${INSTALL_PATH}" override="true"/>
+            <executable targetfile="${INSTALL_PATH}/contractManager.sh"/>
+            <file src="generateAPICalls.sh" targetdir="${INSTALL_PATH}" override="true"/>
+            <executable targetfile="${INSTALL_PATH}/generateAPICalls.sh"/>
+            <file src="pem.to.pkcs12.keystore.certbot.hook.sh" targetdir="${INSTALL_PATH}" override="true"/>
+            <executable targetfile="${INSTALL_PATH}/pem.to.pkcs12.keystore.certbot.hook.sh"/>
         </pack>
 
-        <pack name="jre.win" os="windows" required="yes" uninstall="false">
-            <description>Java 64 bit for Windows</description>
-            <fileset dir="../jre" targetdir="${INSTALL_PATH}/jre" override="true"/>
-        </pack>
-
-        <pack name="server.mac" os="mac_osx" required="yes" uninstall="false">
+        <pack name="server.mac" os="mac_osx" required="yes" uninstall="false" hidden="true">
             <description>Mac Specific Resources</description>
-            <fileset dir="resource/mac/Contents" targetdir="${INSTALL_PATH}/Contents" override="true"/>
-			<parsable targetfile="${INSTALL_PATH}/Contents/MacOS/nxt"/>
-			<executable targetfile="${INSTALL_PATH}/Contents/MacOS/nxt"/>
+            <fileset dir="resource/mac/Contents" targetdir="${INSTALL_PATH}/Contents" override="true"/>		
+			<parsable targetfile="${INSTALL_PATH}/Contents/MacOS/ardor"/>
+			<executable targetfile="${INSTALL_PATH}/Contents/MacOS/ardor"/>
 		</pack>
 
-        <pack name="jre.mac" os="mac_osx" required="yes" uninstall="false">
-            <description>Java 64 bit for Mac</description>
-            <fileset dir="../jre" targetdir="${INSTALL_PATH}/jre" override="true"/>
-            <executable targetfile="${INSTALL_PATH}/jre/bin/java" failure="warn" keep="true"/>
+        <pack name="jdk" required="yes" uninstall="false" hidden="true">
+			<os family="windows"/>
+			<os family="mac"/>
+            <description>Java JDK</description>
+            <fileset dir="../jdk.runtime" targetdir="${INSTALL_PATH}/jdk" override="true"/>
+			<executable targetfile="${INSTALL_PATH}/jdk/bin/java" failure="warn" keep="true"/>
+			<fileset dir="../javafx-sdk.runtime" targetdir="${INSTALL_PATH}/javafx-sdk" override="true"/>
         </pack>
 
     </packs>

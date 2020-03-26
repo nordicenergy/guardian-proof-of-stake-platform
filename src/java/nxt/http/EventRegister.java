@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -24,90 +25,93 @@ import org.json.simple.JSONStreamAware;
 import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <p>The EventRegister API will create an event listener and register
  * one or more server events.
  * The 'add' and 'remove' parameters must be omitted or must both be false
- * in order to create a new event listener.</p>
- *
- * <p>After calling EventRegister, the application needs to call the
+ * in order to create a new event listener.
+ * <p>
+ * After calling EventRegister, the application needs to call the
  * EventWait API to wait for one of the registered events to occur.
  * The events will remain registered so successive calls to EventWait can
- * be made without another call to EventRegister.</p>
- *
- * <p>When the event listener is no longer needed, the application should call
+ * be made without another call to EventRegister.
+ * <p>
+ * When the event listener is no longer needed, the application should call
  * EventRegister with an empty event list and 'remove=true'.  An outstanding
  * event wait will be completed and the event listener will be canceled.
- * </p>
- *
- * <p>An existing event list can be modified by calling EventRegister with
+ * <p>
+ * An existing event list can be modified by calling EventRegister with
  * either 'add=true' or 'remove=true'.  The current event list will be replaced
- * if both parameters are omitted or are false.</p>
- *
- * <p>Event registration will be canceled if the application does not
+ * if both parameters are omitted or are false.
+ * <p>
+ * Event registration will be canceled if the application does not
  * issue an EventWait before the time interval specified by nxt.apiEventTimeout
- * expires.  The timer is reset each time an EventWait is processed.</p>
- *
- * <p>An application cannot register events if the maximum number of event users
- * specified by nxt.apiMaxEventUsers has been reached.</p>
- *
- * <p>Request parameters:</p>
+ * expires.  The timer is reset each time an EventWait is processed.
+ * <p>
+ * An application cannot register events if the maximum number of event users
+ * specified by nxt.apiMaxEventUsers has been reached or if the maximum number
+ * of user registrations specified by nxt.api.MaxUserEventRegistrations has been
+ * reached.
+ * <p>
+ * Request parameters:
  * <ul>
+ * <li>token - Registration token.  Omit this parameter or set it to 0 to
+ * create a new event registration.  Set this parameter to the value returned
+ * by a previous event registration to modify an existing registration.
  * <li>event - Event name.  The 'event' parameter can be
  * repeated to specify multiple events.  All events will be included
- * if the 'event' parameter is not specified.</li>
- * <li>add - Specify 'true' to add the events to an existing event list.</li>
- * <li>remove - Specify 'true' to remove the events from an existing event list.</li>
+ * if the 'event' parameter is not specified.
+ * <li>add - Specify 'true' to add the events to an existing event list.  Ignored
+ * if creating a new event registration.
+ * <li>remove - Specify 'true' to remove the events from an existing event list.  Ignored
+ * if creating a new event registration.
  * </ul>
- *
- * <p>Response parameters:</p>
+ * <p>
+ * Response parameters:
  * <ul>
- * <li>registered - Set to 'true' if the events were processed.</li>
+ * <li>registered - Set to 'true' if the events were processed.
+ * <li>token - Set to the event registration token.  This token must be
+ * used to wait for events and to modify or cancel the registration.
  * </ul>
- *
- * <p>Error Response parameters:</p>
+ * <p>
+ * Error Response parameters:
  * <ul>
- * <li>errorCode - API error code</li>
- * <li>errorDescription - API error description</li>
+ * <li>errorCode - API error code
+ * <li>errorDescription - API error description
  * </ul>
- *
- * <p>Event names:</p>
+ * <p>
+ * Event names:
  * <ul>
- * <li>Block.BLOCK_GENERATED</li>
- * <li>Block.BLOCK_POPPED</li>
- * <li>Block.BLOCK_PUSHED</li>
- * <li>Ledger.ADD_ENTRY - Changes to all accounts will be reported.</li>
- * <li>Ledger.ADD_ENTRY.account - Only changes to the specified account will be reported.  'account'
+ * <li>Block.BLOCK_GENERATED
+ * <li>Block.BLOCK_POPPED
+ * <li>Block.BLOCK_PUSHED
+ * <li>Ledger.ADD_ENTRY.account - Monitor changes to the specified account.  'account'
  * may be the numeric identifier or the Reed-Solomon identifier
- * of the account to monitor for updates.  Specifying an account identifier of 0 is the same as
- * not specifying an account.</li>
- * <li>Peer.ADD_INBOUND</li>
- * <li>Peer.ADDED_ACTIVE_PEER</li>
- * <li>Peer.BLACKLIST</li>
- * <li>Peer.CHANGED_ACTIVE_PEER</li>
- * <li>Peer.DEACTIVATE</li>
- * <li>Peer.NEW_PEER</li>
- * <li>Peer.REMOVE</li>
- * <li>Peer.REMOVE_INBOUND</li>
- * <li>Peer.UNBLACKLIST</li>
- * <li>Transaction.ADDED_CONFIRMED_TRANSACTIONS</li>
- * <li>Transaction.ADDED_UNCONFIRMED_TRANSACTIONS</li>
- * <li>Transaction.REJECT_PHASED_TRANSACTION</li>
- * <li>Transaction.RELEASE_PHASED_TRANSACTION</li>
- * <li>Transaction.REMOVE_UNCONFIRMED_TRANSACTIONS</li>
+ * of the account to monitor for updates.  All accounts will be monitored if no
+ * account is specified.
+ * Specifying an account identifier of 0 is the same as
+ * not specifying an account.
+ * <li>Peer.ADD_ACTIVE_PEER
+ * <li>Peer.ADD_PEER
+ * <li>Peer.BLACKLIST
+ * <li>Peer.CHANGE_ACTIVE_PEER
+ * <li>Peer.CHANGE_ANNOUNCED_ADDRESS
+ * <li>Peer.CHANGE_SERVICES
+ * <li>Peer.REMOVE_PEER
+ * <li>Peer.UNBLACKLIST
+ * <li>Transaction.ADDED_CONFIRMED_TRANSACTIONS.account (omit account to monitor all accounts)
+ * <li>Transaction.ADDED_UNCONFIRMED_TRANSACTIONS.account (omit account to monitor all accounts)
+ * <li>Transaction.REJECT_PHASED_TRANSACTION.account (omit account to monitor all accounts)
+ * <li>Transaction.RELEASE_PHASED_TRANSACTION.account (omit account to monitor all accounts)
+ * <li>Transaction.REMOVED_UNCONFIRMED_TRANSACTIONS.account (omit account to monitor all accounts)
  * </ul>
  */
 public class EventRegister extends APIServlet.APIRequestHandler {
 
     /** EventRegister instance */
     static final EventRegister instance = new EventRegister();
-
-    /** Events registers */
-    private static final JSONObject eventsRegistered = new JSONObject();
-    static {
-        eventsRegistered.put("registered", true);
-    }
 
     /** Mutually exclusive parameters */
     private static final JSONObject exclusiveParams = new JSONObject();
@@ -137,11 +141,14 @@ public class EventRegister extends APIServlet.APIRequestHandler {
         noEventsRegistered.put("errorDescription", "No events registered");
     }
 
+    /** Event registration token counter */
+    private static final AtomicLong nextToken = new AtomicLong();
+
     /**
      * Create the EventRegister instance
      */
     private EventRegister() {
-        super(new APITag[] {APITag.INFO}, "event", "event", "event", "add", "remove");
+        super(new APITag[] {APITag.INFO}, "event", "event", "event", "token", "add", "remove");
     }
 
     /**
@@ -149,17 +156,20 @@ public class EventRegister extends APIServlet.APIRequestHandler {
      *
      * @param   req                 API request
      * @return                      API response
+     * @throws  ParameterException  Invalid parameter specified
      */
     @Override
-    protected JSONStreamAware processRequest(HttpServletRequest req) {
-        JSONObject response;
+    protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
+        JSONObject response = null;
         //
-        // Get 'add' and 'remove' parameters
+        // Get 'token', 'add' and 'remove' parameters
         //
+        long token = ParameterParser.getLong(req, "token", 0, Long.MAX_VALUE, false);
         boolean addEvents = Boolean.valueOf(req.getParameter("add"));
         boolean removeEvents = Boolean.valueOf(req.getParameter("remove"));
-        if (addEvents && removeEvents)
+        if (addEvents && removeEvents) {
             return exclusiveParams;
+        }
         //
         // Build the event list from the 'event' parameters
         //
@@ -176,22 +186,27 @@ public class EventRegister extends APIServlet.APIRequestHandler {
         } else {
             for (String param : params) {
                 //
-                // The Ledger event can have 2 or 3 parts.  All other events have 2 parts.
+                // The Ledger and Transaction events can have 2 or 3 parts.  All other events have 2 parts.
                 //
                 long accountId = 0;
                 String[] parts = param.split("\\.");
-                if (parts[0].equals("Ledger")) {
-                    if (parts.length == 3) {
-                        try {
-                            accountId = Convert.parseAccountId(parts[2]);
-                        } catch (RuntimeException e) {
+                switch (parts[0]) {
+                    case "Ledger":
+                    case "Transaction":
+                        if (parts.length == 3) {
+                            try {
+                                accountId = Convert.parseAccountId(parts[2]);
+                            } catch (RuntimeException e) {
+                                return incorrectEvent;
+                            }
+                        } else if (parts.length != 2) {
                             return incorrectEvent;
                         }
-                    } else if (parts.length != 2) {
-                        return incorrectEvent;
-                    }
-                } else if (parts.length != 2) {
-                    return incorrectEvent;
+                        break;
+                    default:
+                        if (parts.length != 2) {
+                            return incorrectEvent;
+                        }
                 }
                 //
                 // Add the event
@@ -221,38 +236,50 @@ public class EventRegister extends APIServlet.APIRequestHandler {
                         break;
                     }
                 }
-                if (!eventAdded)
+                if (!eventAdded) {
                     return unknownEvent;
+                }
             }
         }
         //
         // Register the event listener
         //
         try {
-            if (addEvents || removeEvents) {
-                EventListener listener = EventListener.eventListeners.get(req.getRemoteAddr());
-                if (listener != null) {
-                    if (addEvents)
-                        listener.addEvents(events);
-                    else
-                        listener.removeEvents(events);
-                    response = eventsRegistered;
-                } else {
-                    response = noEventsRegistered;
-                }
-            } else {
-                EventListener listener = new EventListener(req.getRemoteAddr());
+            if (token == 0) {
+                token = nextToken.incrementAndGet();
+                String userAddress = req.getRemoteAddr() + ";" + token;
+                EventListener listener = new EventListener(userAddress);
                 listener.activateListener(events);
-                response = eventsRegistered;
+            } else {
+                String userAddress = req.getRemoteAddr() + ";" + token;
+                EventListener listener = EventListener.eventListeners.get(userAddress);
+                if (listener == null) {
+                    return noEventsRegistered;
+                }
+                if (addEvents || removeEvents) {
+                    if (addEvents) {
+                        listener.addEvents(events);
+                    } else {
+                        listener.removeEvents(events);
+                    }
+                } else {
+                    listener = new EventListener(userAddress);
+                    listener.activateListener(events);
+                }
             }
         } catch (EventListenerException exc) {
             response = new JSONObject();
             response.put("errorCode", 7);
-            response.put("errorDescription", "Unable to register events: "+exc.getMessage());
+            response.put("errorDescription", "Unable to register events: " + exc.getMessage());
         }
         //
         // Return the response
         //
+        if (response == null) {
+            response = new JSONObject();
+            response.put("registered", true);
+            response.put("token", Long.toUnsignedString(token));
+        }
         return response;
     }
 
@@ -261,13 +288,14 @@ public class EventRegister extends APIServlet.APIRequestHandler {
         return true;
     }
 
-    /**
-     * No required block parameters
-     *
-     * @return                      FALSE to disable the required block parameters
-     */
     @Override
     protected boolean allowRequiredBlockParameters() {
         return false;
     }
+
+    @Override
+    protected boolean isChainSpecific() {
+        return false;
+    }
+
 }

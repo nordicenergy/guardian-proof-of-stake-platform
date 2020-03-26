@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -18,10 +18,6 @@
  * @depends {nrs.js}
  */
 var NRS = (function(NRS, $) {
-
-    NRS.invert = function(rate) {
-        return Math.round(100000000 / parseFloat(rate)) / 100000000;
-    };
 
     NRS.getCoins = function(exchange) {
         var coins = [];
@@ -62,23 +58,30 @@ var NRS = (function(NRS, $) {
     };
 
     NRS.getExchangeAddressLink = function (address, coin) {
-        if (coin.toUpperCase() === "NXT") {
+        coin = coin.toUpperCase();
+        if (coin === "IGNIS" || coin === "ARDR") {
             return NRS.getAccountLink({ accountRS: address }, "account");
         }
-        if (coin.toUpperCase() === "BTC") {
+        if (coin === "BTC") {
             return "<a target='_blank' href='https://blockchain.info/address/" + address + "'>" + address + "</a>";
+        }
+        if (coin === "ETH") {
+            return "<a target='_blank' href='https://etherscan.io/address/" + address + "'>" + address + "</a>";
         }
         return address;
     };
 
-    NRS.getExchangeTransactionLink = function (transaction, coin) {
-        if (coin.toUpperCase() === "NXT") {
-            return "<a href='#' class='show_transaction_modal_action' data-transaction='" + transaction + "'>" + transaction + "</a>";
+    NRS.getExchangeTransactionLink = function (payoutHash, coin) {
+        coin = coin.toUpperCase();
+        var briefHash = payoutHash.substring(0, 8) + "...";
+        if (coin === "ARDR") {
+            return "<a href='#' class='show_transaction_modal_action' data-chain='1' data-fullhash='" + payoutHash + "'>" + briefHash + "</a>";
+        } else if (coin === "IGNIS") {
+            return "<a href='#' class='show_transaction_modal_action' data-chain='2' data-fullhash='" + payoutHash + "'>" + briefHash + "</a>";
+        } else if (coin === "BTC") {
+            return "<a target='_blank' href='https://blockchain.info/tx/" + payoutHash + "'>" + briefHash + "</a>";
         }
-        if (coin.toUpperCase() === "BTC") {
-            return "<a target='_blank' href='https://blockchain.info/tx/" + transaction + "'>" + transaction + "</a>";
-        }
-        return transaction;
+        return payoutHash;
     };
 
     return NRS;

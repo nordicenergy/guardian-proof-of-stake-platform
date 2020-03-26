@@ -1,11 +1,27 @@
+/*
+ * Copyright © 2016-2019 Jelurida IP B.V.
+ *
+ * See the LICENSE.txt file at the top-level directory of this distribution
+ * for licensing information.
+ *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
+ * propagated, or distributed except according to the terms contained in the
+ * LICENSE.txt file.
+ *
+ * Removal or modification of this copyright notice is prohibited.
+ *
+ */
+
 package nxt.http.accountproperties;
 
 import nxt.BlockchainTest;
-import nxt.Constants;
 import nxt.http.APICall;
 import org.json.simple.JSONObject;
 import org.junit.Assert;
 import org.junit.Test;
+
+import static nxt.blockchain.ChildChain.IGNIS;
 
 public class AccountPropertiesTest extends BlockchainTest {
 
@@ -17,7 +33,7 @@ public class AccountPropertiesTest extends BlockchainTest {
     @Test
     public void accountProperty1() {
         JSONObject response = new APICall.Builder("setAccountProperty").
-                param("secretPhrase", ALICE.getSecretPhrase()).feeNQT(Constants.ONE_NXT * 20).
+                param("secretPhrase", ALICE.getSecretPhrase()).param("chain", IGNIS.getId()).feeNQT(IGNIS.ONE_COIN * 20).
                 param("recipient", BOB.getStrId()).
                 param("property", KEY1).
                 param("value", VALUE1).
@@ -37,7 +53,7 @@ public class AccountPropertiesTest extends BlockchainTest {
         }
         String value = sb.toString();
         JSONObject response = new APICall.Builder("setAccountProperty").
-                param("secretPhrase", ALICE.getSecretPhrase()).feeNQT(Constants.ONE_NXT * 20).
+                param("secretPhrase", ALICE.getSecretPhrase()).param("chain", IGNIS.getId()).feeNQT(IGNIS.ONE_COIN * 20).
                 param("recipient", BOB.getStrId()).
                 param("property", KEY1).
                 param("value", value).
@@ -57,7 +73,7 @@ public class AccountPropertiesTest extends BlockchainTest {
         }
         String value = sb.toString();
         JSONObject response = new APICall.Builder("setAccountProperty").
-                param("secretPhrase", ALICE.getSecretPhrase()).feeNQT(Constants.ONE_NXT * 20).
+                param("secretPhrase", ALICE.getSecretPhrase()).param("chain", IGNIS.getId()).feeNQT(IGNIS.ONE_COIN * 20).
                 param("recipient", BOB.getStrId()).
                 param("property", KEY1).
                 param("value", value).
@@ -76,7 +92,7 @@ public class AccountPropertiesTest extends BlockchainTest {
         }
         String name = sb.toString();
         JSONObject response = new APICall.Builder("setAccountProperty").
-                param("secretPhrase", ALICE.getSecretPhrase()).feeNQT(Constants.ONE_NXT * 20).
+                param("secretPhrase", ALICE.getSecretPhrase()).param("chain", IGNIS.getId()).feeNQT(IGNIS.ONE_COIN * 20).
                 param("recipient", BOB.getStrId()).
                 param("property", name).
                 param("value", "").

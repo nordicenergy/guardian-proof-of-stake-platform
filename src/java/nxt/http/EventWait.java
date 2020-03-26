@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -25,83 +26,78 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
- * <p>The EventWait API will wait for one of the server events
+ * <p>
+ * The EventWait API will wait for one of the server events
  * registered by EventRegister.  EventWait will return immediately
  * if one or more events have occurred since the last time EventWait
  * was called.  All pending events will be returned in a single response.
  * The events remain registered so successive calls to EventWait can
- * be made without another call to EventRegister.</p>
- *
- * <p>Only one EventWait can be outstanding for the same network address.
- * If a second EventWait is issued, the current EventWait will be replaced
- * by the new EventWait.</p>
- *
- * <p>Request parameters:</p>
+ * be made without another call to EventRegister.
+ * <p>
+ * Request parameters:
  * <ul>
+ * <li>token - Event registration token returned by the EventRegister API.
  * <li>timeout - Number of seconds to wait for an event.  The EventWait
  * will complete normally if no event is received within the timeout interval.
  * nxt.apiEventTimeout will be used if no timeout value is specified or
- * if the requested timeout is greater than nxt.apiEventTimeout.</li>
+ * if the requested timeout is greater than nxt.apiEventTimeout.
  * </ul>
- *
- * <p>Response parameters:</p>
+ * <p>
+ * Response parameters:
  * <ul>
- * <li>events - An array of event objects</li>
+ * <li>events - An array of event objects
  * </ul>
- *
- * <p>Error Response parameters:</p>
+ * <p>
+ * Error Response parameters:
  * <ul>
- * <li>errorCode - API error code</li>
- * <li>errorDescription - API error description</li>
+ * <li>errorCode - API error code
+ * <li>errorDescription - API error description
  * </ul>
- *
- * <p>Event object:</p>
+ * <p>
+ * Event object:</p>
  * <ul>
- * <li>name - The event name</li>
- * <li>ids - An array of event object identifiers</li>
+ * <li>name - The event name
+ * <li>ids - An array of event object identifiers
  * </ul>
- *
- * <p>Event names:</p>
+ * <p>
+ * Event names:
  * <ul>
- * <li>Block.BLOCK_GENERATED</li>
- * <li>Block.BLOCK_POPPED</li>
- * <li>Block.BLOCK_PUSHED</li>
- * <li>Ledger.ADD_ENTRY.account - The account suffix will be Reed-Solomon identifier
- * of the account associated with the ledger entry.</li>
- * <li>Peer.ADD_INBOUND</li>
- * <li>Peer.ADDED_ACTIVE_PEER</li>
- * <li>Peer.BLACKLIST</li>
- * <li>Peer.CHANGED_ACTIVE_PEER</li>
- * <li>Peer.DEACTIVATE</li>
- * <li>Peer.NEW_PEER</li>
- * <li>Peer.REMOVE</li>
- * <li>Peer.REMOVE_INBOUND</li>
- * <li>Peer.UNBLACKLIST</li>
- * <li>Transaction.ADDED_CONFIRMED_TRANSACTIONS</li>
- * <li>Transaction.ADDED_UNCONFIRMED_TRANSACTIONS</li>
- * <li>Transaction.REJECT_PHASED_TRANSACTION</li>
- * <li>Transaction.RELEASE_PHASED_TRANSACTION</li>
- * <li>Transaction.REMOVE_UNCONFIRMED_TRANSACTIONS</li>
+ * <li>Block.BLOCK_GENERATED
+ * <li>Block.BLOCK_POPPED
+ * <li>Block.BLOCK_PUSHED
+ * <li>Ledger.ADD_ENTRY.account - Monitor changes to the specified account.  'account'
+ * may be the numeric identifier or the Reed-Solomon identifier
+ * of the account to monitor for updates.  All accounts will be monitored if no
+ * account is specified.
+ * Specifying an account identifier of 0 is the same as
+ * not specifying an account.
+ * <li>Peer.ADD_ACTIVE_PEER
+ * <li>Peer.ADD_PEER
+ * <li>Peer.BLACKLIST
+ * <li>Peer.CHANGE_ACTIVE_PEER
+ * <li>Peer.CHANGE_ANNOUNCED_ADDRESS
+ * <li>Peer.CHANGE_SERVICES
+ * <li>Peer.REMOVE_PEER
+ * <li>Peer.UNBLACKLIST
+ * <li>Transaction.ADDED_CONFIRMED_TRANSACTIONS.account (omit account to monitor all accounts)
+ * <li>Transaction.ADDED_UNCONFIRMED_TRANSACTIONS.account (omit account to monitor all accounts)
+ * <li>Transaction.REJECT_PHASED_TRANSACTION.account (omit account to monitor all accounts)
+ * <li>Transaction.RELEASE_PHASED_TRANSACTION.account (omit account to monitor all accounts)
+ * <li>Transaction.REMOVED_UNCONFIRMED_TRANSACTIONS.account (omit account to monitor all accounts)
  * </ul>
- *
- * <p>Event object identifiers:</p>
+ * <p>
+ * Event object identifiers:
  * <ul>
- * <li>Block string identifier for a Block event</li>
- * <li>Peer network address for a Peer event</li>
- * <li>Transaction string identifier for a Transaction event</li>
+ * <li>Block string identifier for a Block event
+ * <li>Peer network address for a Peer event
+ * <li>Transaction chain and full hash for a Transaction event
+ * as a string in the format 'chain:hash'
  * </ul>
  */
 public class EventWait extends APIServlet.APIRequestHandler {
 
     /** EventWait instance */
     static final EventWait instance = new EventWait();
-
-    /** Incorrect timeout */
-    private static final JSONObject incorrectTimeout = new JSONObject();
-    static {
-        incorrectTimeout.put("errorCode", 4);
-        incorrectTimeout.put("errorDescription", "Wait timeout is not valid");
-    }
 
     /** No events registered */
     private static final JSONObject noEventsRegistered = new JSONObject();
@@ -114,7 +110,7 @@ public class EventWait extends APIServlet.APIRequestHandler {
      * Create the EventWait instance
      */
     private EventWait() {
-        super(new APITag[] {APITag.INFO}, "timeout");
+        super(new APITag[] {APITag.INFO}, "token", "timeout");
     }
 
     /**
@@ -128,38 +124,35 @@ public class EventWait extends APIServlet.APIRequestHandler {
      *
      * @param   req                 API request
      * @return                      API response or null
+     * @throws  ParameterException  Invalid parameter specified
      */
     @Override
-    protected JSONStreamAware processRequest(HttpServletRequest req) {
+    protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
         JSONObject response = null;
         //
-        // Get the timeout value
+        // Get the parameters
         //
-        long timeout = EventListener.eventTimeout;
-        String value = req.getParameter("timeout");
-        if (value != null) {
-            try {
-                timeout = Math.min(Long.valueOf(value), timeout);
-            } catch (NumberFormatException exc) {
-                response = incorrectTimeout;
-            }
-        }
+        long token = ParameterParser.getLong(req, "token", 1, Long.MAX_VALUE, true);
+        long timeout = ParameterParser.getLong(req, "timeout", 1, Long.MAX_VALUE, false);
+        timeout = (timeout == 0 ? EventListener.eventTimeout : Math.min(timeout, EventListener.eventTimeout));
         //
         // Wait for an event
         //
         if (response == null) {
-            EventListener listener = EventListener.eventListeners.get(req.getRemoteAddr());
+            String userAddress = req.getRemoteAddr() + ";" + token;
+            EventListener listener = EventListener.eventListeners.get(userAddress);
             if (listener == null) {
                 response = noEventsRegistered;
             } else {
                 try {
                     List<PendingEvent> events = listener.eventWait(req, timeout);
-                    if (events != null)
+                    if (events != null) {
                         response = formatResponse(events);
+                    }
                 } catch (EventListenerException exc) {
                     response = new JSONObject();
                     response.put("errorCode", 7);
-                    response.put("errorDescription", "Unable to wait for an event: "+exc.getMessage());
+                    response.put("errorDescription", "Unable to wait for an event: " + exc.getMessage());
                 }
             }
         }
@@ -171,13 +164,13 @@ public class EventWait extends APIServlet.APIRequestHandler {
         return true;
     }
 
-    /**
-     * No required block parameters
-     *
-     * @return                      FALSE to disable the required block parameters
-     */
     @Override
     protected boolean allowRequiredBlockParameters() {
+        return false;
+    }
+
+    @Override
+    protected boolean isChainSpecific() {
         return false;
     }
 

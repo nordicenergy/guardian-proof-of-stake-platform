@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -26,23 +26,25 @@ var NRS = (function(NRS, $) {
 
     NRS.jsondata.data = function(response) {
         return {
-            nameFormatted: NRS.getTransactionLink(response.transaction, NRS.addEllipsis(NRS.unescapeRespStr(response.name), 20)),
+            nameFormatted: NRS.getTransactionLink(response.transactionFullHash, NRS.addEllipsis(NRS.unescapeRespStr(response.name), 20)),
             accountFormatted: NRS.getAccountLink(response, "account"),
             type: NRS.addEllipsis(NRS.unescapeRespStr(response.type), 20),
             channel: NRS.addEllipsis(NRS.unescapeRespStr(response.channel), 20),
             filename: NRS.addEllipsis(NRS.unescapeRespStr(response.filename), 20),
-            dataFormatted: NRS.getTaggedDataLink(response.transaction, response.isText)
+            dataFormatted: NRS.getTaggedDataLink(response.transactionFullHash, NRS.getActiveChainId(), response.isText)
         };
     };
 
-    NRS.getTaggedDataLink = function(transaction, isText) {
+    NRS.getTaggedDataLink = function (fullHash, chain, isText) {
         if (isText) {
             return "<a href='#' class='btn btn-xs btn-default' data-toggle='modal' " +
                 "data-target='#tagged_data_view_modal' " +
-                "data-transaction='" + NRS.escapeRespStr(transaction) + "'>" + $.t("view") + "</a>";
+                "data-chain='" + chain + "' " +
+                "data-transactionfullhash='" + NRS.escapeRespStr(fullHash) + "'>" + $.t("view") + "</a>";
         } else {
             return NRS.getDownloadLink(
-                NRS.getRequestPath() + "?requestType=downloadTaggedData&transaction=" + NRS.escapeRespStr(transaction) + "&retrieve=true");
+                NRS.getRequestPath() + "?requestType=downloadTaggedData&transactionFullHash=" + NRS.escapeRespStr(fullHash) +
+				"&chain=" + NRS.escapeRespStr(chain) + "&retrieve=true");
         }
     };
 
@@ -276,9 +278,11 @@ var NRS = (function(NRS, $) {
 
     $("#tagged_data_view_modal").on("show.bs.modal", function(e) {
         var $invoker = $(e.relatedTarget);
-        var transaction = $invoker.data("transaction");
+        var fullHash = $invoker.data("transactionfullhash");
+        var chain = $invoker.data("chain");
         NRS.sendRequest("getTaggedData", {
-			"transaction": transaction,
+			"transactionFullHash": fullHash,
+			"chain": chain,
 			"retrieve": "true"
 		}, function (response) {
 			if (response.errorCode) {
@@ -287,20 +291,8 @@ var NRS = (function(NRS, $) {
                 $("#tagged_data_content").val(NRS.unescapeRespStr(response.data));
 			}
 		}, { isAsync: false });
-		NRS.getDownloadLink(NRS.getRequestPath() + "?requestType=downloadTaggedData&transaction=" + transaction + "&retrieve=true", $("#tagged_data_download"));
-    });
-
-    $("#extend_data_modal").on("show.bs.modal", function (e) {
-        var $invoker = $(e.relatedTarget);
-        var transaction = $invoker.data("transaction");
-        $("#extend_data_transaction").val(transaction);
-        NRS.sendRequest("getTransaction", {
-            "transaction": transaction
-        }, function (response) {
-            var fee = NRS.convertToNXT(NRS.escapeRespStr(response.feeNQT));
-            $('#extend_data_fee').val(fee);
-            $('#extend_data_fee_label').html(String(fee) + " " + NRS.constants.COIN_SYMBOL);
-        })
+		NRS.getDownloadLink(NRS.getRequestPath() + "?requestType=downloadTaggedData&transactionFullHash=" + fullHash +
+			"&chain=" + chain + "&retrieve=true", $("#tagged_data_download"));
     });
 
 	return NRS;

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,15 +17,14 @@
 package nxt.http;
 
 import nxt.Nxt;
-import nxt.Transaction;
+import nxt.blockchain.Chain;
+import nxt.blockchain.Transaction;
 import nxt.util.Convert;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
 
-import static nxt.http.JSONResponses.INCORRECT_TRANSACTION;
-import static nxt.http.JSONResponses.MISSING_TRANSACTION;
 import static nxt.http.JSONResponses.UNKNOWN_TRANSACTION;
 
 public final class GetTransactionBytes extends APIServlet.APIRequestHandler {
@@ -32,29 +32,20 @@ public final class GetTransactionBytes extends APIServlet.APIRequestHandler {
     static final GetTransactionBytes instance = new GetTransactionBytes();
 
     private GetTransactionBytes() {
-        super(new APITag[] {APITag.TRANSACTIONS}, "transaction");
+        super(new APITag[] {APITag.TRANSACTIONS}, "fullHash");
     }
 
     @Override
-    protected JSONStreamAware processRequest(HttpServletRequest req) {
+    protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
 
-        String transactionValue = req.getParameter("transaction");
-        if (transactionValue == null) {
-            return MISSING_TRANSACTION;
-        }
-
-        long transactionId;
+        byte[] transactionFullHash = ParameterParser.getBytes(req, "fullHash", true);
         Transaction transaction;
-        try {
-            transactionId = Convert.parseUnsignedLong(transactionValue);
-        } catch (RuntimeException e) {
-            return INCORRECT_TRANSACTION;
-        }
+        Chain chain = ParameterParser.getChain(req);
 
-        transaction = Nxt.getBlockchain().getTransaction(transactionId);
+        transaction = Nxt.getBlockchain().getTransaction(chain, transactionFullHash);
         JSONObject response = new JSONObject();
         if (transaction == null) {
-            transaction = Nxt.getTransactionProcessor().getUnconfirmedTransaction(transactionId);
+            transaction = Nxt.getTransactionProcessor().getUnconfirmedTransaction(Convert.fullHashToId(transactionFullHash));
             if (transaction == null) {
                 return UNKNOWN_TRANSACTION;
             }

@@ -1,4 +1,4 @@
-Building the Nordic Energy Platform installer
+Building the NXT installer
 
 Note: all pathes are relative to the git repository folder (nxt-private)
 
@@ -6,7 +6,7 @@ Pre-requisites for both Unix and Windows
 ========================================
 Compile classes on Unix using compile.sh
 Windows build has to be executed from a Cygwin shell (Install from https://www.cygwin.com/)
-Compile classes on Windows by running win-compile.sh from a Cygwin shell
+Compile classes on Windows by running compile.sh from a Cygwin shell
 In order to create an obfuscated release also install proguard (http://proguard.sourceforge.net/)
 Package NXT.jar using jar.sh
 mkdir jre
@@ -29,8 +29,8 @@ Install the Microsoft Windows SDK for Windows 7 and .NET Framework 4, make sure 
 
 From a Cygwin shell invoke the command win-release-package.sh followed by the version number
 Review results in installer/build-installer.log, installer/build-exe.log
-Digitally sign the installer jar file and zip file using jarsigner
-Digitally sign the installer exe file using signtool
+Digitally sign the installer jar file and zip file using jarsigner 
+Digitally sign the installer exe file using signtool 
 Test the installer using Java: java -jar nxt-client-<version>.jar
 Test the windows executable: nxt-client-<version>.exe
 

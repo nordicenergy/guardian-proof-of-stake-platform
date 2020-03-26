@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,7 +18,8 @@ package nxt.http;
 
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.PrunableMessage;
+import nxt.blockchain.Chain;
+import nxt.messaging.PrunableMessageHome;
 import nxt.util.JSON;
 import org.json.simple.JSONStreamAware;
 
@@ -30,24 +32,26 @@ public final class GetPrunableMessage extends APIServlet.APIRequestHandler {
     static final GetPrunableMessage instance = new GetPrunableMessage();
 
     private GetPrunableMessage() {
-        super(new APITag[] {APITag.MESSAGES}, "transaction", "secretPhrase", "sharedKey", "retrieve");
+        super(new APITag[] {APITag.MESSAGES}, "transactionFullHash", "secretPhrase", "sharedKey", "retrieve");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-        long transactionId = ParameterParser.getUnsignedLong(req, "transaction", true);
+        byte[] transactionFullHash = ParameterParser.getBytes(req, "transactionFullHash", true);
         String secretPhrase = ParameterParser.getSecretPhrase(req, false);
         byte[] sharedKey = ParameterParser.getBytes(req, "sharedKey", false);
         if (sharedKey.length != 0 && secretPhrase != null) {
             return JSONResponses.either("secretPhrase", "sharedKey");
         }
         boolean retrieve = "true".equalsIgnoreCase(req.getParameter("retrieve"));
-        PrunableMessage prunableMessage = PrunableMessage.getPrunableMessage(transactionId);
+        Chain chain = ParameterParser.getChain(req);
+        PrunableMessageHome prunableMessageHome = chain.getPrunableMessageHome();
+        PrunableMessageHome.PrunableMessage prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         if (prunableMessage == null && retrieve) {
-            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(transactionId) == null) {
+            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(chain, transactionFullHash) == null) {
                 return PRUNED_TRANSACTION;
             }
-            prunableMessage = PrunableMessage.getPrunableMessage(transactionId);
+            prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         }
         if (prunableMessage != null) {
             return JSONData.prunableMessage(prunableMessage, secretPhrase, sharedKey);

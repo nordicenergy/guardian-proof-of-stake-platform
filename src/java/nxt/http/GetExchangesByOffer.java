@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,8 +16,9 @@
 
 package nxt.http;
 
-import nxt.Exchange;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
+import nxt.ms.ExchangeHome;
 import nxt.util.Convert;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -49,11 +51,12 @@ public final class GetExchangesByOffer extends APIServlet.APIRequestHandler {
             throw new ParameterException(INCORRECT_OFFER);
         }
         boolean includeCurrencyInfo = "true".equalsIgnoreCase(req.getParameter("includeCurrencyInfo"));
+        ChildChain childChain = ParameterParser.getChildChain(req);
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
         JSONObject response = new JSONObject();
         JSONArray exchangesData = new JSONArray();
-        try (DbIterator<Exchange> exchanges = Exchange.getOfferExchanges(offerId, firstIndex, lastIndex)) {
+        try (DbIterator<ExchangeHome.Exchange> exchanges = childChain.getExchangeHome().getOfferExchanges(offerId, firstIndex, lastIndex)) {
             while (exchanges.hasNext()) {
                 exchangesData.add(JSONData.exchange(exchanges.next(), includeCurrencyInfo));
             }

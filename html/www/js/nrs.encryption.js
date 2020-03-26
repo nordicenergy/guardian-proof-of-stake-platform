@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -236,10 +236,12 @@ var NRS = (function (NRS, $) {
 		var m = simpleHash(messageBytes);
 		var h2 = simpleHash(m, y);
 		if (!areByteArraysEqual(h, h2)) {
-            callback({
-                "errorCode": 1,
-                "errorDescription": $.t("error_signature_verification_client")
-            }, message);
+            if (callback) {
+                callback({
+                    "errorCode": 1,
+                    "errorDescription": $.t("error_signature_verification_client")
+                }, message);
+			}
             return false;
         }
         return true;
@@ -254,9 +256,9 @@ var NRS = (function (NRS, $) {
 	};
 
 	NRS.tryToDecryptMessage = function(message) {
-		if (_decryptedTransactions && _decryptedTransactions[message.transaction]) {
-			if (_decryptedTransactions[message.transaction].encryptedMessage) {
-				return _decryptedTransactions[message.transaction].encryptedMessage; // cache is saved differently by the info modal vs the messages table
+		if (_decryptedTransactions && _decryptedTransactions[message.fullHash]) {
+			if (_decryptedTransactions[message.fullHash].encryptedMessage) {
+				return _decryptedTransactions[message.fullHash].encryptedMessage; // cache is saved differently by the info modal vs the messages table
 			}
 		}
 		try {
@@ -285,7 +287,7 @@ var NRS = (function (NRS, $) {
 		var formEl = (options.formEl ? NRS.escapeRespStr(options.formEl) : "#transaction_info_output_bottom");
 		var outputEl = (options.outputEl ? NRS.escapeRespStr(options.outputEl) : "#transaction_info_output_bottom");
 		var output = "";
-		var identifier = (options.identifier ? transaction[options.identifier] : transaction.transaction);
+		var identifier = (options.identifier ? transaction[options.identifier] : transaction.fullHash);
 
 		//check in cache first..
 		if (_decryptedTransactions && _decryptedTransactions[identifier]) {
@@ -339,11 +341,13 @@ var NRS = (function (NRS, $) {
 						} else {
 							decryptOptions = {
 								"nonce": nonce,
-								"account": account
+								"account": key == "encryptToSelfMessage" ? NRS.account : account
 							};
 						}
 						if (transaction.goodsIsText) {
                             decryptOptions.isText = transaction.goodsIsText;
+                        } else if (transaction.attachment && transaction.attachment.goodsIsText) {
+                            decryptOptions.isText = transaction.attachment.goodsIsText;
 						} else {
                             decryptOptions.isText = transaction.attachment[key].isText;
                             decryptOptions.isCompressed = transaction.attachment[key].isCompressed;
@@ -417,7 +421,7 @@ var NRS = (function (NRS, $) {
     var formatMessageArea = function (title, nrFields, data, options, transaction) {
 		var outputStyle = (!options.noPadding && title ? "padding-left:5px;" : "");
 		var labelStyle = (nrFields > 1 ? " style='margin-top:5px'" : "");
-		var label = (title ? "<label" + labelStyle + "><i class='fa fa-unlock'></i> " + String(title).escapeHTML() + "</label>" : "");
+		var label = (title ? "<label" + labelStyle + "><i class='far fa-unlock'></i> " + String(title).escapeHTML() + "</label>" : "");
 		var msg;
 		if (NRS.isTextMessage(transaction)) {
 			msg = String(data.message).autoLink().nl2br();
@@ -429,7 +433,7 @@ var NRS = (function (NRS, $) {
 		if (data.sharedKey) {
 			sharedKeyField = "<div><label>" + $.t('shared_key') + "</label><br><span>" + data.sharedKey + "</span></div><br>";
 			if (!NRS.isTextMessage(transaction) && transaction.block) {
-				downloadLink = NRS.getMessageDownloadLink(transaction.transaction, data.sharedKey) + "<br>";
+				downloadLink = NRS.getMessageDownloadLink(transaction.fullHash, data.sharedKey) + "<br>";
 			}
 		}
         return "<div style='" + outputStyle + "'>" + label + "<div>" + msg + "</div>" + sharedKeyField + downloadLink + "</div>";
@@ -474,9 +478,9 @@ var NRS = (function (NRS, $) {
 			var encrypted = "";
 			var nonce = "";
 			var nonceField = (typeof title != "string" ? title.nonce : key + "Nonce");
+            var otherAccount = _encryptedNote.account;
 			if (key == "encryptedMessage" || key == "encryptToSelfMessage") {
-                var otherAccount = _encryptedNote.account;
-			    if (key == "encryptToSelfMessage") {
+                if (key == "encryptToSelfMessage") {
 					otherAccount = accountId;
 				}
 				encrypted = _encryptedNote.transaction.attachment[key].data;
@@ -508,6 +512,8 @@ var NRS = (function (NRS, $) {
                     }
                     if (_encryptedNote.transaction.goodsIsText) {
                         options.isText = _encryptedNote.transaction.goodsIsText;
+                    } else if (_encryptedNote.transaction.attachment && _encryptedNote.transaction.attachment.goodsIsText) {
+                        options.isText = _encryptedNote.transaction.attachment.goodsIsText;
                     } else {
                         options.isText = _encryptedNote.transaction.attachment[key].isText;
                         options.isCompressed = _encryptedNote.transaction.attachment[key].isCompressed;
@@ -571,7 +577,7 @@ var NRS = (function (NRS, $) {
 		var error = 0;
 		for (var i = 0; i < messages.length; i++) {
 			var message = messages[i];
-			if (message.attachment.encryptedMessage && !_decryptedTransactions[message.transaction]) {
+			if (message.attachment.encryptedMessage && !_decryptedTransactions[message.fullHash]) {
 				try {
 					var otherUser = (message.sender == NRS.account ? message.recipient : message.sender);
 					var options = {};
@@ -581,20 +587,21 @@ var NRS = (function (NRS, $) {
 						options.nonce = message.attachment.encryptedMessage.nonce;
 						options.account = otherUser;
                     }
-                    if (_encryptedNote.transaction.goodsIsText) {
+                    if (_encryptedNote && _encryptedNote.transaction &&
+                            (_encryptedNote.transaction.goodsIsText || _encryptedNote.transaction.attachment.goodsIsText)) {
                         options.isText = message.goodsIsText;
                     } else {
                         options.isText = message.attachment.encryptedMessage.isText;
                         options.isCompressed = message.attachment.encryptedMessage.isCompressed;
                     }
                     var decoded = NRS.decryptNote(message.attachment.encryptedMessage.data, options, password);
-					_decryptedTransactions[message.transaction] = {
+					_decryptedTransactions[message.fullHash] = {
 						encryptedMessage: decoded
 					};
 					success++;
 				} catch (err) {
 					if (!useSharedKey) {
-						_decryptedTransactions[message.transaction] = {
+						_decryptedTransactions[message.fullHash] = {
 							"message": $.t("error_decryption_unknown")
 						};
 					}
@@ -651,28 +658,34 @@ var NRS = (function (NRS, $) {
 		return value;
 	}
 
-	function aesEncrypt(plaintext, options) {
+	function aesEncrypt(payload, options) {
         var ivBytes = getRandomBytes(16);
 
 		// CryptoJS likes WordArray parameters
-		var text = converters.byteArrayToWordArray(plaintext);
+		var wordArrayPayload = converters.byteArrayToWordArray(payload);
 		var sharedKey;
 		if (!options.sharedKey) {
 			sharedKey = getSharedSecret(options.privateKey, options.publicKey);
 		} else {
 			sharedKey = options.sharedKey.slice(0); //clone
 		}
-		for (var i = 0; i < 32; i++) {
-			sharedKey[i] ^= options.nonce[i];
+		if (options.nonce !== undefined) {
+			for (var i = 0; i < 32; i++) {
+				sharedKey[i] ^= options.nonce[i];
+			}
 		}
 		var key = CryptoJS.SHA256(converters.byteArrayToWordArray(sharedKey));
-		var encrypted = CryptoJS.AES.encrypt(text, key, {
+		var encrypted = CryptoJS.AES.encrypt(wordArrayPayload, key, {
 			iv: converters.byteArrayToWordArray(ivBytes)
 		});
 		var ivOut = converters.wordArrayToByteArray(encrypted.iv);
 		var ciphertextOut = converters.wordArrayToByteArray(encrypted.ciphertext);
 		return ivOut.concat(ciphertextOut);
 	}
+
+	NRS.aesEncrypt = function(plaintext, password) {
+		return aesEncrypt(converters.stringToByteArray(plaintext), {sharedKey: converters.stringToByteArray(password)});
+	};
 
 	function aesDecrypt(ivCiphertext, options) {
 		if (ivCiphertext.length < 16 || ivCiphertext.length % 16 != 0) {

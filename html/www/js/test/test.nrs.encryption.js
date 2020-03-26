@@ -5,14 +5,18 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
  * Removal or modification of this copyright notice is prohibited.            *
  *                                                                            *
  ******************************************************************************/
+
+jQuery.t = function(text) {
+    return text;
+};
 
 QUnit.module("nrs.encryption");
 
@@ -28,7 +32,7 @@ QUnit.test("getPublicKey", function (assert) {
 });
 
 QUnit.test("getAccountIdFromPublicKey", function (assert) {
-    assert.equal(NRS.getAccountIdFromPublicKey("112e0c5748b5ea610a44a09b1ad0d2bddc945a6ef5edc7551b80576249ba585b", true), "NXT-XK4R-7VJU-6EQG-7R335", "account.rs");
+    assert.equal(NRS.getAccountIdFromPublicKey("112e0c5748b5ea610a44a09b1ad0d2bddc945a6ef5edc7551b80576249ba585b", true), "ARDOR-XK4R-7VJU-6EQG-7R335", "account.rs");
     assert.equal(NRS.getAccountIdFromPublicKey("112e0c5748b5ea610a44a09b1ad0d2bddc945a6ef5edc7551b80576249ba585b", false), "5873880488492319831", "account.rs");
 });
 
@@ -155,3 +159,143 @@ QUnit.test("decryptUncompressedBinary", function (assert) {
     assert.equal(converters.byteArrayToString(converters.hexStringToByteArray(decryptedMessage.message)).substring(0, 11), "hello world");
 });
 
+QUnit.test("signAndVerify", function(assert) {
+    var message = "0200000001000169fc25000f00584486d2ba4dbd7eaeadd071f9f8c3593cee620e1e374033551147d68899b5296589cd7b584899c8000000000000000020a107000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000684200009e0c8cc5fe930863080000000100be3eea9a483308cb3134ce068e77b56e7c25af19480742880179827cb3c9b5c0000000000000000000000000000000000000000000000000000000000000000000000000";
+    var secretPhrase = "356869696739425064596f427a576e693051506143446e6f36577a305667386f5839794d6358526a45686d6b75514b687642";
+    var signature = NRS.signBytes(message, secretPhrase);
+    assert.equal(signature, "aad6cd4bfe73eb39d42f549bce8f14b80a49e12cfebc0a9ce362876deb50c40609583f9b4e8fbbc45270f63947b1102457b10f9127f731f7a96891b8fdd8441f", "sign.message");
+    var publicKey = "584486d2ba4dbd7eaeadd071f9f8c3593cee620e1e374033551147d68899b529";
+    assert.equal(NRS.verifySignature(signature, message, publicKey), true, "verify.signature");
+});
+
+QUnit.test("secretPhraseGenerator", function(assert) {
+    var crypto = window.crypto || window.msCrypto;
+    var bits = 128;
+    var random = new Uint32Array(bits / 32);
+    crypto.getRandomValues(random);
+    var words = NRS.constants.SECRET_WORDS;
+    var n = words.length;
+    var	phraseWords = [];
+    var	x, w1, w2, w3;
+    for (var i=0; i < random.length; i++) {
+        x = random[i];
+        console.log(x);
+        w1 = x % n;
+        w2 = (((x / n) >> 0) + w1) % n;
+        w3 = (((((x / n) >> 0) / n) >> 0) + w2) % n;
+        phraseWords.push(words[w1]);
+        phraseWords.push(words[w2]);
+        phraseWords.push(words[w3]);
+    }
+    var secretPhrase = phraseWords.join(" ");
+    console.log(secretPhrase);
+    assert.equal(phraseWords.length, 12);
+});
+
+QUnit.test("shamirSecretSharingWikipediaExample", function(assert) {
+    var prime = bigInt("1613");
+    var secret = "1234";
+    var allShares = sss.split(secret, 3, 5, prime);
+
+    // Works with 3 shares
+    var shares1 = [];
+    shares1.push(allShares[0], allShares[2], allShares[3]);
+    var reproducedSecret = sss.combine(shares1, prime);
+    assert.equal(reproducedSecret, secret);
+
+    // Works with other 3 shares
+    var shares2 = [];
+    shares2.push(allShares[0], allShares[1], allShares[4]);
+    reproducedSecret = sss.combine(shares2, prime);
+    assert.equal(reproducedSecret, secret);
+
+    // Fails with only 2 shares
+    var shares3 = [];
+    shares3.push(allShares[1], allShares[4]);
+    reproducedSecret = sss.combine(shares3, prime);
+    assert.notEqual(reproducedSecret, secret);
+});
+
+QUnit.test("shamirSecretSharingSplitAndCombine", function(assert) {
+    var secret = "298106192037605529109565170145082624171";
+    var secretAs128Bit = bigInt(secret);
+    var split = sss.split(secretAs128Bit, 3, 5, sss.PRIME_4096_BIT);
+    split.forEach(function(piece) {
+        assert.ok(piece.share.compareTo(bigInt.zero) > 0 && piece.share.compareTo(sss.PRIME_4096_BIT) < 0);
+    });
+    var shares = [split[0], split[2], split[4]];
+    var secretPhrase = sss.combine(shares, sss.PRIME_4096_BIT);
+    assert.equal(secret, secretPhrase);
+});
+
+var ALICE_SECRET_PHRASE = "hope peace happen touch easy pretend worthless talk them indeed wheel state";
+var CHUCK_SECRET_PHRASE = "eOdBVLMgySFvyiTy8xMuRXDTr45oTzB7L5J";
+
+QUnit.test("wordsTo128bitNumberAndBack", function(assert) {
+    var secretInteger = "298106192037605529109565170145082624171";
+    var secret = sss.to128bit(ALICE_SECRET_PHRASE.split(" "));
+    assert.equal(secret, secretInteger);
+    var reproducedSecret = sss.from128bit(secret);
+    assert.equal(reproducedSecret, ALICE_SECRET_PHRASE);
+});
+
+QUnit.test("splitAndCombine12wordsSecretPhrase", function(assert) {
+    // Generate the pieces
+    var pieces = sss.splitSecret(ALICE_SECRET_PHRASE, 5, 3, bigInt.zero);
+
+    // Select pieces and combine
+    var selectedPieces = [pieces[0], pieces[2], pieces[4]];
+    var combinedSecret = sss.combineSecret(selectedPieces);
+    assert.equal(combinedSecret, ALICE_SECRET_PHRASE);
+
+    // Select pieces and combine
+    selectedPieces = [pieces[1], pieces[3], pieces[4]];
+    combinedSecret = sss.combineSecret(selectedPieces);
+    assert.equal(combinedSecret, ALICE_SECRET_PHRASE);
+
+    // Again with 2 out of 3
+    pieces = sss.splitSecret(ALICE_SECRET_PHRASE, 3, 2, bigInt.zero);
+    selectedPieces = [pieces[0], pieces[2]];
+    combinedSecret = sss.combineSecret(selectedPieces);
+    assert.equal(combinedSecret, ALICE_SECRET_PHRASE);
+});
+
+QUnit.test("splitAndCombineRandomSecretPhrase", function(assert) {
+    // Generate the pieces
+    var pieces = sss.splitSecret(CHUCK_SECRET_PHRASE, 7, 4, bigInt.zero);
+
+    // Select pieces and combine
+    var selectedPieces = [pieces[1], pieces[3], pieces[5], pieces[6]];
+    var combinedSecret = sss.combineSecret(selectedPieces);
+    assert.equal(combinedSecret, CHUCK_SECRET_PHRASE);
+
+    // Select pieces and combine
+    selectedPieces = [pieces[1], pieces[2], pieces[4], pieces[6]];
+    combinedSecret = sss.combineSecret(selectedPieces);
+    assert.equal(combinedSecret, CHUCK_SECRET_PHRASE);
+});
+
+QUnit.test("splitAndCombineShortRandomSecretPhrase", function(assert) {
+    // Generate the pieces
+    var pieces = sss.splitSecret("aaa", 7, 4, bigInt.zero);
+
+    // Select pieces and combine
+    var selectedPieces = [pieces[1], pieces[3], pieces[5], pieces[6]];
+    var combinedSecret = sss.combineSecret(selectedPieces);
+    assert.equal(combinedSecret, "aaa");
+});
+
+QUnit.test("splitValidityChecks", function(assert) {
+    try {
+        sss.splitSecret(ALICE_SECRET_PHRASE, 4, 1, bigInt.zero);
+        assert.fail();
+    } catch (e) {
+        assert.equal(true, e instanceof Error);
+    }
+    try {
+        sss.splitSecret(ALICE_SECRET_PHRASE, 4, 5, bigInt.zero);
+        assert.fail();
+    } catch (e) {
+        assert.equal(true, e instanceof Error);
+    }
+});

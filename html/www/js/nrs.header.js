@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -19,18 +19,10 @@
  */
 var NRS = (function(NRS, $) {
 
-    function widgetVisibility(widget, depends) {
-        if (NRS.isApiEnabled(depends)) {
-            widget.show();
-        } else {
-            widget.hide();
-        }
-    }
+
 
     $(window).on('load', function() {
-        widgetVisibility($("#header_send_money"), { apis: [NRS.constants.REQUEST_TYPES.sendMoney] });
-        widgetVisibility($("#header_transfer_currency"), { apis: [NRS.constants.REQUEST_TYPES.transferCurrency] });
-        widgetVisibility($("#header_send_message"), { apis: [NRS.constants.REQUEST_TYPES.sendMessage] });
+
         if (!NRS.isFundingMonitorSupported()) {
             $("#funding_monitor_menu_item").hide();
         }
@@ -95,6 +87,11 @@ var NRS = (function(NRS, $) {
         }
     });
 
+    // fixes popover hovering over dropdown menu
+    $('#header_right li.dropdown.show_popover').on('shown.bs.dropdown', function () {
+        $(this).popover('hide');
+    });
+
     NRS.forms.setAPIProxyPeer = function ($modal) {
         var data = NRS.getFormData($modal.find("form:first"));
         data.adminPassword = NRS.getAdminPassword();
@@ -140,6 +137,8 @@ var NRS = (function(NRS, $) {
     });
 
     $("#passphrase_validation_modal").on("show.bs.modal", function() {
+        $(this).find("button.btn-primary").show();
+        $(this).find("input[name=secretPhrase]").attr("readonly", false);
         $("#passphrae_validation_account").val(NRS.accountRS);
     });
 
@@ -148,10 +147,12 @@ var NRS = (function(NRS, $) {
         var secretPhrase = data.secretPhrase;
         var account = data.account;
         var calculatedAccount = NRS.getAccountId(secretPhrase, true);
-        if (account == calculatedAccount) {
+        if (account === calculatedAccount) {
             $(".btn-passphrase-validation").removeClass("btn-danger").addClass("btn-success");
             var publicKey = NRS.getPublicKey(converters.stringToHexString(secretPhrase));
             $("#passphrae_validation_public_key").val(publicKey);
+            $modal.find("button.btn-primary").hide();
+            $modal.find("input[name=secretPhrase]").attr("readonly", true);
             return {
                 "successMessage": $.t("correct_passphrase"),
                 "stop": true,

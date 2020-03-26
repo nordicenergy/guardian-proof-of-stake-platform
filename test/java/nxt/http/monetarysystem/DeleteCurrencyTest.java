@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,7 +17,7 @@
 package nxt.http.monetarysystem;
 
 import nxt.BlockchainTest;
-import nxt.Constants;
+import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
 import nxt.util.Logger;
 import org.json.simple.JSONArray;
@@ -38,7 +39,7 @@ public class DeleteCurrencyTest extends BlockchainTest {
 
         // Delete the currency
         apiCall = new APICall.Builder("deleteCurrency").
-                secretPhrase(ALICE.getSecretPhrase()).feeNQT(Constants.ONE_NXT).
+                secretPhrase(ALICE.getSecretPhrase()).feeNQT(ChildChain.IGNIS.ONE_COIN).
                 param("currency", currencyId).
                 build();
         response = apiCall.invoke();
@@ -75,7 +76,7 @@ public class DeleteCurrencyTest extends BlockchainTest {
 
         // Delete the currency
         apiCall = new APICall.Builder("deleteCurrency").
-                secretPhrase(BOB.getSecretPhrase()).feeNQT(Constants.ONE_NXT).
+                secretPhrase(BOB.getSecretPhrase()).feeNQT(ChildChain.IGNIS.ONE_COIN).
                 param("currency", currencyId).
                 build();
         response = apiCall.invoke();
@@ -101,11 +102,10 @@ public class DeleteCurrencyTest extends BlockchainTest {
 
         // Transfer all units
         apiCall = new APICall.Builder("transferCurrency").
-                secretPhrase(ALICE.getSecretPhrase()).feeNQT(Constants.ONE_NXT).
+                secretPhrase(ALICE.getSecretPhrase()).feeNQT(ChildChain.IGNIS.ONE_COIN).
                 param("recipient", Long.toUnsignedString(BOB.getId())).
                 param("currency", currencyId).
-                param("code", code).
-                param("units", (String)response.get("maxSupply")).
+                param("unitsQNT", (String)response.get("maxSupplyQNT")).
                 build();
         response = apiCall.invoke();
         Logger.logDebugMessage("transferCurrencyResponse:" + response);
@@ -113,7 +113,7 @@ public class DeleteCurrencyTest extends BlockchainTest {
 
         // Delete the currency
         apiCall = new APICall.Builder("deleteCurrency").
-                secretPhrase(BOB.getSecretPhrase()).feeNQT(Constants.ONE_NXT).
+                secretPhrase(BOB.getSecretPhrase()).feeNQT(ChildChain.IGNIS.ONE_COIN).
                 param("currency", currencyId).
                 build();
         response = apiCall.invoke();

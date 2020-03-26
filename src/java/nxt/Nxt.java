@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,19 +16,29 @@
 
 package nxt;
 
-import nxt.addons.AddOns;
-import nxt.crypto.Crypto;
+import nxt.blockchain.Block;
+import nxt.blockchain.BlockImpl;
+import nxt.blockchain.Blockchain;
+import nxt.blockchain.BlockchainImpl;
+import nxt.blockchain.BlockchainProcessor;
+import nxt.blockchain.BlockchainProcessorImpl;
+import nxt.blockchain.FxtTransaction;
+import nxt.blockchain.Transaction;
+import nxt.blockchain.TransactionImpl;
+import nxt.blockchain.TransactionProcessor;
+import nxt.blockchain.TransactionProcessorImpl;
+import nxt.configuration.Setup;
+import nxt.configuration.SubSystem;
 import nxt.env.DirProvider;
 import nxt.env.RuntimeEnvironment;
 import nxt.env.RuntimeMode;
 import nxt.env.ServerStatus;
 import nxt.http.API;
-import nxt.http.APIProxy;
-import nxt.peer.Peers;
 import nxt.util.Convert;
 import nxt.util.Logger;
-import nxt.util.ThreadPool;
+import nxt.util.ResourceLookup;
 import nxt.util.Time;
+import nxt.util.security.BlockchainPermission;
 import org.json.simple.JSONObject;
 
 import java.io.File;
@@ -38,6 +49,7 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -50,10 +62,11 @@ import java.util.Properties;
 
 public final class Nxt {
 
-    public static final String VERSION = "1.11.15";
-    public static final String APPLICATION = "NxtClone";
+    public static final String VERSION = "2.2.6";
+    public static final String APPLICATION = "Ardor";
 
     private static volatile Time time = new Time.EpochTime();
+    private static volatile ServerStatus serverStatus = ServerStatus.NOT_INITIALIZED;
 
     public static final String NXT_DEFAULT_PROPERTIES = "nxt-default.properties";
     public static final String NXT_PROPERTIES = "nxt.properties";
@@ -62,21 +75,44 @@ public final class Nxt {
 
     private static final RuntimeMode runtimeMode;
     private static final DirProvider dirProvider;
+    private static Setup setup = Setup.NOT_INITIALIZED;
 
     private static final Properties defaultProperties = new Properties();
     static {
         redirectSystemStreams("out");
         redirectSystemStreams("err");
-        System.out.println("Initializing " + Nxt.APPLICATION + " server version " + Nxt.VERSION);
+        System.out.println("Initializing Nxt server version " + Nxt.VERSION);
         printCommandLineArguments();
-        runtimeMode = RuntimeEnvironment.getRuntimeMode();
+        String installerConfiguredMode = getInstallerConfiguredRuntimeMode();
+        runtimeMode = RuntimeEnvironment.getRuntimeMode(installerConfiguredMode);
+
         System.out.printf("Runtime mode %s\n", runtimeMode.getClass().getName());
-        dirProvider = RuntimeEnvironment.getDirProvider();
+        dirProvider = RuntimeEnvironment.getDirProvider(installerConfiguredMode);
         System.out.println("User home folder " + dirProvider.getUserHomeDir());
         loadProperties(defaultProperties, NXT_DEFAULT_PROPERTIES, true);
         if (!VERSION.equals(Nxt.defaultProperties.getProperty("nxt.version"))) {
             throw new RuntimeException("Using an nxt-default.properties file from a version other than " + VERSION + " is not supported!!!");
         }
+    }
+
+    /**
+     * In previous versions the runtime mode was configured only by a Java VM flag.
+     * But this means that every command line tool has to set it manually.
+     * From now the installer can also set the runtime mode.
+     * The challenge is that for unit tests we don't like to set desktop
+     * runtime mode.
+     * Therefore we rely on the fact that unit tests enable assertions (-ea) which are normally disabled.
+     * We turn off runtime mode when assertions are enabled.
+     * @return the runtime mode
+     */
+    private static String getInstallerConfiguredRuntimeMode() {
+        Properties tempInstallerProperties = new Properties();
+        loadProperties(tempInstallerProperties, NXT_INSTALLER_PROPERTIES, true);
+        boolean isAssertOn = false;
+        //noinspection ConstantConditions,AssertWithSideEffects
+        assert isAssertOn = true;
+        //noinspection ConstantConditions
+        return isAssertOn || tempInstallerProperties.getProperty("nxt.runtime.mode") == null ? "" : tempInstallerProperties.getProperty("nxt.runtime.mode");
     }
 
     private static void redirectSystemStreams(String streamName) {
@@ -117,6 +153,10 @@ public final class Nxt {
     }
 
     public static void loadProperties(Properties properties, String propertiesFile, boolean isDefault) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("properties"));
+        }
         try {
             // Load properties from location specified as command line parameter
             String configFile = System.getProperty(propertiesFile);
@@ -128,7 +168,8 @@ public final class Nxt {
                     throw new IllegalArgumentException(String.format("Error loading %s from %s", propertiesFile, configFile));
                 }
             } else {
-                try (InputStream is = ClassLoader.getSystemResourceAsStream(propertiesFile)) {
+
+                try (InputStream is = ResourceLookup.getSystemResourceAsStream(propertiesFile)) {
                     // When running nxt.exe from a Windows installation we always have nxt.properties in the classpath but this is not the nxt properties file
                     // Therefore we first load it from the classpath and then look for the real nxt.properties in the user folder.
                     if (is != null) {
@@ -139,7 +180,7 @@ public final class Nxt {
                         }
                     }
                     // load non-default properties files from the user folder
-                    if (!dirProvider.isLoadPropertyFileFromUserDir()) {
+                    if (dirProvider == null || !dirProvider.isLoadPropertyFileFromUserDir()) {
                         return;
                     }
                     String homeDir = dirProvider.getUserHomeDir();
@@ -189,7 +230,7 @@ public final class Nxt {
                 return;
             }
             inputArguments.forEach(System.out::println);
-        } catch (AccessControlException e) {
+        } catch (AccessControlException | NoClassDefFoundError e) {
             System.out.println("Cannot read input arguments " + e.getMessage());
         }
     }
@@ -199,6 +240,10 @@ public final class Nxt {
     }
 
     public static int getIntProperty(String name, int defaultValue) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("properties"));
+        }
         try {
             int result = Integer.parseInt(properties.getProperty(name));
             Logger.logMessage(name + " = \"" + result + "\"");
@@ -222,6 +267,10 @@ public final class Nxt {
     }
 
     public static String getStringProperty(String name, String defaultValue, boolean doNotLog, String encoding) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("properties"));
+        }
         String value = properties.getProperty(name);
         if (value != null && ! "".equals(value)) {
             Logger.logMessage(name + " = \"" + (doNotLog ? "{not logged}" : value) + "\"");
@@ -233,7 +282,7 @@ public final class Nxt {
             return value;
         }
         try {
-            return new String(value.getBytes("ISO-8859-1"), encoding);
+            return new String(value.getBytes(StandardCharsets.ISO_8859_1), encoding);
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
@@ -259,6 +308,10 @@ public final class Nxt {
     }
 
     public static boolean getBooleanProperty(String name, boolean defaultValue) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("properties"));
+        }
         String value = properties.getProperty(name);
         if (Boolean.TRUE.toString().equals(value)) {
             Logger.logMessage(name + " = \"true\"");
@@ -283,8 +336,12 @@ public final class Nxt {
         return TransactionProcessorImpl.getInstance();
     }
 
-    public static Transaction.Builder newTransactionBuilder(byte[] senderPublicKey, long amountNQT, long feeNQT, short deadline, Attachment attachment) {
-        return new TransactionImpl.BuilderImpl((byte)1, senderPublicKey, amountNQT, feeNQT, deadline, (Attachment.AbstractAttachment)attachment);
+    public static Block parseBlock(byte[] blockBytes, List<? extends FxtTransaction> blockTransactions) throws NxtException.NotValidException {
+        return BlockImpl.parseBlock(blockBytes, blockTransactions);
+    }
+
+    public static Transaction parseTransaction(byte[] transactionBytes) throws NxtException.NotValidException {
+        return TransactionImpl.parseTransaction(transactionBytes);
     }
 
     public static Transaction.Builder newTransactionBuilder(byte[] transactionBytes) throws NxtException.NotValidException {
@@ -302,12 +359,16 @@ public final class Nxt {
     public static int getEpochTime() {
         return time.getTime();
     }
-
-    static void setTime(Time time) {
+    
+    public static void setTime(Time time) {
         Nxt.time = time;
     }
 
     public static void main(String[] args) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("lifecycle"));
+        }
         try {
             Runtime.getRuntime().addShutdownHook(new Thread(Nxt::shutdown));
             init();
@@ -317,188 +378,90 @@ public final class Nxt {
         }
     }
 
-    public static void init(Properties customProperties) {
+    public static void init(Setup setup, Properties customProperties) {
         properties.putAll(customProperties);
-        init();
+        init(setup);
     }
 
     public static void init() {
-        Init.init();
+        init(Setup.FULL_NODE);
     }
 
+    public static void init(Setup setup) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("lifecycle"));
+        }
+        Nxt.setup = setup;
+        Init.init(setup);
+    }
+
+    /**
+     * Shutdown the application.
+     */
     public static void shutdown() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("lifecycle"));
+        }
         Logger.logShutdownMessage("Shutting down...");
-        AddOns.shutdown();
-        API.shutdown();
-        FundingMonitor.shutdown();
-        ThreadPool.shutdown();
-        BlockchainProcessorImpl.getInstance().shutdown();
-        Peers.shutdown();
-        Db.shutdown();
-        Logger.logShutdownMessage(Nxt.APPLICATION + " server " + VERSION + " stopped.");
-        Logger.shutdown();
-        runtimeMode.shutdown();
+        setup.shutdownSequence().forEach(SubSystem::shutdown);
     }
 
     private static class Init {
 
         private static volatile boolean initialized = false;
 
-        static {
-            try {
-                long startTime = System.currentTimeMillis();
-                Logger.init();
-                setSystemProperties();
-                logSystemProperties();
-                runtimeMode.init();
-                Thread secureRandomInitThread = initSecureRandom();
-                setServerStatus(ServerStatus.BEFORE_DATABASE, null);
-                Db.init();
-                setServerStatus(ServerStatus.AFTER_DATABASE, null);
-                TransactionProcessorImpl.getInstance();
-                BlockchainProcessorImpl.getInstance();
-                Account.init();
-                AccountRestrictions.init();
-                AccountLedger.init();
-                Alias.init();
-                Asset.init();
-                DigitalGoodsStore.init();
-                Order.init();
-                Poll.init();
-                PhasingPoll.init();
-                Trade.init();
-                AssetTransfer.init();
-                AssetDelete.init();
-                AssetDividend.init();
-                Vote.init();
-                PhasingVote.init();
-                Currency.init();
-                CurrencyBuyOffer.init();
-                CurrencySellOffer.init();
-                CurrencyFounder.init();
-                CurrencyMint.init();
-                CurrencyTransfer.init();
-                Exchange.init();
-                ExchangeRequest.init();
-                Shuffling.init();
-                ShufflingParticipant.init();
-                PrunableMessage.init();
-                TaggedData.init();
-                Peers.init();
-                APIProxy.init();
-                Generator.init();
-                AddOns.init();
-                API.init();
-                DebugTrace.init();
-                int timeMultiplier = (Constants.isTestnet && Constants.isOffline) ? Math.max(Nxt.getIntProperty("nxt.timeMultiplier"), 1) : 1;
-                ThreadPool.start(timeMultiplier);
-                if (timeMultiplier > 1) {
-                    setTime(new Time.FasterTime(Math.max(getEpochTime(), Nxt.getBlockchain().getLastBlock().getTimestamp()), timeMultiplier));
-                    Logger.logMessage("TIME WILL FLOW " + timeMultiplier + " TIMES FASTER!");
-                }
-                try {
-                    secureRandomInitThread.join(10000);
-                } catch (InterruptedException ignore) {}
-                testSecureRandom();
-                long currentTime = System.currentTimeMillis();
-                Logger.logMessage("Initialization took " + (currentTime - startTime) / 1000 + " seconds");
-                Logger.logMessage(Nxt.APPLICATION + " server " + VERSION + " started successfully.");
-                Logger.logMessage("Copyright © 2013-2016 The Nxt Core Developers.");
-                Logger.logMessage("Copyright © 2016-2019 Jelurida IP B.V.");
-                Logger.logMessage("Distributed under the Jelurida Public License version 1.1 for the Nxt Public Blockchain Platform, with ABSOLUTELY NO WARRANTY.");
-                if (API.getWelcomePageUri() != null) {
-                    Logger.logMessage("Client UI is at " + API.getWelcomePageUri());
-                }
-                setServerStatus(ServerStatus.STARTED, API.getWelcomePageUri());
-                if (isDesktopApplicationEnabled()) {
-                    launchDesktopApplication();
-                }
-                if (Constants.isTestnet) {
-                    Logger.logMessage("RUNNING ON TESTNET - DO NOT USE REAL ACCOUNTS!");
-                }
-            } catch (Exception e) {
-                Logger.logErrorMessage(e.getMessage(), e);
-                runtimeMode.alert(e.getMessage() + "\n" +
-                        "See additional information in " + dirProvider.getLogFileDir() + System.getProperty("file.separator") + "nxt.log");
-                System.exit(1);
-            }
-        }
-
-        private static void init() {
+        private static void init(Setup setup) {
             if (initialized) {
                 throw new RuntimeException("Nxt.init has already been called");
             }
+            try {
+                long startTime = System.currentTimeMillis();
+                setup.initSequence().forEach(SubSystem::init);
+                logInitMessages(startTime);
+            } catch (Exception e) {
+                Logger.logErrorMessage(e.getMessage(), e);
+                runtimeMode.alert(e.getMessage() + "\n" +
+                        "See additional information in " + Paths.get(dirProvider.getLogFileDir().getPath(), "nxt.log").toAbsolutePath());
+                System.exit(1);
+            }
             initialized = true;
+        }
+
+        private static void logInitMessages(long startTime) {
+            long currentTime = System.currentTimeMillis();
+            Logger.logMessage("Initialization took " + (currentTime - startTime) / 1000 + " seconds");
+            Logger.logMessage("Ardor server " + VERSION + " started successfully.");
+            Logger.logMessage("Copyright © 2013-2016 The Nxt Core Developers.");
+            Logger.logMessage("Copyright © 2016-2019 Jelurida IP B.V.");
+            Logger.logMessage("Distributed under the Jelurida Public License version 1.2 for the Ardor Public Blockchain Platform, with ABSOLUTELY NO WARRANTY.");
+            if (API.getWelcomePageUri() != null) {
+                Logger.logMessage("Client UI is at " + API.getWelcomePageUri());
+            }
+            if (Constants.isTestnet) {
+                Logger.logMessage("RUNNING ON TESTNET - DO NOT USE REAL ACCOUNTS!");
+            }
+            setServerStatus(ServerStatus.STARTED, API.getWelcomePageUri());
         }
 
         private Init() {} // never
 
     }
 
-    private static void setSystemProperties() {
-      // Override system settings that the user has define in nxt.properties file.
-      String[] systemProperties = new String[] {
-        "socksProxyHost",
-        "socksProxyPort",
-      };
-
-      for (String propertyName : systemProperties) {
-        String propertyValue;
-        if ((propertyValue = getStringProperty(propertyName)) != null) {
-          System.setProperty(propertyName, propertyValue);
-        }
-      }
-    }
-
-    private static void logSystemProperties() {
-        String[] loggedProperties = new String[] {
-                "java.version",
-                "java.vm.version",
-                "java.vm.name",
-                "java.vendor",
-                "java.vm.vendor",
-                "java.home",
-                "java.library.path",
-                "java.class.path",
-                "os.arch",
-                "sun.arch.data.model",
-                "os.name",
-                "file.encoding",
-                "java.security.policy",
-                "java.security.manager",
-                RuntimeEnvironment.RUNTIME_MODE_ARG,
-                RuntimeEnvironment.DIRPROVIDER_ARG
-        };
-        for (String property : loggedProperties) {
-            Logger.logDebugMessage(String.format("%s = %s", property, System.getProperty(property)));
-        }
-        Logger.logDebugMessage(String.format("availableProcessors = %s", Runtime.getRuntime().availableProcessors()));
-        Logger.logDebugMessage(String.format("maxMemory = %s", Runtime.getRuntime().maxMemory()));
-        Logger.logDebugMessage(String.format("processId = %s", getProcessId()));
-    }
-
-    private static Thread initSecureRandom() {
-        Thread secureRandomInitThread = new Thread(() -> Crypto.getSecureRandom().nextBytes(new byte[1024]));
-        secureRandomInitThread.setDaemon(true);
-        secureRandomInitThread.start();
-        return secureRandomInitThread;
-    }
-
-    private static void testSecureRandom() {
-        Thread thread = new Thread(() -> Crypto.getSecureRandom().nextBytes(new byte[1024]));
-        thread.setDaemon(true);
-        thread.start();
-        try {
-            thread.join(2000);
-            if (thread.isAlive()) {
-                throw new RuntimeException("SecureRandom implementation too slow!!! " +
-                        "Install haveged if on linux, or set nxt.useStrongSecureRandom=false.");
-            }
-        } catch (InterruptedException ignore) {}
-    }
-
     public static String getProcessId() {
-        String runtimeName = ManagementFactory.getRuntimeMXBean().getName();
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("sensitiveInfo"));
+        }
+
+        String runtimeName;
+        try {
+            runtimeName = ManagementFactory.getRuntimeMXBean().getName();
+        } catch (NoClassDefFoundError ignore) {
+            return "";
+        }
+
         if (runtimeName == null) {
             return "";
         }
@@ -510,31 +473,68 @@ public final class Nxt {
     }
 
     public static String getDbDir(String dbDir) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("dirProvider"));
+        }
         return dirProvider.getDbDir(dbDir);
     }
 
     public static void updateLogFileHandler(Properties loggingProperties) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("dirProvider"));
+        }
         dirProvider.updateLogFileHandler(loggingProperties);
     }
 
     public static String getUserHomeDir() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("dirProvider"));
+        }
         return dirProvider.getUserHomeDir();
     }
 
     public static File getConfDir() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("dirProvider"));
+        }
         return dirProvider.getConfDir();
     }
 
-    private static void setServerStatus(ServerStatus status, URI wallet) {
+    public static void setServerStatus(ServerStatus status, URI wallet) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("lifecycle"));
+        }
+        serverStatus = status;
         runtimeMode.setServerStatus(status, wallet, dirProvider.getLogFileDir());
     }
 
-    public static boolean isDesktopApplicationEnabled() {
-        return RuntimeEnvironment.isDesktopApplicationEnabled() && Nxt.getBooleanProperty("nxt.launchDesktopApplication");
+    public static ServerStatus getServerStatus() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("sensitiveInfo"));
+        }
+        return serverStatus;
     }
 
-    private static void launchDesktopApplication() {
-        runtimeMode.launchDesktopApplication();
+    public static RuntimeMode getRuntimeMode() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("sensitiveInfo"));
+        }
+        return runtimeMode;
+    }
+
+    public static boolean isEnabled(SubSystem subSystem) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("sensitiveInfo"));
+        }
+        return setup.initSequence().contains(subSystem);
     }
 
     private Nxt() {} // never

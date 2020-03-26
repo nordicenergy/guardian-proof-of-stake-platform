@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -18,9 +18,8 @@ function RemoteNode(peerData, useAnnouncedAddress) {
     this.address = peerData.address;
     this.announcedAddress = peerData.announcedAddress;
     this.port = peerData.apiPort;
-    this.isSsl = peerData.isSsl ? true : false; // For now only nodes specified by the user can use SSL since we need trusted certificate
+    this.isSsl = !!peerData.isSsl; // For now only nodes specified by the user can use SSL since we need trusted certificate
     this.useAnnouncedAddress = useAnnouncedAddress === true;
-    this.blacklistedUntil = 0;
     this.connectionTime = new Date();
 }
 
@@ -28,19 +27,11 @@ RemoteNode.prototype.getUrl = function () {
     return (this.isSsl ? "https://" : "http://") + (this.useAnnouncedAddress ? this.announcedAddress : this.address) + ":" + this.port;
 };
 
-RemoteNode.prototype.isBlacklisted = function () {
-    return new Date().getTime() < this.blacklistedUntil;
-};
-
-RemoteNode.prototype.blacklist = function () {
-    var blacklistedUntil = new Date().getTime() + 10 * 60 * 1000;
-    NRS.logConsole("Blacklist " + this.address + " until " + new Date(blacklistedUntil).format("isoDateTime"));
-    this.blacklistedUntil = blacklistedUntil;
-};
-
 function RemoteNodesManager(isTestnet) {
     this.isTestnet = isTestnet;
     this.nodes = {};
+    this.blacklistTable = {}; //key is the address, value is the time until the address is blacklisted
+
     // Bootstrap connections
     this.bc = {
         success: 0, // Successful connections counter
@@ -59,14 +50,16 @@ function isOldVersion(version) {
         if (parseInt(parts[0], 10) < 1) {
             return true;
         }
-        return parseInt(parts[1], 10) < 10;
+        return parseInt(parts[1], 10) < 0;
     } else {
         return true;
     }
 }
 
 function isRemoteNodeConnectable(nodeData, isSslAllowed) {
-    if (nodeData.services instanceof Array && (nodeData.services.indexOf("API") >= 0 || (isSslAllowed && nodeData.services.indexOf("API_SSL") >= 0))) {
+    if (nodeData.services instanceof Array &&
+        (nodeData.services.indexOf("API") >= 0 || (isSslAllowed && nodeData.services.indexOf("API_SSL") >= 0)
+            || NRS.isMobileForcedRemoteNode(nodeData.address, nodeData.announcedAddress))) {
         if (!NRS.isRequireCors() || nodeData.services.indexOf("CORS") >= 0) {
             return !isOldVersion(nodeData.version);
         }
@@ -78,15 +71,23 @@ RemoteNodesManager.prototype.addRemoteNodes = function (peersData) {
     var mgr = this;
     $.each(peersData, function(index, peerData) {
         if (isRemoteNodeConnectable(peerData, false)) {
-            var oldNode = mgr.nodes[peerData.address];
             var newNode = new RemoteNode(peerData);
-            if (oldNode) {
-                newNode.blacklistedUntil = oldNode.blacklistedUntil;
-            }
             mgr.nodes[peerData.address] = newNode;
-            NRS.logConsole("Found remote node " + peerData.address + " blacklisted " + newNode.isBlacklisted());
+            NRS.logConsole("Found remote node " + peerData.address + " blacklisted " + mgr.isBlacklisted(peerData.address));
         }
     });
+};
+
+RemoteNodesManager.prototype.blacklistAddress = function(address) {
+    var blacklistedUntil = new Date().getTime() + 30 * 60 * 1000;
+    NRS.logConsole("Blacklist " + address + " until " + new Date(blacklistedUntil).format("isoDateTime")
+            + (this.isBlacklisted(address) ? " - period extended" : ""));
+    this.blacklistTable[address] = blacklistedUntil;
+};
+
+RemoteNodesManager.prototype.isBlacklisted = function(address) {
+    var blacklistedUntil = this.blacklistTable[address];
+    return blacklistedUntil !== undefined && new Date().getTime() < blacklistedUntil;
 };
 
 RemoteNodesManager.prototype.addBootstrapNode = function (resolve, reject) {
@@ -130,6 +131,10 @@ RemoteNodesManager.prototype.addBootstrapNodes = function (resolve, reject) {
         return false;
     }
     var peersData = this.REMOTE_NODES_BOOTSTRAP.peers;
+    if (!(peersData instanceof Array) || peersData.length == 0) {
+        reject();
+        return false;
+    }
     peersData = NRS.getRandomPermutation(peersData);
     var mgr = this;
     mgr.bc.target = NRS.mobileSettings.is_testnet ? 2 : NRS.mobileSettings.bootstrap_nodes_count;
@@ -178,7 +183,7 @@ RemoteNodesManager.prototype.addBootstrapNodes = function (resolve, reject) {
             batch.push(node);
         }
         for (var i = 0; i < batch.length; i++) {
-            var node = batch[i];
+            node = batch[i];
             data["_extra"] = node;
             NRS.logConsole("Connecting to bootstrap node " + node.address + " port " + node.port);
             NRS.sendRequest("getBlockchainStatus", data, function(response, data) {
@@ -193,7 +198,8 @@ RemoteNodesManager.prototype.addBootstrapNodes = function (resolve, reject) {
                     return;
                 }
                 var responseNode = data["_extra"];
-                if (response.blockchainState && response.blockchainState != "UP_TO_DATE" || response.isDownloading) {
+                if (!NRS.isMobileForcedRemoteNode(responseNode.address, responseNode.announcedAddress) && (response.blockchainState && response.blockchainState != "UP_TO_DATE"
+                        || response.isDownloading)) {
                     NRS.logConsole("Reject: bootstrap node " + responseNode.address + " blockchain state is " + response.blockchainState);
                     mgr.bc.fail ++;
                     if (checkCounters()) {
@@ -232,13 +238,11 @@ RemoteNodesManager.prototype.getRandomNode = function (ignoredAddresses) {
     var node;
     do {
         var address = addresses[index];
-        if (ignoredAddresses instanceof Array && ignoredAddresses.indexOf(address) >= 0) {
+        if ((ignoredAddresses instanceof Array && ignoredAddresses.indexOf(address) >= 0)
+                || this.isBlacklisted(address)) {
             node = null;
         } else {
             node = this.nodes[address];
-            if (node != null && node.isBlacklisted()) {
-                node = null;
-            }
         }
         index = (index+1) % addresses.length;
     } while(node == null && index != startIndex);

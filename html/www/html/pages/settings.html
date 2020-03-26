@@ -1,11 +1,12 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright 2020 Nordic Energy Core Developers                                 ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
   ~                                                                           ~
-  ~ Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
-  ~ no part of the Nxt software, including this file, may be copied, modified,~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
   ~ propagated, or distributed except according to the terms contained in the ~
   ~ LICENSE.txt file.                                                         ~
   ~                                                                           ~
@@ -29,6 +30,12 @@
 
                     <form id="settings_form" role="form" autocomplete="off">
                         <div class="box-body">
+                            <div class="form-group" id="settings_admin_password_div">
+                                <label data-i18n="admin_password" for="settings_admin_password">Server Administration Password</label>
+                                <div class="input-group" style="width:150px">
+                                    <input class="form-control" id="settings_admin_password" name="admin_password" type="password" />
+                                </div>
+                            </div>
                             <div class="form-group">
                                 <label for="settings_language" data-i18n="language">Language</label>
                                 <select name="language" id="settings_language" class="form-control" style="width:150px">
@@ -47,7 +54,7 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="settings_max_nxt_decimals" data-i18n="max_nxt_decimals">Maximum decimal positions</label>
+                                <label data-i18n="max_nxt_decimals" for="settings_max_nxt_decimals">Maximum coin decimal positions</label>
                                 <select name="max_nxt_decimals" id="settings_max_nxt_decimals" class="form-control" style="width:150px">
                                     <option value="0">0</option>
                                     <option value="1">1</option>
@@ -74,12 +81,6 @@
                                     <option value="1" data-i18n="yes">Yes</option>
                                     <option value="0" data-i18n="no">No</option>
                                 </select>
-                            </div>
-                            <div class="form-group" id="settings_admin_password_div">
-                                <label for="settings_admin_password" data-i18n="admin_password">Server Administration Password</label>
-                                <div class="input-group" style="width:150px">
-                                    <input type="password" name="admin_password" id="settings_admin_password" class="form-control" />
-                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="settings_transact_during_download" data-i18n="transact_during_download">Transact During Download</label>
@@ -264,33 +265,51 @@
                     <form role="form" autocomplete="off">
                         <div class="box-body" style="padding-top:0;">
                             <div class="form-group">
-                                <label for="settings_shape_shift_url" data-i18n="shape_shift_url">ShapeShift URL</label>
+                                <label data-i18n="changelly_url" for="settings_changelly_url">Changelly URL</label>
                                 <div class="input-group">
-                                    <input type="text" name="shape_shift_url" id="settings_shape_shift_url" class="form-control" />
+                                    <input class="form-control" id="settings_changelly_url" name="changelly_url" type="text" />
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="settings_shape_shift_api_key" data-i18n="shape_shift_api_key">ShapeShift API Key</label>
+                                <label data-i18n="changelly_api_key" for="settings_changelly_api_key">Changelly API Key</label>
                                 <div class="input-group">
-                                    <input type="text" name="shape_shift_api_key" id="settings_shape_shift_api_key" class="form-control" />
+                                    <input class="form-control" id="settings_changelly_api_key" name="changelly_api_key" type="text" />
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="settings_changelly_url" data-i18n="changelly_url">Changelly URL</label>
+                                <label data-i18n="changelly_api_secret" for="settings_changelly_api_secret">Changelly API Secret</label>
                                 <div class="input-group">
-                                    <input type="text" name="changelly_url" id="settings_changelly_url" class="form-control" />
+                                    <input class="form-control" id="settings_changelly_api_secret" name="changelly_api_secret" type="text" />
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="settings_changelly_api_key" data-i18n="changelly_api_key">Changelly API Key</label>
+                                <label data-i18n="changehero_url" for="settings_changehero_url">ChangeHero URL</label>
                                 <div class="input-group">
-                                    <input type="text" name="changelly_api_key" id="settings_changelly_api_key" class="form-control" />
+                                    <input class="form-control" id="settings_changehero_url" name="changehero_url" type="text" />
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="settings_changelly_api_secret" data-i18n="changelly_api_secret">Changelly API Secret</label>
+                                <label data-i18n="changehero_api_key" for="settings_changehero_api_key">ChangeHero API Key</label>
                                 <div class="input-group">
-                                    <input type="text" name="changelly_api_secret" id="settings_changelly_api_secret" class="form-control" />
+                                    <input class="form-control" id="settings_changehero_api_key" name="changehero_api_key" type="text" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="changehero_api_secret" for="settings_changehero_api_secret">ChangeHero API Secret</label>
+                                <div class="input-group">
+                                    <input class="form-control" id="settings_changehero_api_secret" name="changehero_api_secret" type="text" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="changenow_url" for="settings_changeNow_url">ChangeNow URL</label>
+                                <div class="input-group">
+                                    <input class="form-control" id="settings_changeNow_url" name="changeNow_url" type="text" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="changeNow_api_key" for="settings_changeNow_api_key">ChangeNow API Key</label>
+                                <div class="input-group">
+                                    <input class="form-control" id="settings_changeNow_api_key" name="changeNow_api_key" type="text" />
                                 </div>
                             </div>
                         </div>

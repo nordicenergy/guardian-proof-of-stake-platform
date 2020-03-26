@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,6 +17,8 @@
 package nxt;
 
 
+import nxt.blockchain.Block;
+import nxt.dbschema.Db;
 import nxt.util.Listener;
 import nxt.util.Logger;
 import org.h2.tools.Shell;
@@ -39,7 +42,7 @@ public class Helper {
             Shell shell = new Shell();
             shell.setErr(out);
             shell.setOut(out);
-            shell.runTool(Db.db.getConnection(), "-sql", line);
+            shell.runTool(Db.db.getConnection("PUBLIC"), "-sql", line);
         } catch (SQLException e) {
             out.println(e.toString());
         }
@@ -47,7 +50,7 @@ public class Helper {
     }
 
     public static int getCount(String table) {
-        try (Connection con = Db.db.getConnection();
+        try (Connection con = Db.getConnection();
              Statement statement = con.createStatement();
              ResultSet rs = statement.executeQuery("select count(*) as c from " + table)) {
             rs.next();
@@ -60,18 +63,18 @@ public class Helper {
     public static class BlockListener implements Listener<Block> {
         @Override
         public void notify(Block block) {
-            Logger.logDebugMessage("Block Generated at height %d with %d transactions", block.getHeight(), block.getTransactions().size());
-            block.getTransactions().forEach(transaction -> Logger.logDebugMessage("transaction: " + transaction.getStringId()));
+            Logger.logDebugMessage("Block Generated at height %d with %d transactions", block.getHeight(), block.getFxtTransactions().size());
+            block.getFxtTransactions().forEach(transaction -> Logger.logDebugMessage("transaction: " + transaction.getStringId()));
         }
     }
-
+    
     public static class EasyMap {
         public static <K, V> Map<K, V> of(K k1, V v1) {
             HashMap<K, V> result = new HashMap<K, V>();
             result.put(k1, v1);
             return result;
         }
-
+        
         public static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2) {
             HashMap<K, V> result = new HashMap<K, V>();
             result.put(k1, v1);

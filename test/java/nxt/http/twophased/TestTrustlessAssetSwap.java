@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,9 +16,10 @@
 
 package nxt.http.twophased;
 
-import nxt.Account;
 import nxt.BlockchainTest;
-import nxt.Constants;
+import nxt.Tester;
+import nxt.account.Account;
+import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
 import nxt.util.Convert;
 import org.json.simple.JSONObject;
@@ -35,7 +37,7 @@ public class TestTrustlessAssetSwap extends BlockchainTest {
                 param("description", "AliceAssetDescription").
                 param("quantityQNT", 1000).
                 param("decimals", 0).
-                param("feeNQT", 1000 * Constants.ONE_NXT).
+                param("feeNQT", 1000 * ChildChain.IGNIS.ONE_COIN).
                 build().invoke();
         generateBlock();
         JSONObject bobAsset = new APICall.Builder("issueAsset").
@@ -44,20 +46,20 @@ public class TestTrustlessAssetSwap extends BlockchainTest {
                 param("description", "BobAssetDescription").
                 param("quantityQNT", 1000).
                 param("decimals", 0).
-                param("feeNQT", 2000 * Constants.ONE_NXT).
+                param("feeNQT", 2000 * ChildChain.IGNIS.ONE_COIN).
                 build().invoke();
         generateBlock();
 
         // Alice prepares and signs a transaction #1, an asset transfer to Bob.
         // She does not broadcast it, but sends to Bob the unsigned bytes, the
         // full transaction hash, and the signature hash.
-        String aliceAssetId = (String) aliceAsset.get("transaction");
+        String aliceAssetId = Tester.responseToStringId(aliceAsset);
         JSONObject aliceUnsignedTransfer = new APICall.Builder("transferAsset").
                 param("publicKey", ALICE.getPublicKeyStr()).
                 param("recipient", BOB.getStrId()).
                 param("asset", aliceAssetId).
                 param("quantityQNT", 100).
-                param("feeNQT", Constants.ONE_NXT).
+                param("feeNQT", ChildChain.IGNIS.ONE_COIN).
                 build().invoke();
 
         JSONObject aliceSignedTransfer = new APICall.Builder("signTransaction").
@@ -71,26 +73,26 @@ public class TestTrustlessAssetSwap extends BlockchainTest {
 
         // Bob submits transaction #2, an asset transfer to Alice, making it phased using a by-transaction voting model
         // with a quorum of 1 and just the full hash of #1 in the phasing transaction full hashes list.
-        String bobAssetId = (String) bobAsset.get("transaction");
+        String bobAssetId = Tester.responseToStringId(bobAsset);
         JSONObject bobTransfer = new APICall.Builder("transferAsset").
                 param("secretPhrase", BOB.getSecretPhrase()).
                 param("recipient", ALICE.getStrId()).
                 param("asset", bobAssetId).
                 param("quantityQNT", 200).
-                param("feeNQT", 3 * Constants.ONE_NXT).
+                param("feeNQT", 3 * ChildChain.IGNIS.ONE_COIN).
                 param("phased", "true").
                 param("phasingFinishHeight", baseHeight + 5).
                 param("phasingVotingModel", 4).
-                param("phasingLinkedFullHash", aliceTransferFullHash).
+                param("phasingLinkedTransaction", ChildChain.IGNIS.getId() + ":" + aliceTransferFullHash).
                 param("phasingQuorum", 1).
                 build().invoke();
         generateBlock();
 
         // Alice sees Bob's transaction #2 in the blockchain, waits to make sure it is confirmed irreversibly.
         JSONObject bobTransferValidation = new APICall.Builder("getTransaction").
-                param("transaction", (String) bobTransfer.get("transaction")).
+                param("fullHash", (String) bobTransfer.get("fullHash")).
                 build().invoke();
-        Assert.assertEquals(bobTransfer.get("transaction"), bobTransferValidation.get("transaction"));
+        Assert.assertEquals(bobTransfer.get("fullHash"), bobTransferValidation.get("fullHash"));
 
         // She then submits her transaction #1.
         new APICall.Builder("broadcastTransaction").

@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -20,34 +20,21 @@ var NRS = (function (NRS) {
     NRS.getLocaleList = function() {
         return SORTED_LOCALE_DATA;
     };
-
+    
     NRS.getLocaleName = function(locale) {
         return LOCALE_DATA[locale].displayName;
     };
 
     NRS.getLocale = function () {
         var lang;
-        if (NRS.settings && NRS.settings['regional_format'] != "default") {
-            lang = NRS.settings['regional_format'];
+        if (NRS.settings && NRS.settings.regional_format && NRS.settings.regional_format != "default") {
+            lang = NRS.settings.regional_format;
         } else {
             lang = window.javaFxLanguage || window.navigator.userLanguage || window.navigator.language;
             if (!LOCALE_DATA[lang]) {
                 if (lang && lang.length == 2) {
                     // Attempt to expand the Chrome two letter language to country specific locale
-                    if (window.navigator.languages) {
-                        var tokens = String(window.navigator.languages).split(",");
-                        for (var i=0; i<tokens.length; i++) {
-                            var separator = tokens[i].indexOf("-");
-                            if (separator == -1) {
-                                continue;
-                            }
-                            if (tokens[i].substring(0, separator) == lang) {
-                                NRS.logConsole("Language " + lang + " resolved to locale " + tokens[i]);
-                                lang = tokens[i];
-                                break;
-                            }
-                        }
-                    }
+                    lang = lang + "-" + lang.toUpperCase();
                 }
                 if (!LOCALE_DATA[lang]) {
                     if (!currentLocale.lang) {

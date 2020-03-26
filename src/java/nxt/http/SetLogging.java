@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -22,39 +23,35 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Locale;
 
 /**
  * <p>The SetLogging API will set the NRS log level for all log messages.
- * It will also set the communication events that are logged.</p>
+ * It will also set the communication events that are logged.
  *
- * <p>Request parameters:</p>
+ * <p>Request parameters:
  * <ul>
- * <li>logLevel - Specifies the log message level and defaults to INFO if not specified.</li>
- * <li>communicationEvent - Specifies a communication event to be logged and defaults to
- * no communication logging if not specified.
- * This parameter can be specified multiple times to log multiple communication events.</li>
+ * <li>logLevel - Specifies the log message level and defaults to INFO if not specified.
+ * <li>communicationLogging - Specifies peer message logging and defaults to no
+ * communication logging if not specified.  The log level is a bit mask and
+ * more than one bit may be set.  The bits are defined as follows:
+ * <ul>
+ * <li>1 - Log network message names
+ * <li>2 - Log network message details
+ * </ul>
  * </ul>
  *
- * <p>Response parameters:</p>
+ * <p>Response parameters:
  * <ul>
- * <li>loggingUpdated - Set to 'true' if the logging was updated.</li>
+ * <li>loggingUpdated - Set to 'true' if the logging was updated.
  * </ul>
  *
- * <p>The following log levels can be specified:</p>
+ * <p>The following log levels can be specified:
  * <ul>
- * <li>DEBUG - Debug, informational, warning and error messages will be logged.</li>
- * <li>INFO  - Informational, warning and error messages will be logged.</li>
- * <li>WARN  - Warning and error messages will be logged.</li>
- * <li>ERROR - Error messages will be logged.</li>
- * </ul>
- *
- * <p>The following communication events can be specified.  This is a bit mask
- * so multiple events can be enabled at the same time.  The log level must be
- * DEBUG or INFO for communication events to be logged.</p>
- * <ul>
- * <li>EXCEPTION  - Log HTTP exceptions.</li>
- * <li>HTTP-ERROR - Log non-200 HTTP responses.</li>
- * <li>HTTP-OK    - Log HTTP 200 responses.</li>
+ * <li>DEBUG - Debug, informational, warning and error messages will be logged.
+ * <li>INFO  - Informational, warning and error messages will be logged.
+ * <li>WARN  - Warning and error messages will be logged.
+ * <li>ERROR - Error messages will be logged.
  * </ul>
  */
 public class SetLogging extends APIServlet.APIRequestHandler {
@@ -74,16 +71,11 @@ public class SetLogging extends APIServlet.APIRequestHandler {
     private static final JSONStreamAware INCORRECT_LEVEL =
             JSONResponses.incorrect("logLevel", "Log level must be DEBUG, INFO, WARN or ERROR");
 
-    /** Incorrect communication event */
-    private static final JSONStreamAware INCORRECT_EVENT =
-            JSONResponses.incorrect("communicationEvent",
-                                    "Communication event must be EXCEPTION, HTTP-ERROR or HTTP-OK");
-
     /**
      * Create the SetLogging instance
      */
     private SetLogging() {
-        super(new APITag[] {APITag.DEBUG}, "logLevel", "communicationEvent", "communicationEvent", "communicationEvent");
+        super(new APITag[] {APITag.DEBUG}, "logLevel", "communicationLogging");
     }
 
     /**
@@ -91,16 +83,17 @@ public class SetLogging extends APIServlet.APIRequestHandler {
      *
      * @param   req                 API request
      * @return                      API response
+     * @throws  ParameterException  Invalid parameter value
      */
     @Override
-    protected JSONStreamAware processRequest(HttpServletRequest req) {
+    protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
         JSONStreamAware response = null;
         //
-        // Get the log level
+        // Set the log level
         //
         String value = req.getParameter("logLevel");
         if (value != null) {
-            switch (value) {
+            switch (value.toUpperCase(Locale.ROOT)) {
                 case "DEBUG":
                     Logger.setLevel(Logger.Level.DEBUG);
                     break;
@@ -120,13 +113,9 @@ public class SetLogging extends APIServlet.APIRequestHandler {
             Logger.setLevel(Logger.Level.INFO);
         }
         //
-        // Get the communication events
+        // Set communication logging
         //
-        if (response == null) {
-            String[] events = req.getParameterValues("communicationEvent");
-            if (!Peers.setCommunicationLoggingMask(events))
-                response = INCORRECT_EVENT;
-        }
+        Peers.setCommunicationLogging(ParameterParser.getInt(req, "communicationLogging", 0, 3, false));
         //
         // Return the response
         //
@@ -157,6 +146,11 @@ public class SetLogging extends APIServlet.APIRequestHandler {
 
     @Override
     protected boolean requireBlockchain() {
+        return false;
+    }
+
+    @Override
+    protected boolean isChainSpecific() {
         return false;
     }
 

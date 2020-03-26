@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,9 +16,10 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.FundingMonitor;
-import nxt.HoldingType;
+import nxt.account.Account;
+import nxt.account.FundingMonitor;
+import nxt.account.HoldingType;
+import nxt.blockchain.Chain;
 import nxt.crypto.Crypto;
 import nxt.util.Filter;
 import org.json.simple.JSONArray;
@@ -41,6 +43,7 @@ import java.util.List;
  * funding account will be returned.
  * <p>
  * Holding type codes are listed in getConstants.
+ * You can also request the holding information using the includeHoldingInfo parameter.
  * In addition, the holding identifier must be specified when the holding type is ASSET or CURRENCY.
  */
 public class GetFundingMonitor extends APIServlet.APIRequestHandler {
@@ -49,7 +52,7 @@ public class GetFundingMonitor extends APIServlet.APIRequestHandler {
 
     private GetFundingMonitor() {
         super(new APITag[] {APITag.ACCOUNTS}, "holdingType", "holding", "property", "secretPhrase",
-                "includeMonitoredAccounts", "account", "adminPassword");
+                "includeMonitoredAccounts", "includeHoldingInfo", "account", "adminPassword");
     }
     /**
      * Process the request
@@ -60,9 +63,11 @@ public class GetFundingMonitor extends APIServlet.APIRequestHandler {
      */
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
+        Chain chain = ParameterParser.getChain(req, false);
         String secretPhrase = ParameterParser.getSecretPhrase(req, false);
         long account = ParameterParser.getAccountId(req, false);
         boolean includeMonitoredAccounts = "true".equalsIgnoreCase(req.getParameter("includeMonitoredAccounts"));
+        boolean includeHoldingInfo = "true".equalsIgnoreCase(req.getParameter("includeHoldingInfo"));
         if (secretPhrase == null) {
             API.verifyPassword(req);
         }
@@ -79,7 +84,7 @@ public class GetFundingMonitor extends APIServlet.APIRequestHandler {
             }
             final long accountId = account;
             final HoldingType holdingType = ParameterParser.getHoldingType(req);
-            final long holdingId = ParameterParser.getHoldingId(req, holdingType);
+            final long holdingId = ParameterParser.getHoldingId(req);
             final String property = ParameterParser.getAccountProperty(req, false);
             Filter<FundingMonitor> filter;
             if (property != null) {
@@ -90,14 +95,20 @@ public class GetFundingMonitor extends APIServlet.APIRequestHandler {
             } else {
                 filter = (monitor) -> monitor.getAccountId() == accountId;
             }
-            monitors = FundingMonitor.getMonitors(filter);
+            if (chain == null) {
+                monitors = FundingMonitor.getMonitors(filter);
+            } else {
+                monitors = FundingMonitor.getMonitors(monitor -> monitor.getChain() == chain && filter.ok(monitor));
+            }
+        } else if (chain != null) {
+            monitors = FundingMonitor.getMonitors(monitor -> monitor.getChain() == chain);
         } else {
             monitors = FundingMonitor.getAllMonitors();
         }
         JSONObject response = new JSONObject();
         JSONArray jsonArray = new JSONArray();
         monitors.forEach(monitor -> {
-            JSONObject monitorJSON = JSONData.accountMonitor(monitor, includeMonitoredAccounts);
+            JSONObject monitorJSON = JSONData.accountMonitor(monitor, includeMonitoredAccounts, includeHoldingInfo);
             jsonArray.add(monitorJSON);
         });
         response.put("monitors", jsonArray);

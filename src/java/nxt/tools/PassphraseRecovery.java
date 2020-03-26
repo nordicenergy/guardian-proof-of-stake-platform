@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,12 +16,13 @@
 
 package nxt.tools;
 
-import nxt.Account;
-import nxt.Db;
 import nxt.Nxt;
+import nxt.account.Account;
 import nxt.crypto.Crypto;
+import nxt.dbschema.Db;
 import nxt.util.Convert;
 import nxt.util.Logger;
+import nxt.util.security.BlockchainPermission;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -44,6 +46,11 @@ public final class PassphraseRecovery {
     final static Solution NO_SOLUTION = new Solution();
 
     public static void main(String[] args) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("tools"));
+        }
+
         new PassphraseRecovery().recover();
     }
 
@@ -74,16 +81,16 @@ public final class PassphraseRecovery {
             }
             String dictionaryStr = Nxt.getStringProperty("recoveryDictionary", "");
             char[] dictionary;
-            switch(dictionaryStr.toLowerCase()) {
+            switch (dictionaryStr.toLowerCase()) {
                 case "":
                 case "ascii":
                     dictionary = getDictionary(32, 127);
                     break;
                 case "asciiall":
-                    dictionary = getDictionary(0, (int)(Math.pow(2, 8) - 1));
+                    dictionary = getDictionary(0, (int) (Math.pow(2, 8) - 1));
                     break;
                 case "unicode":
-                    dictionary = getDictionary(0, (int)(Math.pow(2, 16) - 1));
+                    dictionary = getDictionary(0, (int) (Math.pow(2, 16) - 1));
                     break;
                 default:
                     dictionary = dictionaryStr.toCharArray();
@@ -108,7 +115,7 @@ public final class PassphraseRecovery {
     static Map<Long, byte[]> getPublicKeys() {
         Db.init();
         Map<Long, byte[]> publicKeys = new HashMap<>();
-        try (Connection con = Db.db.getConnection();
+        try (Connection con = Db.getConnection();
              PreparedStatement selectBlocks = con.prepareStatement("SELECT * FROM public_key WHERE latest=TRUE");
              ResultSet rs = selectBlocks.executeQuery()) {
             while (rs.next()) {
@@ -142,7 +149,7 @@ public final class PassphraseRecovery {
             if (positions.length == 0) {
                 Logger.logInfoMessage("Position not specified scanning for a single typo");
                 char[] copy = new char[wildcard.length];
-                for (int i=0; i<wildcard.length; i++) {
+                for (int i = 0; i < wildcard.length; i++) {
                     positions = new int[1];
                     positions[0] = i;
                     System.arraycopy(wildcard, 0, copy, 0, wildcard.length);
@@ -160,15 +167,14 @@ public final class PassphraseRecovery {
             final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
             final ExecutorCompletionService<Solution> completionService = new ExecutorCompletionService<>(executorService);
             executorService.submit(() -> {
-                int counter = 0;
-                while (!executorService.isShutdown()) {
+
+                for (int counter = 1; counter <= dictionary.length && !executorService.isShutdown(); counter++) {
                     final Solution solution;
                     try {
                         solution = completionService.take().get();
                     } catch (InterruptedException | ExecutionException e) {
                         throw new IllegalStateException(e);
                     }
-                    counter++;
                     Logger.logInfoMessage(String.format("task %d / %d is done", counter, dictionary.length));
                     if (solution != NO_SOLUTION) {
                         realSolution = solution;
@@ -213,7 +219,7 @@ public final class PassphraseRecovery {
         }
 
         @Override
-        public Solution call() throws Exception {
+        public Solution call() {
             return scan(1, wildcard);
         }
     }

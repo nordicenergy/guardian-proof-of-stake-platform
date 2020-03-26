@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -18,10 +18,6 @@
  * @depends {nrs.js}
  */
 var NRS = (function(NRS, $) {
-    function isErrorResponse(response) {
-        return response.errorCode || response.errorDescription || response.errorMessage || response.error;
-    }
-
     NRS.jsondata = NRS.jsondata||{};
 
     NRS.jsondata.shuffling = function (response, shufflers, amountDecimals) {
@@ -79,7 +75,7 @@ var NRS = (function(NRS, $) {
             shufflerIndicatorFormatted = "<i class='fa fa-circle' style='color:" + shufflerColor + ";'></i>";
             if (!isShufflerActive) {
                 startShufflerLinkFormatted = "<a href='#' class='btn btn-xs' data-toggle='modal' data-target='#m_shuffler_start_modal' " +
-                    "data-shuffling='" + response.shuffling + "' " +
+                    "data-shuffling='" + NRS.fullHashToId(response.shufflingFullHash) + "' " +
                     "data-shufflingfullhash='" + response.shufflingFullHash + "'>" + $.t("start") + "</a>";
             }
         } else {
@@ -99,7 +95,7 @@ var NRS = (function(NRS, $) {
                     }
                     return "<span>" + $.t("already_joined") + "</span>";
                 })(),
-            shufflingFormatted: NRS.getTransactionLink(response.shuffling),
+            shufflingFormatted: NRS.getTransactionLink(response.shufflingFullHash),
             stageLabel: shufflerStage,
             shufflerStatus: shufflerStatus,
             shufflerIndicatorFormatted: shufflerIndicatorFormatted,
@@ -117,15 +113,46 @@ var NRS = (function(NRS, $) {
             })(),
             holdingFormatted: (function () {
                 switch (response.holdingType) {
-                    case 0: return 'NXT';
-                    case 1: return NRS.getTransactionLink(response.holding) + " (" + $.t('asset') + ")";
-                    case 2: return NRS.getTransactionLink(response.holding, response.holdingInfo.code)  + " (" + $.t('currency') + ")";
+                    case 0: return NRS.getActiveChainName();
+                    case 1: return NRS.getHoldingLink(response.holding, response.holdingType) + " (" + $.t('asset') + ")";
+                    case 2: return NRS.getHoldingLink(response.holding, response.holdingType, response.holdingInfo.code)  + " (" + $.t('currency') + ")";
                 }
             })(),
             participants: NRS.escapeRespStr(response.registrantCount) + " / " + NRS.escapeRespStr(response.participantCount),
             blocks: response.blocksRemaining,
             shuffling: response.shuffling,
             shufflingFullHash: response.shufflingFullHash
+        };
+    };
+
+    NRS.jsondata.standbyshuffler = function (response, minAmountDecimals, maxAmountDecimals) {
+        return {
+            holdingFormatted: (function () {
+                switch (response.holdingType) {
+                    case 0: return NRS.getActiveChainName();
+                    case 1: return NRS.getHoldingLink(response.holding, response.holdingType) + " (" + $.t('asset') + ")";
+                    case 2: return NRS.getHoldingLink(response.holding, response.holdingType, response.holdingInfo.code)  + " (" + $.t('currency') + ")";
+                }
+            })(),
+            minAmountFormatted: (function () {
+                switch (response.holdingType) {
+                    case 0: return NRS.formatAmount(response.minAmount, false, false, minAmountDecimals);
+                    case 1:
+                    case 2: return NRS.formatQuantity(response.minAmount, response.holdingInfo.decimals, false, minAmountDecimals);
+                }
+            })(),
+            maxAmountFormatted: (function () {
+                switch (response.holdingType) {
+                    case 0: return NRS.formatAmount(response.maxAmount, false, false, maxAmountDecimals);
+                    case 1:
+                    case 2: return NRS.formatQuantity(response.maxAmount, response.holdingInfo.decimals, false, maxAmountDecimals);
+                }
+            })(),
+            minParticipants: NRS.escapeRespStr(response.minParticipants),
+            publicKeysLeft: NRS.escapeRespStr(response.recipientPublicKeys.length),
+            holdingType: NRS.escapeRespStr(response.holdingType),
+            holding: NRS.escapeRespStr(response.holding),
+            reservedPublicKeys: NRS.escapeRespStr(response.reservedPublicKeysCount)
         };
     };
 
@@ -138,7 +165,7 @@ var NRS = (function(NRS, $) {
         var sidebarId = 'sidebar_shuffling';
         NRS.addTreeviewSidebarMenuItem({
             "id": sidebarId,
-            "titleHTML": '<i class="fa fa-random"></i> <span data-i18n="shuffling">Shuffling</span>',
+            "titleHTML": '<i class="far fa-random"></i> <span data-i18n="shuffling">Shuffling</span>',
             "page": 'active_shufflings',
             "desiredPosition": 80,
             "depends": { tags: [ NRS.constants.API_TAGS.SHUFFLING ] }
@@ -154,12 +181,15 @@ var NRS = (function(NRS, $) {
             "page": 'my_shufflings'
         });
         NRS.appendMenuItemToTSMenuItem(sidebarId, {
+            "titleHTML": '<span data-i18n="my_standbyshufflers">My StandbyShufflers</span>',
+            "type": 'PAGE',
+            "page": 'my_standbyshufflers'
+        });
+        NRS.appendMenuItemToTSMenuItem(sidebarId, {
             "titleHTML": '<span data-i18n="create_shuffling">Create Shuffling</span>',
             "type": 'MODAL',
             "modalId": 'm_shuffling_create_modal'
         });
-
-        $('#m_shuffling_create_holding_type').change();
     };
 
     /**
@@ -186,11 +216,35 @@ var NRS = (function(NRS, $) {
 		}
     });
 
+    /**
+     * Create standbyshuffler modal holding type onchange listener.
+     * Hides holding field unless type is asset or currency.
+     */
+    $('#m_start_standbyshuffler_holding_type').change(function () {
+        var holdingType = $("#m_start_standbyshuffler_holding_type");
+        if(holdingType.val() == "0") {
+            $("#standbyshuffler_asset_id_group").css("display", "none");
+            $("#standbyshuffler_ms_currency_group").css("display", "none");
+            $('#m_start_standbyshuffler_min_amount').attr('name', 'standbyShufflerMinAmountNXT');
+            $('#m_start_standbyshuffler_max_amount').attr('name', 'standbyShufflerMaxAmountNXT');
+        } if(holdingType.val() == "1") {
+            $("#standbyshuffler_asset_id_group").css("display", "inline");
+            $("#standbyshuffler_ms_currency_group").css("display", "none");
+            $('#m_start_standbyshuffler_min_amount').attr('name', 'minAmountQNTf');
+            $('#m_start_standbyshuffler_max_amount').attr('name', 'maxAmountQNTf');
+        } else if(holdingType.val() == "2") {
+            $("#standbyshuffler_asset_id_group").css("display", "none");
+            $("#standbyshuffler_ms_currency_group").css("display", "inline");
+            $('#m_start_standbyshuffler_min_amount').attr('name', 'minAmountQNTf');
+            $('#m_start_standbyshuffler_max_amount').attr('name', 'maxAmountQNTf');
+        }
+    });
+
     NRS.forms.shufflingCreate = function($modal) {
         var data = NRS.getFormData($modal.find("form:first"));
         switch (data.holdingType) {
             case '0':
-                delete data.holding;
+                data.holding = NRS.getActiveChainId();
                 break;
             case '1':
                 break;
@@ -217,8 +271,8 @@ var NRS = (function(NRS, $) {
     function getShufflers(callback) {
         NRS.sendRequest("getShufflers", {"account": NRS.account, "adminPassword": NRS.getAdminPassword(), "includeParticipantState": true},
             function (shufflers) {
-                if (isErrorResponse(shufflers)) {
-                    $.growl($.t("cannot_check_shufflers_status") + " " + shufflers.errorDescription.escapeHTML());
+                if (NRS.isErrorResponse(shufflers)) {
+                    $.growl($.t("cannot_check_shufflers_status") + " " + NRS.getErrorMessage(shufflers));
                     callback(null, undefined);
                 } else {
                     callback(null, shufflers);
@@ -233,6 +287,7 @@ var NRS = (function(NRS, $) {
 
     NRS.pages.active_shufflings = function () {
         NRS.finished_shufflings("finished_shufflings",false);
+
         async.waterfall([
             function(callback) {
                 getShufflers(callback);
@@ -243,7 +298,11 @@ var NRS = (function(NRS, $) {
                     errorMessage: null,
                     isLoading: true,
                     isEmpty: false,
-                    shufflings: []
+                    shufflings: [],
+                    shufflingWarning: $.t("shuffling_node_running_warning", {
+                        deposit: NRS.formatQuantity(NRS.getActiveChain().SHUFFLING_DEPOSIT_NQT, NRS.getActiveChainDecimals()),
+                        coin: NRS.getActiveChainName()
+                    })
                 });
                 var params = {
                     "firstIndex": NRS.pageNumber * NRS.itemsPerPage - NRS.itemsPerPage,
@@ -252,7 +311,7 @@ var NRS = (function(NRS, $) {
                 };
                 NRS.sendRequest("getAllShufflings", params,
                     function (response) {
-                        if (isErrorResponse(response)) {
+                        if (NRS.isErrorResponse(response)) {
                             view.render({
                                 errorMessage: NRS.getErrorMessage(response),
                                 isLoading: false,
@@ -301,7 +360,11 @@ var NRS = (function(NRS, $) {
                     errorMessage: null,
                     isLoading: true,
                     isEmpty: false,
-                    shufflings: []
+                    shufflings: [],
+                    shufflingWarning: $.t("shuffling_node_running_warning", {
+                        deposit: NRS.formatQuantity(NRS.getActiveChain().SHUFFLING_DEPOSIT_NQT, NRS.getActiveChainDecimals()),
+                        coin: NRS.getActiveChainName()
+                    })
                 });
                 var params = {
                     "firstIndex": NRS.pageNumber * NRS.itemsPerPage - NRS.itemsPerPage,
@@ -312,7 +375,7 @@ var NRS = (function(NRS, $) {
                 };
                 NRS.sendRequest("getAccountShufflings", params,
                     function(response) {
-                        if (isErrorResponse(response)) {
+                        if (NRS.isErrorResponse(response)) {
                             view.render({
                                 errorMessage: NRS.getErrorMessage(response),
                                 isLoading: false,
@@ -350,7 +413,70 @@ var NRS = (function(NRS, $) {
         ], function (err, result) {});
     };
 
+    NRS.pages.my_standbyshufflers = function () {
+        async.waterfall([
+            function(callback) {
+                NRS.hasMorePages = false;
+                var view = NRS.simpleview.get('my_standbyshufflers_page', {
+                    errorMessage: null,
+                    isLoading: true,
+                    isEmpty: false,
+                    standbyShufflers: []
+                });
+                if (NRS.constants.REQUEST_TYPES.getStandbyShufflers === undefined) {
+                    view.render({
+                        errorMessage: $.t("standbyshuffling_disabled"),
+                        isLoading: false,
+                        isEmpty: false
+                    });
+                    return;
+                }
+                NRS.sendRequest("getStandbyShufflers", {"account": NRS.account, "adminPassword": NRS.getAdminPassword(), "includeHoldingInfo": "true"},
+                    function(response) {
+                        if (NRS.isErrorResponse(response)) {
+                            view.render({
+                                errorMessage: $.t("cannot_check_standbyshufflers_status") + " " + NRS.getErrorMessage(response),
+                                isLoading: false,
+                                isEmpty: false
+                            });
+                            return;
+                        }
+                        var minAmountDecimals = NRS.getNumberOfDecimals(response.standbyShufflers, "minAmount", function(standbyshuffler) {
+                            switch (standbyshuffler.holdingType) {
+                                case 0: return NRS.formatAmount(standbyshuffler.minAmount);
+                                case 1:
+                                case 2: return NRS.formatQuantity(standbyshuffler.minAmount, standbyshuffler.holdingInfo.decimals);
+                                default: return "";
+                            }
+                        });
+                        var maxAmountDecimals = NRS.getNumberOfDecimals(response.standbyShufflers, "maxAmount", function(standbyshuffler) {
+                            switch (standbyshuffler.holdingType) {
+                                case 0: return NRS.formatAmount(standbyshuffler.maxAmount);
+                                case 1:
+                                case 2: return NRS.formatQuantity(standbyshuffler.maxAmount, standbyshuffler.holdingInfo.decimals);
+                                default: return "";
+                            }
+                        });
+                        response.standbyShufflers.forEach(
+                            function (standbyshufflerJson) {
+                                view.standbyShufflers.push( NRS.jsondata.standbyshuffler(standbyshufflerJson, minAmountDecimals, maxAmountDecimals) );
+                            }
+                        );
+                        view.render({
+                            isLoading: false,
+                            isEmpty: view.standbyShufflers.length == 0
+                        });
+                        NRS.pageLoaded();
+                        callback(null);
+                    }
+                );
+            }
+        ], function (err, result) {});
+    };
+
     $("#m_shuffling_create_modal").on("show.bs.modal", function() {
+        $('#m_shuffling_create_holding_type').change();
+
    		var context = {
    			labelText: "Currency",
    			labelI18n: "currency",
@@ -376,7 +502,7 @@ var NRS = (function(NRS, $) {
    			helpI18n: "shuffling_registration_height_help",
    			inputName: "finishHeight",
    			initBlockHeight: NRS.lastBlockHeight + 1440,
-   			changeHeightBlocks: 500
+   			changeHeightBlocks: 60
    		};
    		NRS.initModalUIElement($(this), '.shuffling_finish_height', 'block_height_modal_ui_element', context);
         // Activating context help popovers - from some reason this code is activated
@@ -393,13 +519,51 @@ var NRS = (function(NRS, $) {
     var shufflerStartModal = $("#m_shuffler_start_modal");
     shufflerStartModal.on("show.bs.modal", function(e) {
         var $invoker = $(e.relatedTarget);
-        var shufflingId = $invoker.data("shuffling");
-        if (shufflingId) {
-            $("#shuffler_start_shuffling_id").html(shufflingId);
-        }
         var shufflingFullHash = $invoker.data("shufflingfullhash");
         if (shufflingFullHash) {
             $("#shuffler_start_shuffling_full_hash").val(shufflingFullHash);
+        }
+    });
+
+    $("#m_start_standbyshuffler_modal").on("show.bs.modal", function() {
+        $('#m_start_standbyshuffler_holding_type').change();
+
+        var context = {
+            labelText: "Currency",
+            labelI18n: "currency",
+            inputCodeName: "standbyshuffler_ms_code",
+            inputIdName: "holding",
+            inputDecimalsName: "standbyshuffler_ms_decimals",
+            helpI18n: "add_currency_modal_help"
+        };
+        NRS.initModalUIElement($(this), '.standbyshuffler_holding_currency', 'add_currency_modal_ui_element', context);
+
+        context = {
+            labelText: "Asset",
+            labelI18n: "asset",
+            inputIdName: "holding",
+            inputDecimalsName: "standbyshuffler_asset_decimals",
+            helpI18n: "add_asset_modal_help"
+        };
+        NRS.initModalUIElement($(this), '.standbyshuffler_holding_asset', 'add_asset_modal_ui_element', context);
+
+        // Activating context help popovers - from some reason this code is activated
+        // after the same event in nrs.modals.js which doesn't happen for create pool thus it's necessary
+        // to explicitly enable the popover here. strange ...
+        $(function () {
+            $("[data-toggle='popover']").popover({
+                "html": true
+            });
+        });
+    });
+
+    $("#m_stop_standbyshuffler_modal").on("show.bs.modal", function(event) {
+        var $invoker = $(event.relatedTarget);
+        $("#stop_standbyshuffler_account").val(NRS.account);
+        $("#stop_standbyshuffler_holding_type").val($invoker.data("holdingType"));
+        $("#stop_standbyshuffler_holding").val($invoker.data("holding"));
+        if (NRS.getAdminPassword()) {
+            $("#stop_standbyshuffler_admin_password").val(NRS.getAdminPassword());
         }
     });
 
@@ -413,27 +577,103 @@ var NRS = (function(NRS, $) {
         recipientAccount.val(NRS.getAccountId(secretPhraseValue, true));
     });
 
+    $('#m_start_standbyshuffler_recipient_secretphrases').on('change', function () {
+        var secretPhrases = $('#m_start_standbyshuffler_recipient_secretphrases').val();
+        var recipientAccounts = $('#m_start_standbyshuffler_recipient_accounts');
+        recipientAccounts.val('');
+        if (secretPhrases === null || secretPhrases === '') {
+            return;
+        }
+        var accounts = convertSecretPhrasesList(secretPhrases, function (secretPhrase) {
+            return NRS.getAccountId(secretPhrase, true);
+        });
+        recipientAccounts.val(accounts);
+    });
+
     NRS.forms.startShuffler = function ($modal) {
         var data = NRS.getFormData($modal.find("form:first"));
         if (data.recipientSecretPhrase) {
             data.recipientPublicKey = NRS.getPublicKey(converters.stringToHexString(data.recipientSecretPhrase));
             delete data.recipientSecretPhrase;
         }
+
+        if (data.feeRateNXTPerFXT.trim() === "") {
+            return {
+                "error": $.t("shuffler_bundling_advice")
+            };
+        }
+        data.feeRateNQTPerFXT = NRS.convertToNQT(data.feeRateNXTPerFXT);
+        delete data.feeRateNXTPerFXT;
+
         return {
             "data": data
         };
     };
 
+    NRS.forms.startStandbyShuffler = function ($modal) {
+        var data = NRS.getFormData($modal.find("form:first"));
+
+        switch (data.holdingType) {
+            case '0':
+                data.holding = NRS.getActiveChainId();
+                break;
+            case '1':
+                break;
+            case '2':
+                break;
+        }
+
+        var recipientSecretPhrases = $('#m_start_standbyshuffler_recipient_secretphrases').val(); // read directly from the text area since the form data returns \r\n as line separator in some configurations
+        if (recipientSecretPhrases) {
+            data.recipientPublicKeys = convertSecretPhrasesList(recipientSecretPhrases, function (secretPhrase) {
+                return NRS.getPublicKey(converters.stringToHexString(secretPhrase));
+            });
+        }
+
+        if (data.feeRateNXTPerFXT.trim() === "") {
+            return {
+                "error": $.t("standbyshuffler_bundling_advice")
+            };
+        }
+        data.feeRateNQTPerFXT = NRS.convertToNQT(data.feeRateNXTPerFXT);
+        delete data.feeRateNXTPerFXT;
+
+        return {
+            "data": data
+        };
+    };
+
+    function convertSecretPhrasesList(secretPhrases, callback) {
+        return secretPhrases.split('\n').filter(function(secretPhrase) {
+            return secretPhrase !== null && secretPhrase !== '';
+        }).map(callback).join('\n');
+    }
+
     NRS.forms.shufflingCreateComplete = function(response) {
         $.growl($.t("shuffling_created"));
         // After shuffling created we show the start shuffler modal
-        $("#shuffler_start_shuffling_id").html(response.transaction);
         $("#shuffler_start_shuffling_full_hash").val(response.fullHash);
         $('#m_shuffler_start_modal').modal("show");
     };
 
     NRS.forms.startShufflerComplete = function() {
         $.growl($.t("shuffler_started"));
+        NRS.loadPage(NRS.currentPage);
+    };
+
+    NRS.forms.startStandbyShufflerComplete = function (response) {
+        if (response.started === true) {
+            $.growl($.t("standbyshuffler_started"));
+        } else {
+            $.growl($.t("standbyshuffler_not_started"), {"type":"warning"});
+        }
+        NRS.loadPage(NRS.currentPage);
+    };
+
+    NRS.forms.stopStandbyShufflerComplete = function (response) {
+        if (response.stopped === 1) {
+            $.growl($.t("standbyshuffler_stopped"));
+        }
         NRS.loadPage(NRS.currentPage);
     };
 
@@ -467,7 +707,7 @@ var NRS = (function(NRS, $) {
                 }
                 NRS.sendRequest("getAllShufflings", params,
                     function (response) {
-                        if (isErrorResponse(response)) {
+                        if (NRS.isErrorResponse(response)) {
                             view.render({
                                 errorMessage: NRS.getErrorMessage(response),
                                 isLoading: false,

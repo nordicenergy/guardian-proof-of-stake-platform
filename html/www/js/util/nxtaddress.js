@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -20,7 +20,8 @@
     Version: 1.0, license: Public Domain, coder: NxtChg (admin@nxtchg.com).
 */
 
-function NxtAddress() {
+function NxtAddress(moduleContext) {
+	var context = (moduleContext === undefined ? NRS : moduleContext);
 	var codeword = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	var syndrome = [0, 0, 0, 0, 0];
 
@@ -272,7 +273,7 @@ function NxtAddress() {
 	} //__________________________
 
 	this.toString = function() {
-		var out = NRS.getAccountMask();
+		var out = context.getAccountMask();
 
 		for (var i = 0; i < 17; i++) {
 			out += alphabet[codeword[cwmap[i]]];
@@ -327,7 +328,7 @@ function NxtAddress() {
 
 		adr = adr.replace(/(^\s+)|(\s+$)/g, '').toUpperCase();
 
-		if (adr.indexOf(NRS.getAccountMask()) == 0) adr = adr.substr(4);
+		if (adr.indexOf(context.getAccountMask()) == 0) adr = adr.substr(context.constants.ACCOUNT_MASK_LEN);
 
 		if (adr.match(/^\d{1,20}$/g)) // account id
 		{

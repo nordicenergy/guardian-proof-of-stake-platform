@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,11 +16,12 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Appendix;
-import nxt.Attachment;
 import nxt.Constants;
 import nxt.NxtException;
+import nxt.account.Account;
+import nxt.blockchain.Attachment;
+import nxt.dgs.ListingAttachment;
+import nxt.messaging.PrunablePlainMessageAppendix;
 import nxt.util.Convert;
 import nxt.util.JSON;
 import nxt.util.Search;
@@ -67,7 +69,7 @@ public final class DGSListing extends CreateTransaction {
             return INCORRECT_DGS_LISTING_TAGS;
         }
 
-        Appendix.PrunablePlainMessage prunablePlainMessage = (Appendix.PrunablePlainMessage)ParameterParser.getPlainMessage(req, true);
+        PrunablePlainMessageAppendix prunablePlainMessage = (PrunablePlainMessageAppendix)ParameterParser.getPlainMessage(req, true);
         if (prunablePlainMessage != null) {
             if (prunablePlainMessage.isText()) {
                 return MESSAGE_NOT_BINARY;
@@ -80,7 +82,7 @@ public final class DGSListing extends CreateTransaction {
         }
 
         Account account = ParameterParser.getSenderAccount(req);
-        Attachment attachment = new Attachment.DigitalGoodsListing(name, description, tags, quantity, priceNQT);
+        Attachment attachment = new ListingAttachment(name, description, tags, quantity, priceNQT);
         return createTransaction(req, account, attachment);
 
     }

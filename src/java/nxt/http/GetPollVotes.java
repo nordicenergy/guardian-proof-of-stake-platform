@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,10 +18,11 @@ package nxt.http;
 
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.Poll;
-import nxt.Vote;
-import nxt.VoteWeighting;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
+import nxt.voting.PollHome;
+import nxt.voting.VoteHome;
+import nxt.voting.VoteWeighting;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -40,7 +42,8 @@ public class GetPollVotes extends APIServlet.APIRequestHandler  {
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
         boolean includeWeights = "true".equalsIgnoreCase(req.getParameter("includeWeights"));
-        Poll poll = ParameterParser.getPoll(req);
+        PollHome.Poll poll = ParameterParser.getPoll(req);
+        ChildChain childChain = poll.getChildChain();
         int countHeight;
         JSONData.VoteWeighter weighter = null;
         if (includeWeights && (countHeight = Math.min(poll.getFinishHeight(), Nxt.getBlockchain().getHeight()))
@@ -50,8 +53,8 @@ public class GetPollVotes extends APIServlet.APIRequestHandler  {
             weighter = voterId -> votingModel.calcWeight(voteWeighting, voterId, countHeight);
         }
         JSONArray votesJson = new JSONArray();
-        try (DbIterator<Vote> votes = Vote.getVotes(poll.getId(), firstIndex, lastIndex)) {
-            for (Vote vote : votes) {
+        try (DbIterator<VoteHome.Vote> votes = childChain.getVoteHome().getVotes(poll.getId(), firstIndex, lastIndex)) {
+            for (VoteHome.Vote vote : votes) {
                 votesJson.add(JSONData.vote(vote, weighter));
             }
         }

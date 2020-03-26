@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,11 +17,13 @@
 package nxt.http;
 
 
-import nxt.Account;
-import nxt.Alias;
-import nxt.Attachment;
 import nxt.Constants;
 import nxt.NxtException;
+import nxt.account.Account;
+import nxt.aliases.AliasAssignmentAttachment;
+import nxt.aliases.AliasHome;
+import nxt.blockchain.Attachment;
+import nxt.blockchain.ChildChain;
 import nxt.util.Convert;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -46,6 +49,7 @@ public final class SetAlias extends CreateTransaction {
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
         String aliasName = Convert.emptyToNull(req.getParameter("aliasName"));
         String aliasURI = Convert.nullToEmpty(req.getParameter("aliasURI"));
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         if (aliasName == null) {
             return MISSING_ALIAS_NAME;
@@ -70,7 +74,7 @@ public final class SetAlias extends CreateTransaction {
 
         Account account = ParameterParser.getSenderAccount(req);
 
-        Alias alias = Alias.getAlias(normalizedAlias);
+        AliasHome.Alias alias = childChain.getAliasHome().getAlias(normalizedAlias);
         if (alias != null && alias.getAccountId() != account.getId()) {
             JSONObject response = new JSONObject();
             response.put("errorCode", 8);
@@ -78,7 +82,7 @@ public final class SetAlias extends CreateTransaction {
             return response;
         }
 
-        Attachment attachment = new Attachment.MessagingAliasAssignment(aliasName, aliasURI);
+        Attachment attachment = new AliasAssignmentAttachment(aliasName, aliasURI);
         return createTransaction(req, account, attachment);
 
     }

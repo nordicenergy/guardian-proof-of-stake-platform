@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -34,34 +34,7 @@ var NRS = (function(NRS, $) {
     NRS.showPeerModal = function(peer) {
         try {
             var peerDetails = $.extend({}, peer);
-            if (peerDetails.hallmark && NRS.isDecodePeerHallmark()) {
-                var promise = new Promise(function(resolve, reject) {
-                    NRS.sendRequest("decodeHallmark", { hallmark: peerDetails.hallmark }, function(response) {
-                        if (response.errorCode) {
-                            reject(response);
-                        } else {
-                            resolve(response);
-                        }
-                    });
-                });
-                promise.then(function(response) {
-                    var hallmark = peerDetails.hallmark;
-                    delete peerDetails.hallmark;
-                    peerDetails.hallmark = hallmark;
-                    peerDetails.hallmarkAccount_formatted_html = NRS.getAccountLink(response, "account");
-                    peerDetails.hallmarkHost = response.host;
-                    peerDetails.hallmarkPort = response.port;
-                    peerDetails.hallmarkWeight = response.weight;
-                    peerDetails.hallmarkDate = response.date;
-                    peerDetails.hallmarkValid = response.valid;
-                    showPeerModalImpl(peerDetails);
-                }).catch(function(response) {
-                    peerDetails.hallmarkError = response.errorDescription;
-                    showPeerModalImpl(peerDetails);
-                })
-            } else {
-                showPeerModalImpl(peerDetails);
-            }
+            showPeerModalImpl(peerDetails);
         } finally {
             NRS.fetchingModalData = false;
         }

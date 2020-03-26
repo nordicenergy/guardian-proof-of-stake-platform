@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,8 +16,7 @@
 
 package nxt.tools;
 
-import nxt.Genesis;
-import nxt.util.Convert;
+import nxt.util.security.BlockchainPermission;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -62,6 +62,11 @@ public final class VerifyTraceFile {
     }
 
     public static void main(String[] args) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("tools"));
+        }
+
         String fileName = args.length == 1 ? args[0] : "nxt-trace.csv";
         try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
             String line = reader.readLine();
@@ -88,12 +93,6 @@ public final class VerifyTraceFile {
                 if ("asset issuance".equals(event)) {
                     String assetId = valueMap.get("asset");
                     issuedAssetQuantities.put(assetId, Long.parseLong(valueMap.get("asset quantity")));
-                }
-                if ("asset transfer".equals(event) && Genesis.CREATOR_ID == Convert.parseUnsignedLong(accountId)) {
-                    String assetId = valueMap.get("asset");
-                    long deletedQuantity = Long.parseLong(valueMap.get("asset quantity"));
-                    long currentQuantity = issuedAssetQuantities.get(assetId);
-                    issuedAssetQuantities.put(assetId, currentQuantity - deletedQuantity);
                 }
                 if ("asset delete".equals(event)) {
                     String assetId = valueMap.get("asset");
@@ -191,7 +190,7 @@ public final class VerifyTraceFile {
                     }
                     System.out.println("total confirmed asset quantity change: " + totalAssetDelta);
                     long assetBalance = nullToZero(assetValues.get("asset balance"));
-                    if (assetBalance != totalAssetDelta && (Genesis.CREATOR_ID != Convert.parseUnsignedLong(accountId) || assetBalance != 0)) {
+                    if (assetBalance != totalAssetDelta) {
                         System.out.println("ERROR: asset balance doesn't match total asset quantity change!!!");
                         failed.add(accountId);
                     }

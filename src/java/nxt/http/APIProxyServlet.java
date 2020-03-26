@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -20,6 +21,7 @@ import nxt.peer.Peers;
 import nxt.util.Convert;
 import nxt.util.JSON;
 import nxt.util.Logger;
+import nxt.util.security.BlockchainPermission;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
@@ -52,6 +54,10 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
 
     @Override
     public void init(ServletConfig config) throws ServletException {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("api"));
+        }
         super.init(config);
         config.getServletContext().setAttribute("apiServlet", new APIServlet());
     }
@@ -60,15 +66,17 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         JSONStreamAware responseJson = null;
         try {
-            if (!API.isAllowed(request.getRemoteHost())) {
+            if (API.isForbiddenHost(request.getRemoteHost())) {
                 responseJson = ERROR_NOT_ALLOWED;
                 return;
             }
             MultiMap<String> parameters = getRequestParameters(request);
             String requestType = getRequestType(parameters);
             if (APIProxy.isActivated() && isForwardable(requestType)) {
-                if (parameters.containsKey("secretPhrase") || parameters.containsKey("adminPassword") || parameters.containsKey("sharedKey")) {
-                    throw new ParameterException(JSONResponses.PROXY_SECRET_DATA_DETECTED);
+                for (String sensitiveParam : API.SENSITIVE_PARAMS) {
+                    if (parameters.containsKey(sensitiveParam)) {
+                        throw new ParameterException(JSONResponses.PROXY_SECRET_DATA_DETECTED);
+                    }
                 }
                 if (!initRemoteRequest(request, requestType)) {
                     if (Peers.getPeers(peer -> peer.getState() == Peer.State.CONNECTED, 1).size() >= 1) {
@@ -274,7 +282,7 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
 
     private static class PasswordFilteringContentTransformer implements AsyncMiddleManServlet.ContentTransformer {
 
-        ByteArrayOutputStream os;
+        private ByteArrayOutputStream os;
 
         @Override
         public void transform(ByteBuffer input, boolean finished, List<ByteBuffer> output) throws IOException {
@@ -288,7 +296,7 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
                     os.write(b);
                     allInput = ByteBuffer.wrap(os.toByteArray());
                 }
-                int tokenPos = PasswordFinder.process(allInput, new String[] { "secretPhrase=", "adminPassword=", "sharedKey=" });
+                int tokenPos = PasswordFinder.process(allInput, new String[] { "secretPhrase=", "adminPassword=", "sharedKey=", "sharedPiece=" });
                 if (tokenPos >= 0) {
                     JSONStreamAware error = JSONResponses.PROXY_SECRET_DATA_DETECTED;
                     throw new PasswordDetectedException(error);

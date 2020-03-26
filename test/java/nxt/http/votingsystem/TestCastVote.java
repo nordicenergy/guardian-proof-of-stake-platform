@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,7 +17,7 @@
 package nxt.http.votingsystem;
 
 import nxt.BlockchainTest;
-import nxt.Constants;
+import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
 import nxt.http.votingsystem.TestCreatePoll.CreatePollBuilder;
 import nxt.util.Logger;
@@ -40,7 +41,7 @@ public class TestCastVote extends BlockchainTest {
                 .param("poll", poll)
                 .param("vote00", 1)
                 .param("vote01", 0)
-                .param("feeNQT", Constants.ONE_NXT)
+                .param("feeNQT", ChildChain.IGNIS.ONE_COIN)
                 .build();
 
         JSONObject response = apiCall.invoke();
@@ -70,12 +71,13 @@ public class TestCastVote extends BlockchainTest {
         generateBlock();
 
         apiCall = new APICall.Builder("castVote")
+                .setParamValidation(false)
                 .param("secretPhrase", ALICE.getSecretPhrase())
                 .param("poll", poll)
                 .param("vote1", 1)
                 .param("vote2", 1)
                 .param("vote3", 1)
-                .param("feeNQT", Constants.ONE_NXT)
+                .param("feeNQT", ChildChain.IGNIS.ONE_COIN)
                 .build();
 
         JSONObject response = apiCall.invoke();

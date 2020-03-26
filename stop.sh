@@ -1,17 +1,16 @@
 #!/bin/sh
-APPLICATION="nxt-clone"
-if [ -e ~/.${APPLICATION}/nxt.pid ]; then
-    PID=`cat ~/.${APPLICATION}/nxt.pid`
+if [ -e ~/.ardor/nxt.pid ]; then
+    PID=`cat ~/.ardor/nxt.pid`
     ps -p $PID > /dev/null
     STATUS=$?
     echo "stopping"
     while [ $STATUS -eq 0 ]; do
-        kill `cat ~/.${APPLICATION}/nxt.pid` > /dev/null
+        kill `cat ~/.ardor/nxt.pid` > /dev/null
         sleep 5
         ps -p $PID > /dev/null
         STATUS=$?
     done
-    rm -f ~/.${APPLICATION}/nxt.pid
-    echo "Nxt server stopped"
+    rm -f ~/.ardor/nxt.pid
+    echo "Ardor server stopped"
 fi
 

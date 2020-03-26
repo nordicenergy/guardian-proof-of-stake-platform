@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,7 +17,8 @@
 package nxt.http;
 
 import nxt.NxtException;
-import nxt.Trade;
+import nxt.ae.TradeHome;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
 import nxt.db.DbUtils;
 import org.json.simple.JSONArray;
@@ -46,20 +48,21 @@ public final class GetTrades extends APIServlet.APIRequestHandler {
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
         boolean includeAssetInfo = "true".equalsIgnoreCase(req.getParameter("includeAssetInfo"));
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONObject response = new JSONObject();
         JSONArray tradesData = new JSONArray();
-        DbIterator<Trade> trades = null;
+        DbIterator<TradeHome.Trade> trades = null;
         try {
             if (accountId == 0) {
-                trades = Trade.getAssetTrades(assetId, firstIndex, lastIndex);
+                trades = childChain.getTradeHome().getAssetTrades(assetId, firstIndex, lastIndex);
             } else if (assetId == 0) {
-                trades = Trade.getAccountTrades(accountId, firstIndex, lastIndex);
+                trades = childChain.getTradeHome().getAccountTrades(accountId, firstIndex, lastIndex);
             } else {
-                trades = Trade.getAccountAssetTrades(accountId, assetId, firstIndex, lastIndex);
+                trades = childChain.getTradeHome().getAccountAssetTrades(accountId, assetId, firstIndex, lastIndex);
             }
             while (trades.hasNext()) {
-                Trade trade = trades.next();
+                TradeHome.Trade trade = trades.next();
                 if (trade.getTimestamp() < timestamp) {
                     break;
                 }

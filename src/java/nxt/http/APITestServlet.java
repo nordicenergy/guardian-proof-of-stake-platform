@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -43,7 +44,7 @@ public class APITestServlet extends HttpServlet {
             "    <meta charset='UTF-8'/>\n" +
             "    <meta http-equiv='X-UA-Compatible' content='IE=edge'>\n" +
             "    <meta name='viewport' content='width=device-width, initial-scale=1'>\n" +
-            "    <title>Nxt http API</title>\n" +
+            "    <title>Ardor http API</title>\n" +
             "    <link href='css/bootstrap.min.css' rel='stylesheet' type='text/css' />\n" +
             "    <link href='css/font-awesome.min.css' rel='stylesheet' type='text/css' />\n" +
             "    <link href='css/highlight.style.css' rel='stylesheet' type='text/css' />\n" +
@@ -57,7 +58,7 @@ public class APITestServlet extends HttpServlet {
             "<div class='navbar navbar-default' role='navigation'>\n" +
             "   <div class='container' style='min-width: 90%;'>\n" +
             "       <div class='navbar-header'>\n" +
-            "           <a class='navbar-brand' href='/test'>Nxt http API</a>\n" +
+            "           <a class='navbar-brand' href='/test'>Ardor http API</a>\n" +
             "       </div>\n" +
             "       <div class='navbar-collapse collapse'>\n" +
             "           <ul class='nav navbar-nav navbar-right'>\n" +
@@ -67,7 +68,7 @@ public class APITestServlet extends HttpServlet {
             "                    readonly style='margin-top:8px;'></li>\n" +
             "               <li><input type='text' class='form-control' id='search' " +
             "                    placeholder='Search' style='margin-top:8px;'></li>\n" +
-            "               <li><a href='https://nxtwiki.org/wiki/The_Nxt_API' target='_blank' style='margin-left:20px;'>Wiki Docs</a></li>\n" +
+            "               <li><a href='https://ardordocs.jelurida.com/API' target='_blank' style='margin-left:20px;'>Wiki Docs</a></li>\n" +
             "           </ul>\n" +
             "       </div>\n" +
             "   </div>\n" +
@@ -141,7 +142,7 @@ public class APITestServlet extends HttpServlet {
         StringBuilder buf = new StringBuilder();
         String requestTag = Convert.nullToEmpty(req.getParameter("requestTag"));
         buf.append("<li");
-        if (requestTag.equals("")
+        if (requestTag.equals("") 
                 & !req.getParameterMap().containsKey("requestType")
                 & !req.getParameterMap().containsKey("requestTypes")) {
             buf.append(" class='active'");
@@ -172,7 +173,7 @@ public class APITestServlet extends HttpServlet {
         resp.setDateHeader("Expires", 0);
         resp.setContentType("text/html; charset=UTF-8");
 
-        if (! API.isAllowed(req.getRemoteHost())) {
+        if (API.isForbiddenHost(req.getRemoteHost())) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -213,7 +214,7 @@ public class APITestServlet extends HttpServlet {
                         bufJSCalls.append("    ATS.apiCalls.push('").append(type).append("');\n");
                     }
                 } else {
-                    writer.print(fullTextMessage("No API calls selected.", "info"));
+                    writer.print("<div class='alert alert-info' role='alert'>No API calls selected.</div>\n");
                 }
             }
             writer.print(footer1);
@@ -223,12 +224,7 @@ public class APITestServlet extends HttpServlet {
 
     }
 
-    private static String fullTextMessage(String msg, String msgType) {
-        return "<div class='alert alert-" + msgType + "' role='alert'>" + msg + "</div>\n";
-    }
-
     private static String form(HttpServletRequest req, String requestType, boolean singleView, APIServlet.APIRequestHandler requestHandler) {
-        String className = requestHandler.getClass().getName();
         List<String> parameters = requestHandler.getParameters();
         boolean requirePost = requestHandler.requirePost();
         String fileParameter = requestHandler.getFileParameter();
@@ -243,13 +239,12 @@ public class APITestServlet extends HttpServlet {
         buf.append("<span style='float:right;font-weight:normal;font-size:14px;'>\n");
         if (!singleView) {
             buf.append("<a href='/test?requestType=").append(requestType);
-            buf.append("' target='_blank' style='font-weight:normal;font-size:14px;color:#777;'>\n<span class='glyphicon glyphicon-new-window'></span>\n</a>");
+            buf.append("' target='_blank' style='font-weight:normal;font-size:14px;color:#777;'><span class='glyphicon glyphicon-new-window'></span></a>");
             buf.append(" &nbsp;&nbsp;\n");
         }
-        buf.append("<a style='font-weight:normal;font-size:14px;color:#777;' href='/doc/");
-        buf.append(className.replace('.', '/').replace('$', '.')).append(".html' target='_blank'>javadoc</a>&nbsp;&nbsp;\n");
-        buf.append("<a style='font-weight:normal;font-size:14px;color:#777;' href='https://nxtwiki.org/wiki/The_Nxt_API#");
-        appendWikiLink(className.substring(className.lastIndexOf('.') + 1), buf);
+        buf.append("<a style='font-weight:normal;font-size:14px;color:#777;' href='");
+        buf.append("https://ardordocs.jelurida.com/");
+        buf.append(requestHandler.getDocsUrlPath());
         buf.append("' target='_blank'>wiki</a>&nbsp;&nbsp;\n");
         buf.append("&nbsp;&nbsp;&nbsp;\n<input type='checkbox' class='api-call-sel-ALL' ");
         buf.append("id='api-call-sel-").append(requestType).append("'>\n");
@@ -284,6 +279,8 @@ public class APITestServlet extends HttpServlet {
             buf.append("style='width:100%;min-width:200px;'/></td>\n");
             buf.append("</tr>\n");
         }
+        int paramIndex = 0;
+        String prevParam = null;
         for (String parameter : parameters) {
             buf.append("<tr class='api-call-input-tr'>\n");
             buf.append("<td>").append(parameter).append(":</td>\n");
@@ -293,7 +290,14 @@ public class APITestServlet extends HttpServlet {
                 buf.append("<td><input type='").append(isPassword(parameter, requestHandler) ? "password" : "text").append("' ");
             }
             buf.append("name='").append(parameter).append("' ");
-            String value = Convert.emptyToNull(req.getParameter(parameter));
+            if (parameter.equals(prevParam)) {
+                paramIndex++;
+            } else {
+                paramIndex = 0;
+            }
+            prevParam = parameter;
+            String[] parameterValues = req.getParameterValues(parameter);
+            String value = Convert.emptyToNull(parameterValues != null && paramIndex < parameterValues.length ? parameterValues[paramIndex] : null);
             if (value != null) {
                 buf.append("value='").append(value.replace("'", "&quot;")).append("' ");
             }
@@ -312,11 +316,12 @@ public class APITestServlet extends HttpServlet {
         buf.append("</div>\n");
         buf.append("<div class='col-xs-12 col-lg-6' style='min-width: 50%;'>\n");
         buf.append("<h5 style='margin-top:0px;'>\n");
-        if (!requirePost) {
-            buf.append("<span style='float:right;' class='uri-link'>");
+        if (requirePost) {
+            buf.append("<span style='float:right;' class='postman-link'>");
             buf.append("</span>\n");
         } else {
-            buf.append("<span style='float:right;font-size:12px;font-weight:normal;'>POST only</span>\n");
+            buf.append("<span style='float:right;' class='uri-link'>");
+            buf.append("</span>\n");
         }
         buf.append("Response</h5>\n");
         buf.append("<pre class='hljs json'><code class='result'>JSON response</code></pre>\n");
@@ -334,21 +339,7 @@ public class APITestServlet extends HttpServlet {
     }
 
     private static boolean isTextArea(String parameter, APIServlet.APIRequestHandler requestHandler) {
-        return "website".equals(parameter) || requestHandler.isTextArea(parameter);
-    }
-
-    private static void appendWikiLink(String className, StringBuilder buf) {
-        for (int i = 0; i < className.length(); i++) {
-            char c = className.charAt(i);
-            if (i == 0) {
-                c = Character.toUpperCase(c);
-            }
-            buf.append(c);
-            if (i < className.length() - 2 && Character.isUpperCase(className.charAt(i + 1))
-                    && (Character.isLowerCase(c) || Character.isLowerCase(className.charAt(i + 2)))) {
-                buf.append('_');
-            }
-        }
+        return requestHandler.isTextArea(parameter);
     }
 
     static void initClass() {}

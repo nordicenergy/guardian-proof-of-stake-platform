@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -57,6 +57,7 @@ var NRS = (function(NRS, $) {
 						//last week
 						NRS.setStateInterval(10);
 					}
+					NRS.downloadingBlockchain = true;
 					$("#nrs_update_explanation").find("span").hide();
 					$("#nrs_update_explanation_wait").attr("style", "display: none !important");
 					$("#downloading_blockchain, #nrs_update_explanation_blockchain_sync").show();
@@ -147,6 +148,7 @@ var NRS = (function(NRS, $) {
 						NRS.setStateInterval(10);
 						trackBlockchain = true;
 					}
+                    NRS.downloadingBlockchain = false;
 					$("#dashboard_message").hide();
 					$("#downloading_blockchain, #nrs_update_explanation_blockchain_sync").hide();
 					$("#nrs_update_explanation_wait").removeAttr("style");
@@ -221,6 +223,7 @@ var NRS = (function(NRS, $) {
 
 			NRS.sendRequest("getAccountBlocks+", {
 				"account": NRS.account,
+                "includeTransactions": true,
 				"firstIndex": NRS.pageNumber * NRS.itemsPerPage - NRS.itemsPerPage,
 				"lastIndex": NRS.pageNumber * NRS.itemsPerPage
 			}, function(response) {
@@ -239,6 +242,7 @@ var NRS = (function(NRS, $) {
 			$("#blocks_transactions_per_hour_box, #blocks_generation_time_box").show();
 
 			NRS.sendRequest("getBlocks+", {
+                "includeTransactions": true,
 				"firstIndex": NRS.pageNumber * NRS.itemsPerPage - NRS.itemsPerPage,
 				"lastIndex": NRS.pageNumber * NRS.itemsPerPage
 			}, function(response) {
@@ -272,14 +276,19 @@ var NRS = (function(NRS, $) {
 			totalTransactions += block.numberOfTransactions;
 			rows += "<tr>" +
                 "<td><a href='#' data-block='" + NRS.escapeRespStr(block.height) + "' data-blockid='" + NRS.escapeRespStr(block.block) + "' class='block show_block_modal_action'" + (block.numberOfTransactions > 0 ? " style='font-weight:bold'" : "") + ">" + NRS.escapeRespStr(block.height) + "</a></td>" +
-                "<td>" + NRS.formatTimestamp(block.timestamp) + "</td>" +
-                "<td>" + NRS.formatAmount(block.totalAmountNQT) + "</td>" +
-                "<td>" + NRS.formatAmount(block.totalFeeNQT) + "</td>" +
+                "<td>" + NRS.formatTimestamp(block.timestamp) + "</td>";
+            rows += "<td>";
+			for (var j = 0; j < block.transactions.length; j++) {
+                var transaction = block.transactions[j];
+                if (NRS.isOfType(transaction, "ChildChainBlock")) {
+                    rows += "<span class='badge' style='background-color: #DFF0D9'>" + NRS.getTransactionLink(transaction.fullHash, NRS.getChainName(transaction.attachment.chain), false, 1) + "</span>";
+                }
+            }
+            rows += "</td>";
+            rows += "<td>" + NRS.intToFloat(block.totalFeeFQT, NRS.getChain(1).decimals) + "</td>" +
                 "<td>" + NRS.formatAmount(block.numberOfTransactions) + "</td>" +
                 "<td>" + NRS.getAccountLink(block, "generator") + "</td>" +
-                "<td>" + NRS.formatVolume(block.payloadLength) + "</td>" +
-				"<td>" + NRS.baseTargetPercent(block).pad(4) + " %</td>" +
-            "</tr>";
+				"<td>" + NRS.baseTargetPercent(block).pad(4) + " %</td></tr>";
 		}
 
         var blocksAverageAmount = $("#blocks_average_amount");
@@ -289,14 +298,14 @@ var NRS = (function(NRS, $) {
 			}, function(response) {
 				if (response.numberOfBlocks && response.numberOfBlocks > 0) {
 					$("#forged_blocks_total").html(response.numberOfBlocks).removeClass("loading_dots");
-                    var avgFee = new Big(NRS.accountInfo.forgedBalanceNQT).div(response.numberOfBlocks).div(new Big("100000000")).toFixed(2);
+                    var avgFee = new Big(NRS.accountInfo.forgedBalanceFQT).div(response.numberOfBlocks).div(new Big(NRS.getChain(1).ONE_COIN)).toFixed(2);
                     $("#blocks_average_fee").html(NRS.formatStyledAmount(NRS.convertToNQT(avgFee))).removeClass("loading_dots");
 				} else {
 					$("#forged_blocks_total").html(0).removeClass("loading_dots");
 					$("#blocks_average_fee").html(0).removeClass("loading_dots");
 				}
 			});
-			$("#forged_fees_total").html(NRS.formatStyledAmount(NRS.accountInfo.forgedBalanceNQT)).removeClass("loading_dots");
+			$("#forged_fees_total").html(NRS.formatStyledAmount(NRS.accountInfo.forgedBalanceFQT, false, NRS.getChain(1).decimals)).removeClass("loading_dots");
 			blocksAverageAmount.removeClass("loading_dots");
 			blocksAverageAmount.parent().parent().css('visibility', 'hidden');
 			$("#blocks_page").find(".ion-stats-bars").parent().css('visibility', 'hidden');
@@ -312,8 +321,8 @@ var NRS = (function(NRS, $) {
             var averageFee = 0;
             var averageAmount = 0;
 			if (blocks.length) {
-				averageFee = new Big(totalFees.toString()).div(new Big("100000000")).div(new Big(String(blocks.length))).toFixed(2);
-				averageAmount = new Big(totalAmount.toString()).div(new Big("100000000")).div(new Big(String(blocks.length))).toFixed(2);
+				averageFee = new Big(totalFees.toString()).div(new Big(NRS.getActiveChainOneCoin())).div(new Big(String(blocks.length))).toFixed(2);
+				averageAmount = new Big(totalAmount.toString()).div(new Big(NRS.getActiveChainOneCoin())).div(new Big(String(blocks.length))).toFixed(2);
 			}
 			averageFee = NRS.convertToNQT(averageFee);
 			averageAmount = NRS.convertToNQT(averageAmount);

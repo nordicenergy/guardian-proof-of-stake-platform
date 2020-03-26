@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -25,8 +25,9 @@ var NRS = (function (NRS, $) {
         'MAX_SHORT_JAVA': 32767,
         'MAX_UNSIGNED_SHORT_JAVA': 65535,
         'MAX_INT_JAVA': 2147483647,
-        'MIN_PRUNABLE_MESSAGE_LENGTH': 28,
+        'MAX_LONG_JAVA': "9223372036854775807",
         'DISABLED_API_ERROR_CODE': 16,
+        'MAX_ONE_COIN': 10000000000000000,
 
         //Plugin launch status numbers
         'PL_RUNNING': 1,
@@ -59,6 +60,8 @@ var NRS = (function (NRS, $) {
         "MINTING_HASH_ALGORITHMS": {},
         "REQUEST_TYPES": {},
         "API_TAGS": {},
+        'LAST_KNOWN_BLOCK': {},
+        "ASSET_EXCHANGE_REQUEST_TYPES": ["transferAsset", "deleteAssetShares", "increaseAssetShares", "placeAskOrder", "placeBidOrder"],
 
         'SERVER': {},
         'MAX_TAGGED_DATA_DATA_LENGTH': 0,
@@ -69,11 +72,19 @@ var NRS = (function (NRS, $) {
         'FORGING': 'forging',
         'NOT_FORGING': 'not_forging',
         'UNKNOWN': 'unknown',
-        'LAST_KNOWN_BLOCK': { id: "0", height: "0" },
-        'LAST_KNOWN_TESTNET_BLOCK': { id: "0", height: "0" },
         'INITIAL_BASE_TARGET': 153722867,
-        'SCHEDULE_PREFIX': "schedule"
+        'TESTNET_ACCELERATION': 6,
+        'TESTNET_ACCELERATION_BLOCK': 455000,
+        'SIGNATURE_POSITION': 69, // bytes before signature from TransactionImpl newTransactionBuilder()
+        'SIGNATURE_LENGTH': 64,
+        'SECRET_WORDS_HASH': "9e7c7a62a5c2bbc2b8d9a53c3b3ff2ef1c512939924704a2de584e27023c39b3",
+        'SECRET_WORDS': [],
+        'SECRET_WORDS_MAP': {}
     };
+    
+    var CHAIN_DISPLAY_TO_LOGIC_MAPPING = { "BITS": "BITSWIFT" };
+    var CHAIN_LOGIC_TO_DISPLAY_MAPPING = { "BITSWIFT": "BITS" };
+    var CHAIN_DESCRIPTION = [];
 
     NRS.loadAlgorithmList = function (algorithmSelect, isPhasingHash) {
         var hashAlgorithms;
@@ -91,7 +102,7 @@ var NRS = (function (NRS, $) {
 
     NRS.getRsAccountRegex = function(accountPrefix, withoutSeparator) {
         if (withoutSeparator) {
-            return new RegExp("^" + accountPrefix + "-[A-Z0-9]{17}", "i");
+            return new RegExp("^(" + (accountPrefix + "|NXT)") + "-[A-Z0-9]{17}", "i");
         }
         return new RegExp(NRS.constants.ACCOUNT_REGEX_STR, "i");
     };
@@ -101,7 +112,8 @@ var NRS = (function (NRS, $) {
     };
 
     NRS.processConstants = function(response, resolve) {
-        if (response.genesisAccountId) {
+        if (response.genesisBlockId) {
+            NRS.constants.GENESIS_BLOCK_ID = response.genesisBlockId;
             NRS.constants.SERVER = response;
             NRS.constants.VOTING_MODELS = response.votingModels;
             NRS.constants.MIN_BALANCE_MODELS = response.minBalanceModels;
@@ -110,7 +122,6 @@ var NRS = (function (NRS, $) {
             NRS.constants.MINTING_HASH_ALGORITHMS = response.mintingHashAlgorithms;
             NRS.constants.MAX_TAGGED_DATA_DATA_LENGTH = response.maxTaggedDataDataLength;
             NRS.constants.MAX_PRUNABLE_MESSAGE_LENGTH = response.maxPrunableMessageLength;
-            NRS.constants.GENESIS = response.genesisAccountId;
             NRS.constants.EPOCH_BEGINNING = response.epochBeginning;
             NRS.constants.REQUEST_TYPES = response.requestTypes;
             NRS.constants.API_TAGS = response.apiTags;
@@ -119,22 +130,25 @@ var NRS = (function (NRS, $) {
             NRS.constants.DISABLED_APIS = response.disabledAPIs;
             NRS.constants.DISABLED_API_TAGS = response.disabledAPITags;
             NRS.constants.PEER_STATES = response.peerStates;
-            NRS.constants.LAST_KNOWN_BLOCK.id = response.genesisBlockId;
-            NRS.loadTransactionTypeConstants(response);
+            NRS.constants.LAST_KNOWN_BLOCK.id = response.lastKnownBlock.id;
+            NRS.constants.LAST_KNOWN_BLOCK.height = response.lastKnownBlock.height;
             NRS.constants.PROXY_NOT_FORWARDED_REQUESTS = response.proxyNotForwardedRequests;
-            NRS.constants.COIN_SYMBOL = response.coinSymbol;
-            $(".coin-symbol").html(response.coinSymbol);
+            NRS.constants.CHAINS = response.chains;
+            NRS.constants.CHAIN_PROPERTIES = response.chainProperties;
+            NRS.constants.CURRENCY_TYPES = response.currencyTypes;
+            NRS.constants.PROXY_NOT_FORWARDED_REQUESTS = response.proxyNotForwardedRequests;
+            NRS.loadTransactionTypeConstants(response);
             NRS.constants.ACCOUNT_PREFIX = response.accountPrefix;
-            NRS.constants.PROJECT_NAME = response.projectName;
-            NRS.constants.ACCOUNT_REGEX_STR = "^" + response.accountPrefix + "-[A-Z0-9_]{4}-[A-Z0-9_]{4}-[A-Z0-9_]{4}-[A-Z0-9_]{5}";
+            NRS.constants.ACCOUNT_REGEX_STR = `^(${response.accountPrefix}|NXT)-[A-Z0-9_]{4}-[A-Z0-9_]{4}-[A-Z0-9_]{4}-(?!${response.accountPrefix}|NXT)[A-Z0-9_]{5}`;
             NRS.constants.ACCOUNT_RS_MATCH = NRS.getRsAccountRegex(response.accountPrefix);
             NRS.constants.ACCOUNT_NUMERIC_MATCH = NRS.getNumericAccountRegex();
             NRS.constants.ACCOUNT_MASK_ASTERIX = response.accountPrefix + "-****-****-****-*****";
             NRS.constants.ACCOUNT_MASK_UNDERSCORE = response.accountPrefix + "-____-____-____-_____";
             NRS.constants.ACCOUNT_MASK_PREFIX = response.accountPrefix + "-";
-            NRS.constants.GENESIS_RS = NRS.convertNumericToRSAccountFormat(response.genesisAccountId);
+            NRS.constants.ACCOUNT_MASK_LEN = NRS.constants.ACCOUNT_MASK_PREFIX.length;
             NRS.constants.INITIAL_BASE_TARGET = parseInt(response.initialBaseTarget);
-            NRS.constants.CURRENCY_TYPES = response.currencyTypes;
+            NRS.constants.LEASING_DELAY = parseInt(response.leasingDelay);
+            getSecretWords(response.secretPhraseWords);
             console.log("done loading server constants");
             if (resolve) {
                 resolve();
@@ -142,13 +156,32 @@ var NRS = (function (NRS, $) {
         }
     };
 
-    NRS.loadServerConstants = function(resolve) {
+    function getSecretWords(compressedWords) {
+        var bytes = converters.hexStringToByteArray(compressedWords);
+        sha256 = CryptoJS.algo.SHA256.create();
+        sha256.update(converters.byteArrayToWordArrayEx(bytes));
+        var hash = converters.byteArrayToHexString(converters.wordArrayToByteArrayEx(sha256.finalize()));
+        if (hash != NRS.constants.SECRET_WORDS_HASH) {
+            throw "invalid secret words list";
+        }
+        var wordsStr = pako.inflate(bytes, { to: 'string' });
+        NRS.constants.SECRET_WORDS = wordsStr.split(",");
+        for (var i=0; i<NRS.constants.SECRET_WORDS.length; i++) {
+            NRS.constants.SECRET_WORDS_MAP[NRS.constants.SECRET_WORDS[i]] = i;
+        }
+    }
+
+    NRS.loadServerConstants = function(resolve, isUnitTest) {
         function processConstants(response) {
             NRS.processConstants(response, resolve);
         }
-        if (NRS.isMobileApp()) {
+        if (NRS.isMobileApp() || isUnitTest) {
             jQuery.ajaxSetup({ async: false });
-            $.getScript("js/data/constants.js" );
+            if (NRS.mobileSettings && NRS.mobileSettings.is_testnet) {
+                $.getScript("js/data/constants.testnet.js");
+            } else {
+                $.getScript("js/data/constants.mainnet.js");
+            }
             jQuery.ajaxSetup({async: true});
             processConstants(NRS.constants.SERVER);
         } else {
@@ -252,13 +285,21 @@ var NRS = (function (NRS, $) {
             requestType == "stopForging" ||
             requestType == "startShuffler" ||
             requestType == "getForging" ||
-            requestType == "markHost" ||
-            requestType == "startFundingMonitor";
+            requestType == "startFundingMonitor" ||
+            requestType == "startBundler" ||
+            requestType == "addBundlingRule" ||
+            requestType == "startStandbyShuffler" ||
+            requestType == "signTransaction";
     };
 
-    NRS.isScheduleRequest = function (requestType) {
-        var keyword = NRS.constants.SCHEDULE_PREFIX;
-        return requestType && requestType.length >= keyword.length && requestType.substring(0, keyword.length) == keyword;
+    /**
+     * Special case for transaction types which set the recipient to account which is not part of the transaction data.
+     * For example to the asset issuer account in asset property transactions.
+     * @param requestType the request type
+     * @returns {boolean} is it a requestType which creates a transaction with special recipient
+     */
+    NRS.isSpecialRecipient = function (requestType) {
+        return requestType == "setAssetProperty" || requestType == "deleteAssetProperty";
     };
 
     NRS.getFileUploadConfig = function (requestType, data) {
@@ -285,6 +326,10 @@ var NRS = (function (NRS, $) {
             config.errorDescription = "error_message_too_big";
             config.maxSize = NRS.constants.MAX_PRUNABLE_MESSAGE_LENGTH;
             return config;
+        } else if (requestType == "uploadContractRunnerConfiguration") {
+            config.selector = "#upload_contract_runner_config_file";
+            config.requestParam = "config";
+            return config;
         }
         return null;
     };
@@ -296,7 +341,8 @@ var NRS = (function (NRS, $) {
         var tags = depends.tags;
         if (tags) {
             for (var i=0; i < tags.length; i++) {
-                if (tags[i] && !tags[i].enabled) {
+                if (tags[i] && (!tags[i].enabled || tags[i].disabledForChains
+                    && tags[i].disabledForChains.indexOf(parseInt(NRS.getActiveChainId())) >= 0)) {
                     return false;
                 }
             }
@@ -304,12 +350,122 @@ var NRS = (function (NRS, $) {
         var apis = depends.apis;
         if (apis) {
             for (i=0; i < apis.length; i++) {
-                if (apis[i] && !apis[i].enabled) {
+                if (apis[i] && (!apis[i].enabled || apis[i].disabledForChains
+                    && apis[i].disabledForChains.indexOf(parseInt(NRS.getActiveChainId())) >= 0)) {
                     return false;
                 }
             }
         }
         return true;
+    };
+
+    NRS.getChainLogicName = function(chainName) {
+        var name = CHAIN_DISPLAY_TO_LOGIC_MAPPING[chainName];
+        return name != null ? name : chainName;
+    };
+
+    NRS.getChainDisplayName = function(chainName) {
+        var name = CHAIN_LOGIC_TO_DISPLAY_MAPPING[chainName];
+        return name != null ? name : chainName;
+    };
+
+    NRS.getChainDescription = function(chainId) {
+        if (CHAIN_DESCRIPTION.length == 0) {
+            CHAIN_DESCRIPTION = ["", $.t("parent_chain"), $.t("main_child_chain"), $.t("euro_pegged_chain"), $.t("bits_chain"), $.t("mpg_chain") ];
+        }
+        return CHAIN_DESCRIPTION[chainId];
+    };
+
+    NRS.findChainByName = function(chainName) {
+        for (var id in  NRS.constants.CHAIN_PROPERTIES) {
+            if (NRS.constants.CHAIN_PROPERTIES.hasOwnProperty(id) &&
+                NRS.constants.CHAIN_PROPERTIES[id].name == NRS.getChainLogicName(chainName)) {
+                return id;
+            }
+        }
+        return false;
+    };
+
+    NRS.setActiveChain = function(chain) {
+        NRS.mobileSettings.chain = chain;
+        NRS.setJSONItem("mobile_settings", NRS.mobileSettings);
+        $(".coin-symbol").html(NRS.getActiveChainName());
+        $(".parent-coin-symbol").html(NRS.getParentChainName());
+        $(".coin-symbol-separator").html(" " + $.t("per") + " ");
+        $(".shuffling-node-running-warning").html($.t("shuffling_node_running_warning",
+            { deposit: NRS.formatQuantity(NRS.getActiveChain().SHUFFLING_DEPOSIT_NQT, NRS.getActiveChainDecimals()), coin: NRS.getActiveChainName() }
+        ));
+    };
+
+    NRS.getActiveChain = function() {
+        return NRS.constants.CHAIN_PROPERTIES[NRS.mobileSettings.chain];
+    };
+
+    NRS.getActiveChainId = function() {
+        return NRS.mobileSettings.chain;
+    };
+
+    NRS.isParentChain = function() {
+        return NRS.getActiveChainId() == 1;
+    };
+
+    NRS.isIgnisChain = function() {
+        return NRS.getActiveChainId() == 2;
+    };
+
+    NRS.getActiveChainName = function() {
+        return NRS.getChainDisplayName(String(NRS.constants.CHAIN_PROPERTIES[NRS.getActiveChainId()].name).escapeHTML());
+    };
+
+    NRS.getParentChainName = function() {
+        return NRS.getChainDisplayName(String(NRS.constants.CHAIN_PROPERTIES[1].name).escapeHTML());
+    };
+
+    NRS.getParentChainDecimals = function() {
+        return NRS.constants.CHAIN_PROPERTIES[1].decimals;
+    };
+
+    NRS.getActiveChainDecimals = function() {
+        return parseInt(NRS.constants.CHAIN_PROPERTIES[NRS.getActiveChainId()].decimals);
+    };
+
+    NRS.getActiveChainOneCoin = function() {
+        return NRS.constants.CHAIN_PROPERTIES[NRS.getActiveChainId()].ONE_COIN;
+    };
+
+    NRS.getChain = function(chainId) {
+        return NRS.constants.CHAIN_PROPERTIES[chainId];
+    };
+
+    NRS.getChainName = function(chainId) {
+        return NRS.getChainDisplayName(String(NRS.constants.CHAIN_PROPERTIES[chainId].name).escapeHTML());
+    };
+
+    NRS.getChainDecimals = function(chainId) {
+        return String(NRS.constants.CHAIN_PROPERTIES[chainId].decimals);
+    };
+
+    NRS.getChainIdByName = function(name) {
+        for (var chain in NRS.constants.CHAIN_PROPERTIES) {
+            if (!NRS.constants.CHAIN_PROPERTIES.hasOwnProperty(chain)) {
+                continue;
+            }
+            if (NRS.constants.CHAIN_PROPERTIES[chain].name == NRS.getChainLogicName(name)) {
+                return chain;
+            }
+        }
+        return -1;
+    };
+
+    // TODO should we add the chain description to login page as well? This would requires some re-design
+    NRS.createChainSelect = function() {
+        // Build chain select box for login page
+        var chains = $('select[name="chain"]');
+        chains.empty();
+        $.each(NRS.constants.CHAIN_PROPERTIES, function(id, chain) {
+            chains.append('<option value="' + id + '">' + NRS.getChainDisplayName(chain.name) + '</option>');
+        });
+        chains.val(NRS.getActiveChainId());
     };
 
     return NRS;

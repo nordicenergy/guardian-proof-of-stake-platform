@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,13 +16,21 @@
 
 package nxt.addons;
 
+import nxt.Constants;
 import nxt.Nxt;
+import nxt.env.RuntimeEnvironment;
 import nxt.http.APIServlet;
 import nxt.http.APITag;
+import nxt.util.security.BlockchainSecurityProvider;
 import nxt.util.Logger;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.Provider;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,29 +41,48 @@ public final class AddOns {
         List<AddOn> addOnsList = new ArrayList<>();
         Nxt.getStringListProperty("nxt.addOns").forEach(addOn -> {
             try {
-                addOnsList.add((AddOn)Class.forName(addOn).newInstance());
+                if (addOn.indexOf('.') == -1) {
+                    addOn = "nxt.addons." + addOn;
+                }
+                addOnsList.add((AddOn)Class.forName(addOn).getConstructor().newInstance());
             } catch (ReflectiveOperationException e) {
                 Logger.logErrorMessage(e.getMessage(), e);
             }
         });
         addOns = Collections.unmodifiableList(addOnsList);
         if (!addOns.isEmpty() && !Nxt.getBooleanProperty("nxt.disableSecurityPolicy")) {
-            System.setProperty("java.security.policy", Nxt.isDesktopApplicationEnabled() ? "nxtdesktop.policy" : "nxt.policy");
+            Logger.logMessage("Creating Jelurida security provider");
+            Provider blockchainSecurityProvider = new BlockchainSecurityProvider();
+            Security.addProvider(blockchainSecurityProvider);
+            if (System.getProperty("java.security.policy") == null) {
+                System.setProperty("java.security.policy", RuntimeEnvironment.isDesktopApplicationEnabled() ? "ardordesktop.policy" : "ardor.policy");
+            }
             Logger.logMessage("Setting security manager with policy " + System.getProperty("java.security.policy"));
             System.setSecurityManager(new SecurityManager() {
                 @Override
                 public void checkConnect(String host, int port) {
-                    // Allow all connections
+                    // Allow all connections (avoid the slow socket permission connection check which requires reverse DNS lookup)
                 }
                 @Override
                 public void checkConnect(String host, int port, Object context) {
-                    // Allow all connections
+                    // Allow all connections (avoid the slow socket permission connection check which requires reverse DNS lookup)
                 }
             });
         }
         addOns.forEach(addOn -> {
             Logger.logInfoMessage("Initializing " + addOn.getClass().getName());
-            addOn.init();
+            try {
+                if (Constants.isAutomatedTest) {
+                    AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                        addOn.init();
+                        return null;
+                    });
+                } else {
+                    addOn.init();
+                }
+            } catch (Throwable t) {
+                Logger.logErrorMessage("Initialization failed for addOn " + addOn.getClass().getName(), t);
+            }
         });
     }
 
@@ -69,14 +97,29 @@ public final class AddOns {
 
     public static void registerAPIRequestHandlers(Map<String,APIServlet.APIRequestHandler> map) {
         for (AddOn addOn : addOns) {
+            Map<String, APIServlet.APIRequestHandler> apiRequests = addOn.getAPIRequests();
+            // For backward compatibility with old contracts
             APIServlet.APIRequestHandler requestHandler = addOn.getAPIRequestHandler();
-            if (requestHandler != null) {
+            String apiRequestType = addOn.getAPIRequestType();
+            if (requestHandler != null && apiRequestType != null) {
+                if (apiRequests == null) {
+                    apiRequests = new HashMap<>();
+                }
+                apiRequests.put(apiRequestType, requestHandler);
+            }
+            if (apiRequests == null) {
+                continue;
+            }
+
+            // Register the Addon APIs
+            for(Map.Entry<String, APIServlet.APIRequestHandler> apiRequest : apiRequests.entrySet()){
+                requestHandler = apiRequest.getValue();
                 if (!requestHandler.getAPITags().contains(APITag.ADDONS)) {
                     Logger.logErrorMessage("Add-on " + addOn.getClass().getName()
                             + " attempted to register request handler which is not tagged as APITag.ADDONS, skipping");
                     continue;
                 }
-                String requestType = addOn.getAPIRequestType();
+                String requestType = apiRequest.getKey();
                 if (requestType == null) {
                     Logger.logErrorMessage("Add-on " + addOn.getClass().getName() + " requestType not defined");
                     continue;
@@ -89,6 +132,10 @@ public final class AddOns {
                 map.put(requestType, requestHandler);
             }
         }
+    }
+
+    public static AddOn getAddOn(Class<? extends AddOn> addOnType) {
+        return addOns.stream().filter(addOnType::isInstance).findFirst().orElse(null);
     }
 
     private AddOns() {}

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,6 +16,11 @@
 
 package nxt;
 
+import nxt.account.Account;
+import nxt.addons.DebugTrace;
+import nxt.ae.Asset;
+import nxt.blockchain.BlockImpl;
+import nxt.blockchain.TransactionProcessorImpl;
 import nxt.db.DbIterator;
 import nxt.util.Logger;
 import org.junit.AfterClass;
@@ -29,7 +35,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class BlockchainProcessorTest extends AbstractBlockchainTest {
+public class BlockchainProcessorTest extends AbstractFullDbTest {
 
     private static final String defaultTraceFile = "nxt-trace-default.csv";
     private static final String testTraceFile = "nxt-trace.csv";
@@ -46,7 +52,7 @@ public class BlockchainProcessorTest extends AbstractBlockchainTest {
     @BeforeClass
     public static void init() {
         AbstractBlockchainTest.init(newTestProperties());
-        debugTrace = DebugTrace.addDebugTrace(Collections.<Long>emptySet(), BlockchainProcessorTest.testTraceFile);
+        debugTrace = DebugTrace.addDebugTrace(Collections.emptySet(), BlockchainProcessorTest.testTraceFile);
     }
 
     @AfterClass
@@ -170,7 +176,7 @@ public class BlockchainProcessorTest extends AbstractBlockchainTest {
             try (DbIterator<Account> iter = account.getLessors(endHeight - numBlocks)) {
                 for (Account lessor : iter) {
                     lessors.add(lessor.getId());
-                    balances.add(lessor.getGuaranteedBalanceNQT(Constants.GUARANTEED_BALANCE_CONFIRMATIONS, endHeight - numBlocks));
+                    balances.add(lessor.getGuaranteedBalanceFQT(Constants.GUARANTEED_BALANCE_CONFIRMATIONS, endHeight - numBlocks));
                 }
             }
         }
@@ -191,7 +197,7 @@ public class BlockchainProcessorTest extends AbstractBlockchainTest {
         List<BlockImpl> poppedBlocks = blockchainProcessor.popOffTo(endHeight - numBlocks);
         if (preserveTransactions) {
             for (BlockImpl block : poppedBlocks) {
-                TransactionProcessorImpl.getInstance().processLater(block.getTransactions());
+                TransactionProcessorImpl.getInstance().processLater(block.getFxtTransactions());
             }
         }
         Assert.assertEquals(endHeight - numBlocks, blockchain.getHeight());
@@ -209,7 +215,7 @@ public class BlockchainProcessorTest extends AbstractBlockchainTest {
             try (DbIterator<Account> iter = account.getLessors()) {
                 for (Account lessor : iter) {
                     lessors.add(lessor.getId());
-                    balances.add(lessor.getGuaranteedBalanceNQT());
+                    balances.add(lessor.getGuaranteedBalanceFQT());
                 }
             }
         }

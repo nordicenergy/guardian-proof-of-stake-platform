@@ -685,7 +685,7 @@ var curve25519 = function () {
     function sign (h, x, s) {
         // v = (x - h) s  mod q
         var w, i;
-        var h1 = new Array(32)
+        var h1 = new Array(32);
         var x1 = new Array(32);
         var tmp1 = new Array(64);
         var tmp2 = new Array(64);

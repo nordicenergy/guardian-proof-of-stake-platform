@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -26,7 +26,7 @@ var NRS = (function(NRS, $) {
     var _modalUIElements = null;
 
     NRS.loadLockscreenHTML = function(path) {
-        if (!NRS.getUrlParameter("account")) {
+        if (!NRS.getUrlParameter("account") && !NRS.getUrlParameter("lifetime_modal")) {
             jQuery.ajaxSetup({async: false});
             $.get(path, '', function (data) {
                 $("body").prepend(data);
@@ -85,11 +85,10 @@ var NRS = (function(NRS, $) {
 
     NRS.loadModalHTMLTemplates = function() {
         jQuery.ajaxSetup({ async: false });
-
+        
         $.get("html/modals/templates.html", '', function (data) {
             _replaceModalHTMLTemplateDiv(data, 'recipient_modal_template');
             _replaceModalHTMLTemplateDiv(data, 'add_message_modal_template');
-            _replaceModalHTMLTemplateDiv(data, 'add_public_message_modal_template');
             _replaceModalHTMLTemplateDiv(data, 'fee_calculation_modal_template');
             _replaceModalHTMLTemplateDiv(data, 'secret_phrase_modal_template');
             _replaceModalHTMLTemplateDiv(data, 'admin_password_modal_template');
@@ -168,12 +167,12 @@ var NRS = (function(NRS, $) {
             return;
         }
         var menuHTML = '<li class="treeview" id="' + options["id"] + '" class="sm_treeview" data-sidebar-position="' + options["desiredPosition"] + '">';
-        menuHTML += '<a href="#" data-page="' + options["page"] + '">' + options["titleHTML"] + '<i class="fa pull-right fa-angle-right" style="padding-top:3px"></i></a>';
+        menuHTML += '<a href="#" data-page="' + options["page"] + '">' + options["titleHTML"] + '<i class="far pull-right fa-angle-right" style="padding-top:3px"></i></a>';
         menuHTML += '<ul class="treeview-menu" style="display: none;"></ul>';
         menuHTML += '</li>';
         _appendToSidebar(menuHTML, options["id"], options["desiredPosition"]);
     };
-
+    
     NRS.appendMenuItemToTSMenuItem = function(itemId, options) {
         if (!NRS.isApiEnabled(options.depends)) {
             return;
@@ -190,7 +189,7 @@ var NRS = (function(NRS, $) {
         } else {
             return false;
         }
-        menuHTML += '><i class="fa fa-angle-double-right"></i> ';
+        menuHTML += '><i class="far fa-angle-double-right"></i> ';
         menuHTML += options["titleHTML"] + ' <span class="badge" style="display:none;"></span></a></li>';
         parentMenu.append(menuHTML);
     };
@@ -207,6 +206,21 @@ var NRS = (function(NRS, $) {
         menuHTML += '<span class="sm_sub_header"><span style="display:inline-block;width:20px;">&nbsp;</span> ';
         menuHTML += options["titleHTML"] + ' </span></li>';
         parentMenu.append(menuHTML);
+    };
+
+    function widgetVisibility(widget, depends, chain) {
+        if (NRS.isApiEnabled(depends) && chain === NRS.getActiveChainId()) {
+            widget.show();
+        } else {
+            widget.hide();
+        }
+    }
+    NRS.initHeader = function() {
+        var activeChainId = NRS.getActiveChainId();
+        var eurChainId = NRS.findChainByName("AEUR");
+        widgetVisibility($("#header_send_money"), { apis: [NRS.constants.REQUEST_TYPES.sendMoney] }, activeChainId);
+        widgetVisibility($("#header_send_message"), { apis: [NRS.constants.REQUEST_TYPES.sendMessage] }, activeChainId == eurChainId ? -1 : activeChainId);
+        widgetVisibility($("#header_withdraw_aeur"), { apis: [NRS.constants.REQUEST_TYPES.sendMoney] }, eurChainId);
     };
 
     NRS.getUrlParameter = function (param) {

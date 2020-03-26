@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -24,16 +24,25 @@ var NRS = (function (NRS) {
     }
 
     NRS.storageSelect = function (table, query, callback) {
+        var dfr = $.Deferred();
         if (isIndexedDBSupported()) {
-            NRS.database.select(table, query, callback);
-            return;
+            NRS.database.select(table, query, function(error, result) {
+                callback(error, result);
+                if (error) {
+                    dfr.resolve(error);
+                } else {
+                    dfr.resolve(result);
+                }
+            });
+            return dfr;
         }
         var items = NRS.getAccountJSONItem(table);
         if (!items) {
             if (callback) {
                 callback("No items to select", []);
             }
-            return;
+            dfr.resolve("No items to select");
+            return dfr;
         }
         var response = [];
         for (var i=0; i<items.length; i++) {
@@ -52,6 +61,8 @@ var NRS = (function (NRS) {
         if (callback) {
             callback(null, response);
         }
+        dfr.resolve(response);
+        return dfr;
     };
 
     NRS.storageInsert = function(table, key, data, callback, isAutoIncrement) {
@@ -200,6 +211,14 @@ var NRS = (function (NRS) {
 
     NRS.removeAccountItem = function (key) {
         NRS.removeItem(getAccountKey(key));
+    };
+
+    NRS.getJSONObjectSize = function (object) {
+        return Object.keys(object).length;
+    };
+
+    NRS.isJSONObjectEmpty = function (object) {
+        return Object.keys(object).length == 0;
     };
 
     function getAccountKey(key) {

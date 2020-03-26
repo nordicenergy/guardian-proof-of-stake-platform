@@ -1,12 +1,12 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2018 Jelurida IP B.V.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,7 +17,9 @@
 package nxt.db;
 
 import nxt.Nxt;
+import nxt.dbschema.Db;
 import nxt.util.Logger;
+import nxt.util.security.BlockchainPermission;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -26,12 +28,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 public class TransactionalDb extends BasicDb {
 
-    private static final DbFactory factory = new DbFactory();
+    private final DbFactory factory = new DbFactory();
     private static final long stmtThreshold;
     private static final long txThreshold;
     private static final long txInterval;
@@ -53,13 +57,48 @@ public class TransactionalDb extends BasicDb {
         super(dbProperties);
     }
 
-    @Override
-    public Connection getConnection() throws SQLException {
-        Connection con = localConnection.get();
-        if (con != null) {
-            return con;
+    public static <V> V callInDbTransaction(Callable<V> callable) {
+        boolean wasInTransaction = Db.db.isInTransaction();
+        if (!wasInTransaction) {
+            Db.db.beginTransaction();
         }
-        return new DbConnection(super.getConnection());
+        try {
+
+            V result = callable.call();
+            Db.db.commitTransaction();
+
+            return result;
+        } catch (Exception e) {
+            Db.db.rollbackTransaction();
+            throw new RuntimeException(e.toString(), e);
+        } finally {
+            if (!wasInTransaction) {
+                Db.db.endTransaction();
+            }
+        }
+    }
+
+    public static void runInDbTransaction(Runnable runnable) {
+        callInDbTransaction(() -> {
+            runnable.run();
+            return null;
+        });
+    }
+
+    public Connection getConnection(String schema) throws SQLException {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("db"));
+        }
+        Connection con = localConnection.get();
+        if (con == null) {
+            con = getPooledConnection();
+            con.setAutoCommit(true);
+            con = new DbConnection(con, schema);
+        } else {
+            ((DbConnection)con).setSchema(schema);
+        }
+        return con;
     }
 
     public boolean isInTransaction() {
@@ -67,13 +106,17 @@ public class TransactionalDb extends BasicDb {
     }
 
     public Connection beginTransaction() {
+        return beginTransaction("PUBLIC");
+    }
+
+    public Connection beginTransaction(String schema) {
         if (localConnection.get() != null) {
             throw new IllegalStateException("Transaction already in progress");
         }
         try {
             Connection con = getPooledConnection();
             con.setAutoCommit(false);
-            con = new DbConnection(con);
+            con = new DbConnection(con, schema);
             ((DbConnection)con).txStart = System.currentTimeMillis();
             localConnection.set((DbConnection)con);
             transactionCaches.set(new HashMap<>());
@@ -160,15 +203,15 @@ public class TransactionalDb extends BasicDb {
         callbacks.add(callback);
     }
 
-    Map<DbKey,Object> getCache(String tableName) {
+    Map<DbKey,Object> getCache(String schemaTable) {
         if (!isInTransaction()) {
             throw new IllegalStateException("Not in transaction");
         }
-        return transactionCaches.get().computeIfAbsent(tableName, k -> new HashMap<>());
+        return transactionCaches.get().computeIfAbsent(schemaTable, k -> new HashMap<>());
     }
 
-    void clearCache(String tableName) {
-        Map<DbKey,Object> cacheMap = transactionCaches.get().get(tableName);
+    void clearCache(String schemaTable) {
+        Map<DbKey,Object> cacheMap = transactionCaches.get().get(schemaTable);
         if (cacheMap != null) {
             cacheMap.clear();
         }
@@ -198,10 +241,12 @@ public class TransactionalDb extends BasicDb {
 
     private final class DbConnection extends FilteredConnection {
 
-        long txStart = 0;
+        private long txStart = 0;
+        private volatile String schema;
 
-        private DbConnection(Connection con) {
+        private DbConnection(Connection con, String schema) throws SQLException {
             super(con, factory);
+            setSchema(schema);
         }
 
         @Override
@@ -247,17 +292,42 @@ public class TransactionalDb extends BasicDb {
                 throw new IllegalStateException("Previous connection not committed");
             }
         }
+
+        @Override
+        public void setSchema(String schema) throws SQLException {
+            schema = schema.toUpperCase(Locale.ROOT);
+            if (schema.equals(this.schema)) {
+                return;
+            }
+            this.schema = schema;
+            try (Statement stmt = createStatement()) {
+                stmt.executeUpdate("SET SCHEMA " + schema);
+                stmt.executeUpdate("SET SCHEMA_SEARCH_PATH " + schema + ", PUBLIC");
+            }
+        }
+
+        @Override
+        public String getSchema() {
+            return schema;
+        }
+
     }
 
-    private static final class DbStatement extends FilteredStatement {
+    private final class DbStatement extends FilteredStatement {
 
-        private DbStatement(Statement stmt) {
+        private final FilteredConnection con;
+        private final String schema;
+
+        private DbStatement(FilteredConnection con, Statement stmt) throws SQLException {
             super(stmt);
+            this.con = con;
+            this.schema = con.getSchema();
         }
 
         @Override
         public boolean execute(String sql) throws SQLException {
             long start = System.currentTimeMillis();
+            con.setSchema(schema);
             boolean b = super.execute(sql);
             long elapsed = System.currentTimeMillis() - start;
             if (elapsed > stmtThreshold)
@@ -269,6 +339,7 @@ public class TransactionalDb extends BasicDb {
         @Override
         public ResultSet executeQuery(String sql) throws SQLException {
             long start = System.currentTimeMillis();
+            con.setSchema(schema);
             ResultSet r = super.executeQuery(sql);
             long elapsed = System.currentTimeMillis() - start;
             if (elapsed > stmtThreshold)
@@ -280,6 +351,7 @@ public class TransactionalDb extends BasicDb {
         @Override
         public int executeUpdate(String sql) throws SQLException {
             long start = System.currentTimeMillis();
+            con.setSchema(schema);
             int c = super.executeUpdate(sql);
             long elapsed = System.currentTimeMillis() - start;
             if (elapsed > stmtThreshold)
@@ -287,16 +359,29 @@ public class TransactionalDb extends BasicDb {
                                            (double)elapsed/1000.0, Nxt.getBlockchain().getHeight(), sql));
             return c;
         }
+
+        @Override
+        public Connection getConnection() {
+            return con;
+        }
+
     }
 
-    private static final class DbPreparedStatement extends FilteredPreparedStatement {
-        private DbPreparedStatement(PreparedStatement stmt, String sql) {
+    private final class DbPreparedStatement extends FilteredPreparedStatement {
+
+        private final FilteredConnection con;
+        private final String schema;
+
+        private DbPreparedStatement(FilteredConnection con, PreparedStatement stmt, String sql) throws SQLException {
             super(stmt, sql);
+            this.con = con;
+            this.schema = con.getSchema();
         }
 
         @Override
         public boolean execute() throws SQLException {
             long start = System.currentTimeMillis();
+            con.setSchema(schema);
             boolean b = super.execute();
             long elapsed = System.currentTimeMillis() - start;
             if (elapsed > stmtThreshold)
@@ -308,6 +393,7 @@ public class TransactionalDb extends BasicDb {
         @Override
         public ResultSet executeQuery() throws SQLException {
             long start = System.currentTimeMillis();
+            con.setSchema(schema);
             ResultSet r = super.executeQuery();
             long elapsed = System.currentTimeMillis() - start;
             if (elapsed > stmtThreshold)
@@ -319,6 +405,7 @@ public class TransactionalDb extends BasicDb {
         @Override
         public int executeUpdate() throws SQLException {
             long start = System.currentTimeMillis();
+            con.setSchema(schema);
             int c = super.executeUpdate();
             long elapsed = System.currentTimeMillis() - start;
             if (elapsed > stmtThreshold)
@@ -326,18 +413,24 @@ public class TransactionalDb extends BasicDb {
                                            (double)elapsed/1000.0, Nxt.getBlockchain().getHeight(), getSQL()));
             return c;
         }
-    }
-
-    private static final class DbFactory implements FilteredFactory {
 
         @Override
-        public Statement createStatement(Statement stmt) {
-            return new DbStatement(stmt);
+        public Connection getConnection() {
+            return con;
+        }
+
+    }
+
+    private final class DbFactory implements FilteredFactory {
+
+        @Override
+        public Statement createStatement(FilteredConnection con, Statement stmt) throws SQLException {
+            return new DbStatement(con, stmt);
         }
 
         @Override
-        public PreparedStatement createPreparedStatement(PreparedStatement stmt, String sql) {
-            return new DbPreparedStatement(stmt, sql);
+        public PreparedStatement createPreparedStatement(FilteredConnection con, PreparedStatement stmt, String sql) throws SQLException {
+            return new DbPreparedStatement(con, stmt, sql);
         }
     }
 

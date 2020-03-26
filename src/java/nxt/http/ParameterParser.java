@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,28 +16,46 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Alias;
-import nxt.Appendix;
-import nxt.Asset;
-import nxt.Attachment;
 import nxt.Constants;
-import nxt.Currency;
-import nxt.CurrencyBuyOffer;
-import nxt.CurrencySellOffer;
-import nxt.DigitalGoodsStore;
-import nxt.HoldingType;
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.Poll;
-import nxt.Shuffling;
-import nxt.Transaction;
+import nxt.account.Account;
+import nxt.account.HoldingType;
+import nxt.ae.Asset;
+import nxt.aliases.AliasHome;
+import nxt.blockchain.Appendix;
+import nxt.blockchain.Bundler;
+import nxt.blockchain.Chain;
+import nxt.blockchain.ChainTransactionId;
+import nxt.blockchain.ChildChain;
+import nxt.blockchain.Transaction;
 import nxt.crypto.Crypto;
 import nxt.crypto.EncryptedData;
+import nxt.crypto.SecretSharingGenerator;
+import nxt.dgs.DigitalGoodsHome;
+import nxt.messaging.EncryptToSelfMessageAppendix;
+import nxt.messaging.EncryptedMessageAppendix;
+import nxt.messaging.MessageAppendix;
+import nxt.messaging.PrunableEncryptedMessageAppendix;
+import nxt.messaging.PrunablePlainMessageAppendix;
+import nxt.messaging.UnencryptedEncryptToSelfMessageAppendix;
+import nxt.messaging.UnencryptedEncryptedMessageAppendix;
+import nxt.messaging.UnencryptedPrunableEncryptedMessageAppendix;
+import nxt.ms.Currency;
+import nxt.ms.ExchangeOfferHome;
+import nxt.shuffling.ShufflingHome;
+import nxt.taggeddata.TaggedDataAttachment;
+import nxt.util.BooleanExpression;
 import nxt.util.Convert;
+import nxt.util.JSON;
 import nxt.util.Logger;
 import nxt.util.Search;
+import nxt.voting.PhasingParams;
+import nxt.voting.PollHome;
+import nxt.voting.VoteWeighting;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.JSONStreamAware;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
@@ -46,22 +65,70 @@ import javax.servlet.http.Part;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.SortedMap;
 import java.util.StringJoiner;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static nxt.http.JSONResponses.*;
+import static nxt.http.JSONResponses.INCORRECT_ACCOUNT;
+import static nxt.http.JSONResponses.INCORRECT_ALIAS;
+import static nxt.http.JSONResponses.INCORRECT_ARBITRARY_MESSAGE;
+import static nxt.http.JSONResponses.INCORRECT_DATA_TOO_LONG;
+import static nxt.http.JSONResponses.INCORRECT_DATA_ZERO_LENGTH;
+import static nxt.http.JSONResponses.INCORRECT_FILE;
+import static nxt.http.JSONResponses.INCORRECT_MESSAGE_TO_ENCRYPT;
+import static nxt.http.JSONResponses.INCORRECT_PURCHASE;
+import static nxt.http.JSONResponses.INCORRECT_TAGGED_DATA_CHANNEL;
+import static nxt.http.JSONResponses.INCORRECT_TAGGED_DATA_DESCRIPTION;
+import static nxt.http.JSONResponses.INCORRECT_TAGGED_DATA_FILE;
+import static nxt.http.JSONResponses.INCORRECT_TAGGED_DATA_FILENAME;
+import static nxt.http.JSONResponses.INCORRECT_TAGGED_DATA_NAME;
+import static nxt.http.JSONResponses.INCORRECT_TAGGED_DATA_TAGS;
+import static nxt.http.JSONResponses.INCORRECT_TAGGED_DATA_TYPE;
+import static nxt.http.JSONResponses.INCORRECT_WHITELIST;
+import static nxt.http.JSONResponses.MISSING_ACCOUNT;
+import static nxt.http.JSONResponses.MISSING_ALIAS_OR_ALIAS_NAME;
+import static nxt.http.JSONResponses.MISSING_CHAIN;
+import static nxt.http.JSONResponses.MISSING_NAME;
+import static nxt.http.JSONResponses.MISSING_PROPERTY;
+import static nxt.http.JSONResponses.MISSING_RECIPIENT_PUBLIC_KEY;
+import static nxt.http.JSONResponses.MISSING_SECRET_PHRASE;
+import static nxt.http.JSONResponses.MISSING_TRANSACTION_BYTES_OR_JSON;
+import static nxt.http.JSONResponses.UNKNOWN_ACCOUNT;
+import static nxt.http.JSONResponses.UNKNOWN_ALIAS;
+import static nxt.http.JSONResponses.UNKNOWN_ASSET;
+import static nxt.http.JSONResponses.UNKNOWN_CHAIN;
+import static nxt.http.JSONResponses.UNKNOWN_CURRENCY;
+import static nxt.http.JSONResponses.UNKNOWN_GOODS;
+import static nxt.http.JSONResponses.UNKNOWN_OFFER;
+import static nxt.http.JSONResponses.UNKNOWN_POLL;
+import static nxt.http.JSONResponses.UNKNOWN_SHUFFLING;
+import static nxt.http.JSONResponses.either;
+import static nxt.http.JSONResponses.incorrect;
+import static nxt.http.JSONResponses.missing;
 
 public final class ParameterParser {
 
     public static byte getByte(HttpServletRequest req, String name, byte min, byte max, boolean isMandatory) throws ParameterException {
+        return getByte(req, name, min, max, (byte) 0, isMandatory);
+    }
+
+    public static byte getByte(HttpServletRequest req, String name, byte min, byte max, byte defaultValue, boolean isMandatory) throws ParameterException {
         String paramValue = Convert.emptyToNull(req.getParameter(name));
         if (paramValue == null) {
             if (isMandatory) {
                 throw new ParameterException(missing(name));
             }
-            return 0;
+            return defaultValue;
         }
         try {
             byte value = Byte.parseByte(paramValue);
@@ -82,14 +149,26 @@ public final class ParameterParser {
             }
             return 0;
         }
+        return getInt(name, paramValue, min, max);
+    }
+
+    public static int getInt(HttpServletRequest req, String name, int min, int max, int defaultValue) throws ParameterException {
+        String paramValue = Convert.emptyToNull(req.getParameter(name));
+        if (paramValue == null) {
+            return defaultValue;
+        }
+        return getInt(name, paramValue, min, max);
+    }
+
+    private static int getInt(String paramName, String paramValue, int min, int max) throws ParameterException {
         try {
             int value = Integer.parseInt(paramValue);
             if (value < min || value > max) {
-                throw new ParameterException(incorrect(name, String.format("value %d not in range [%d-%d]", value, min, max)));
+                throw new ParameterException(incorrect(paramName, String.format("value %d not in range [%d-%d]", value, min, max)));
             }
             return value;
         } catch (RuntimeException e) {
-            throw new ParameterException(incorrect(name, String.format("value %s is not numeric", paramValue)));
+            throw new ParameterException(incorrect(paramName, String.format("value %s is not numeric", paramValue)));
         }
     }
 
@@ -102,14 +181,27 @@ public final class ParameterParser {
             }
             return 0;
         }
+        return getLong(name, paramValue, min, max);
+    }
+
+    public static long getLong(HttpServletRequest req, String name, long min, long max,
+                               long defaultValue) throws ParameterException {
+        String paramValue = Convert.emptyToNull(req.getParameter(name));
+        if (paramValue == null) {
+            return defaultValue;
+        }
+        return getLong(name, paramValue, min, max);
+    }
+
+    private static long getLong(String paramName, String paramValue, long min, long max) throws ParameterException {
         try {
             long value = Long.parseLong(paramValue);
             if (value < min || value > max) {
-                throw new ParameterException(incorrect(name, String.format("value %d not in range [%d-%d]", value, min, max)));
+                throw new ParameterException(incorrect(paramName, String.format("value %d not in range [%d-%d]", value, min, max)));
             }
             return value;
         } catch (RuntimeException e) {
-            throw new ParameterException(incorrect(name, String.format("value %s is not numeric", paramValue)));
+            throw new ParameterException(incorrect(paramName, String.format("value %s is not numeric", paramValue)));
         }
     }
 
@@ -154,6 +246,17 @@ public final class ParameterParser {
         return values;
     }
 
+    public static BigInteger getBigInteger(HttpServletRequest req, String name, boolean isMandatory) throws ParameterException {
+        String paramValue = Convert.emptyToNull(req.getParameter(name));
+        if (paramValue == null) {
+            if (isMandatory) {
+                throw new ParameterException(missing(name));
+            }
+            return BigInteger.ZERO;
+        }
+        return new BigInteger(paramValue);
+    }
+
     public static byte[] getBytes(HttpServletRequest req, String name, boolean isMandatory) throws ParameterException {
         String paramValue = Convert.emptyToNull(req.getParameter(name));
         if (paramValue == null) {
@@ -163,6 +266,22 @@ public final class ParameterParser {
             return Convert.EMPTY_BYTE;
         }
         return Convert.parseHexString(paramValue);
+    }
+
+    public static JSONObject getJson(HttpServletRequest req, String name) {
+        String paramValue = Convert.emptyToNull(req.getParameter(name));
+        if (paramValue == null) {
+            return null;
+        }
+        return (JSONObject)JSONValue.parse(paramValue);
+    }
+
+    public static JSONArray getJsonArray(HttpServletRequest req, String name) {
+        String paramValue = Convert.emptyToNull(req.getParameter(name));
+        if (paramValue == null) {
+            return null;
+        }
+        return (JSONArray)JSONValue.parse(paramValue);
     }
 
     public static String getParameter(HttpServletRequest req, String name) throws ParameterException {
@@ -222,7 +341,7 @@ public final class ParameterParser {
         return values;
     }
 
-    public static Alias getAlias(HttpServletRequest req) throws ParameterException {
+    public static AliasHome.Alias getAlias(HttpServletRequest req) throws ParameterException {
         long aliasId;
         try {
             aliasId = Convert.parseUnsignedLong(Convert.emptyToNull(req.getParameter("alias")));
@@ -230,11 +349,12 @@ public final class ParameterParser {
             throw new ParameterException(INCORRECT_ALIAS);
         }
         String aliasName = Convert.emptyToNull(req.getParameter("aliasName"));
-        Alias alias;
+        ChildChain childChain = getChildChain(req);
+        AliasHome.Alias alias;
         if (aliasId != 0) {
-            alias = Alias.getAlias(aliasId);
+            alias = childChain.getAliasHome().getAlias(aliasId);
         } else if (aliasName != null) {
-            alias = Alias.getAlias(aliasName);
+            alias = childChain.getAliasHome().getAlias(aliasName);
         } else {
             throw new ParameterException(MISSING_ALIAS_OR_ALIAS_NAME);
         }
@@ -248,16 +368,28 @@ public final class ParameterParser {
         return getLong(req, "amountNQT", 1L, Constants.MAX_BALANCE_NQT, true);
     }
 
-    public static long getFeeNQT(HttpServletRequest req) throws ParameterException {
-        return getLong(req, "feeNQT", 0L, Constants.MAX_BALANCE_NQT, true);
+    public static long getAmountNQTPerShare(HttpServletRequest req) throws ParameterException {
+        return getLong(req, "amountNQTPerShare", 1L, Constants.MAX_BALANCE_NQT, true);
     }
 
     public static long getPriceNQT(HttpServletRequest req) throws ParameterException {
         return getLong(req, "priceNQT", 1L, Constants.MAX_BALANCE_NQT, true);
     }
 
-    public static Poll getPoll(HttpServletRequest req) throws ParameterException {
-        Poll poll = Poll.getPoll(getUnsignedLong(req, "poll", true));
+    public static long getPriceNQTPerShare(HttpServletRequest req) throws ParameterException {
+        return getLong(req, "priceNQTPerShare", 1L, Constants.MAX_BALANCE_NQT, true);
+    }
+    public static long getPriceNQTPerCoin(HttpServletRequest req) throws ParameterException {
+        return getLong(req, "priceNQTPerCoin", 1L, Constants.MAX_BALANCE_NQT, true);
+    }
+
+    public static long getRateNQTPerUnit(HttpServletRequest req) throws ParameterException {
+        return getLong(req, "rateNQTPerUnit", 1L, Constants.MAX_BALANCE_NQT, true);
+    }
+
+    public static PollHome.Poll getPoll(HttpServletRequest req) throws ParameterException {
+        ChildChain childChain = getChildChain(req);
+        PollHome.Poll poll = childChain.getPollHome().getPoll(getUnsignedLong(req, "poll", true));
         if (poll == null) {
             throw new ParameterException(UNKNOWN_POLL);
         }
@@ -284,24 +416,27 @@ public final class ParameterParser {
         return currency;
     }
 
-    public static CurrencyBuyOffer getBuyOffer(HttpServletRequest req) throws ParameterException {
-        CurrencyBuyOffer offer = CurrencyBuyOffer.getOffer(getUnsignedLong(req, "offer", true));
+    public static ExchangeOfferHome.BuyOffer getBuyOffer(HttpServletRequest req) throws ParameterException {
+        ChildChain childChain = ParameterParser.getChildChain(req);
+        ExchangeOfferHome.BuyOffer offer = childChain.getExchangeOfferHome().getBuyOffer(getUnsignedLong(req, "offer", true));
         if (offer == null) {
             throw new ParameterException(UNKNOWN_OFFER);
         }
         return offer;
     }
 
-    public static CurrencySellOffer getSellOffer(HttpServletRequest req) throws ParameterException {
-        CurrencySellOffer offer = CurrencySellOffer.getOffer(getUnsignedLong(req, "offer", true));
+    public static ExchangeOfferHome.SellOffer getSellOffer(HttpServletRequest req) throws ParameterException {
+        ChildChain childChain = ParameterParser.getChildChain(req);
+        ExchangeOfferHome.SellOffer offer = childChain.getExchangeOfferHome().getSellOffer(getUnsignedLong(req, "offer", true));
         if (offer == null) {
             throw new ParameterException(UNKNOWN_OFFER);
         }
         return offer;
     }
 
-    public static Shuffling getShuffling(HttpServletRequest req) throws ParameterException {
-        Shuffling shuffling = Shuffling.getShuffling(getUnsignedLong(req, "shuffling", true));
+    public static ShufflingHome.Shuffling getShuffling(HttpServletRequest req) throws ParameterException {
+        ChildChain childChain = ParameterParser.getChildChain(req);
+        ShufflingHome.Shuffling shuffling = childChain.getShufflingHome().getShuffling(getBytes(req, "shufflingFullHash", true));
         if (shuffling == null) {
             throw new ParameterException(UNKNOWN_SHUFFLING);
         }
@@ -312,12 +447,13 @@ public final class ParameterParser {
         return getLong(req, "quantityQNT", 1L, Constants.MAX_ASSET_QUANTITY_QNT, true);
     }
 
-    public static long getAmountNQTPerQNT(HttpServletRequest req) throws ParameterException {
-        return getLong(req, "amountNQTPerQNT", 1L, Constants.MAX_BALANCE_NQT, true);
+    public static long getUnitsQNT(HttpServletRequest req) throws ParameterException {
+        return getLong(req, "unitsQNT", 1L, Constants.MAX_CURRENCY_TOTAL_SUPPLY, true);
     }
 
-    public static DigitalGoodsStore.Goods getGoods(HttpServletRequest req) throws ParameterException {
-        DigitalGoodsStore.Goods goods = DigitalGoodsStore.Goods.getGoods(getUnsignedLong(req, "goods", true));
+    public static DigitalGoodsHome.Goods getGoods(HttpServletRequest req) throws ParameterException {
+        ChildChain childChain = getChildChain(req);
+        DigitalGoodsHome.Goods goods = childChain.getDigitalGoodsHome().getGoods(getUnsignedLong(req, "goods", true));
         if (goods == null) {
             throw new ParameterException(UNKNOWN_GOODS);
         }
@@ -348,25 +484,16 @@ public final class ParameterParser {
                 throw new ParameterException(JSONResponses.incorrect(messageType + "Data"));
             }
         } else {
-            if (req.getContentType() == null || !req.getContentType().startsWith("multipart/form-data")) {
+            FileData fileData = getFileData(req, messageType + "File",false);
+            if (fileData == null) {
                 return null;
             }
-            try {
-                Part part = req.getPart(messageType + "File");
-                if (part == null) {
-                    return null;
-                }
-                FileData fileData = new FileData(part).invoke();
-                data = fileData.getData();
-            } catch (IOException | ServletException e) {
-                Logger.logDebugMessage("error in reading file data", e);
-                throw new ParameterException(JSONResponses.incorrect(messageType + "File"));
-            }
+            data = fileData.getData();
         }
         return new EncryptedData(data, nonce);
     }
 
-    public static Appendix.EncryptToSelfMessage getEncryptToSelfMessage(HttpServletRequest req) throws ParameterException {
+    public static EncryptToSelfMessageAppendix getEncryptToSelfMessage(HttpServletRequest req) throws ParameterException {
         boolean isText = !"false".equalsIgnoreCase(req.getParameter("messageToEncryptToSelfIsText"));
         boolean compress = !"false".equalsIgnoreCase(req.getParameter("compressMessageToEncryptToSelf"));
         byte[] plainMessageBytes = null;
@@ -388,14 +515,15 @@ public final class ParameterParser {
             }
         }
         if (encryptedData != null) {
-            return new Appendix.EncryptToSelfMessage(encryptedData, isText, compress);
+            return new EncryptToSelfMessageAppendix(encryptedData, isText, compress);
         } else {
-            return new Appendix.UnencryptedEncryptToSelfMessage(plainMessageBytes, isText, compress);
+            return new UnencryptedEncryptToSelfMessageAppendix(plainMessageBytes, isText, compress);
         }
     }
 
-    public static DigitalGoodsStore.Purchase getPurchase(HttpServletRequest req) throws ParameterException {
-        DigitalGoodsStore.Purchase purchase = DigitalGoodsStore.Purchase.getPurchase(getUnsignedLong(req, "purchase", true));
+    public static DigitalGoodsHome.Purchase getPurchase(HttpServletRequest req) throws ParameterException {
+        ChildChain childChain = getChildChain(req);
+        DigitalGoodsHome.Purchase purchase = childChain.getDigitalGoodsHome().getPurchase(getUnsignedLong(req, "purchase", true));
         if (purchase == null) {
             throw new ParameterException(INCORRECT_PURCHASE);
         }
@@ -403,9 +531,31 @@ public final class ParameterParser {
     }
 
     public static String getSecretPhrase(HttpServletRequest req, boolean isMandatory) throws ParameterException {
-        String secretPhrase = Convert.emptyToNull(req.getParameter("secretPhrase"));
-        if (secretPhrase == null && isMandatory) {
-            throw new ParameterException(MISSING_SECRET_PHRASE);
+        return getSecretPhrase(req, null, isMandatory);
+    }
+
+    public static String getSecretPhrase(HttpServletRequest req, String prefix, boolean isMandatory) throws ParameterException {
+        String secretPhraseParam = prefix == null ? "secretPhrase" : (prefix + "SecretPhrase");
+        String secretPhrase = Convert.emptyToNull(req.getParameter(secretPhraseParam));
+        if (secretPhrase != null) {
+            return secretPhrase;
+        }
+        String[] sharedPieces = req.getParameterValues("sharedPiece");
+        if (sharedPieces == null || prefix != null) {
+            if (isMandatory) {
+                throw new ParameterException(MISSING_SECRET_PHRASE);
+            } else {
+                return null;
+            }
+        }
+        List<String> clientSharedPieces = Arrays.asList(sharedPieces);
+        long accountId = getAccountId(req, "sharedPieceAccount", false);
+        String sharedSecretAccount = Convert.rsAccount(accountId);
+        List<String> serverSharedPieces = Nxt.getStringListProperty("nxt.secretPhrasePieces." + sharedSecretAccount);
+        List<String> allSharedPieces = Stream.concat(clientSharedPieces.stream(), serverSharedPieces.stream()).distinct().collect(Collectors.toList());
+        secretPhrase = SecretSharingGenerator.combine(allSharedPieces.toArray(new String[]{}));
+        if (accountId != 0 && Account.getId(Crypto.getPublicKey(secretPhrase)) != accountId) {
+            throw new ParameterException(JSONResponses.error(String.format("Combined secret phrase does not reproduce secret phrase for account %s", sharedSecretAccount)));
         }
         return secretPhrase;
     }
@@ -417,8 +567,9 @@ public final class ParameterParser {
     public static byte[] getPublicKey(HttpServletRequest req, String prefix) throws ParameterException {
         String secretPhraseParam = prefix == null ? "secretPhrase" : (prefix + "SecretPhrase");
         String publicKeyParam = prefix == null ? "publicKey" : (prefix + "PublicKey");
-        String secretPhrase = Convert.emptyToNull(req.getParameter(secretPhraseParam));
-        if (secretPhrase == null) {
+        String secretPhrase = getSecretPhrase(req, prefix, false);
+        boolean isVoucher = "true".equalsIgnoreCase(req.getParameter("voucher"));
+        if (secretPhrase == null || isVoucher) {
             try {
                 byte[] publicKey = Convert.parseHexString(Convert.emptyToNull(req.getParameter(publicKeyParam)));
                 if (publicKey == null) {
@@ -436,6 +587,26 @@ public final class ParameterParser {
         }
     }
 
+    public static List<byte[]> getPublicKeys(HttpServletRequest req, String name) throws ParameterException {
+        String[] paramValues = req.getParameterValues(name);
+        if (paramValues == null || paramValues.length == 0) {
+            throw new ParameterException(missing(name));
+        }
+        List<byte[]> publicKeys = new ArrayList<>();
+        for (String keyString : paramValues) {
+            for (String key : keyString.split("\\n")) {
+                byte[] publicKey = Convert.parseHexString(key.trim());
+                if (publicKey.length != 0) {
+                    if (!Crypto.isCanonicalPublicKey(publicKey)) {
+                        throw new ParameterException(incorrect(name));
+                    }
+                    publicKeys.add(publicKey);
+                }
+            }
+        }
+        return publicKeys;
+    }
+
     public static Account getSenderAccount(HttpServletRequest req) throws ParameterException {
         byte[] publicKey = getPublicKey(req);
         Account account = Account.getAccount(publicKey);
@@ -443,6 +614,11 @@ public final class ParameterParser {
             throw new ParameterException(UNKNOWN_ACCOUNT);
         }
         return account;
+    }
+
+    public static long getSenderId(HttpServletRequest req) throws ParameterException {
+        byte[] publicKey = getPublicKey(req);
+        return Account.getId(publicKey);
     }
 
     public static Account getAccount(HttpServletRequest req) throws ParameterException {
@@ -520,31 +696,20 @@ public final class ParameterParser {
     }
 
     public static int getHeight(HttpServletRequest req) throws ParameterException {
-        String heightValue = Convert.emptyToNull(req.getParameter("height"));
-        if (heightValue != null) {
-            try {
-                int height = Integer.parseInt(heightValue);
-                if (height < 0 || height > Nxt.getBlockchain().getHeight()) {
-                    throw new ParameterException(INCORRECT_HEIGHT);
-                }
-                return height;
-            } catch (NumberFormatException e) {
-                throw new ParameterException(INCORRECT_HEIGHT);
-            }
-        }
-        return -1;
+        return getInt(req, "height", 0, Nxt.getBlockchain().getHeight(), -1);
+    }
+
+    public static int getHeight(HttpServletRequest req, boolean isMandatory) throws ParameterException {
+        return isMandatory ? getInt(req, "height", 0, Nxt.getBlockchain().getHeight(), true)
+                : getInt(req, "height", 0, Nxt.getBlockchain().getHeight(), -1);
     }
 
     public static HoldingType getHoldingType(HttpServletRequest req) throws ParameterException {
         return HoldingType.get(ParameterParser.getByte(req, "holdingType", (byte) 0, (byte) 2, false));
     }
 
-    public static long getHoldingId(HttpServletRequest req, HoldingType holdingType) throws ParameterException {
-        long holdingId = ParameterParser.getUnsignedLong(req, "holding", holdingType != HoldingType.NXT);
-        if (holdingType == HoldingType.NXT && holdingId != 0) {
-            throw new ParameterException(JSONResponses.incorrect("holding", "holding id should not be specified if holdingType is " + Constants.COIN_SYMBOL));
-        }
-        return holdingId;
+    public static long getHoldingId(HttpServletRequest req) throws ParameterException {
+        return ParameterParser.getUnsignedLong(req, "holding", true);
     }
 
     public static String getAccountProperty(HttpServletRequest req, boolean isMandatory) throws ParameterException {
@@ -553,6 +718,47 @@ public final class ParameterParser {
             throw new ParameterException(MISSING_PROPERTY);
         }
         return property;
+    }
+
+    public static ChainTransactionId getChainTransactionId(HttpServletRequest req, String name) throws ParameterException {
+        String value = Convert.emptyToNull(req.getParameter(name));
+        if (value == null) {
+            return null;
+        }
+        return getChainTransactionId(value);
+    }
+
+    public static List<ChainTransactionId> getChainTransactionIds(HttpServletRequest req, String name) throws ParameterException {
+        String[] values = req.getParameterValues(name);
+        if (values == null) {
+            return Collections.emptyList();
+        }
+        List<ChainTransactionId> result = new ArrayList<>();
+        for (String value : values) {
+            result.add(getChainTransactionId(value));
+        }
+        return result;
+    }
+
+    public static ChainTransactionId getChainTransactionId(String value) throws ParameterException {
+        String[] s = value.split(":");
+        if (s.length != 2) {
+            throw new ParameterException(JSONResponses.incorrect(value, "must be in chainId:fullHash format"));
+        }
+        try {
+            int chainId = Integer.parseInt(s[0]);
+            Chain chain = Chain.getChain(chainId);
+            if (chain == null) {
+                throw new ParameterException(UNKNOWN_CHAIN);
+            }
+            byte[] hash = Convert.parseHexString(s[1]);
+            if (hash == null || hash.length != 32) {
+                throw new ParameterException(JSONResponses.incorrect(value, "invalid fullHash length"));
+            }
+            return new ChainTransactionId(chainId, hash);
+        } catch (NumberFormatException e) {
+            throw new ParameterException(JSONResponses.incorrect(value, "must be in chainId:fullHash format"));
+        }
     }
 
     public static String getSearchQuery(HttpServletRequest req) throws ParameterException {
@@ -611,9 +817,9 @@ public final class ParameterParser {
         if (messageValue != null) {
             try {
                 if (prunable) {
-                    return new Appendix.PrunablePlainMessage(messageValue, messageIsText);
+                    return new PrunablePlainMessageAppendix(messageValue, messageIsText);
                 } else {
-                    return new Appendix.Message(messageValue, messageIsText);
+                    return new MessageAppendix(messageValue, messageIsText);
                 }
             } catch (RuntimeException e) {
                 throw new ParameterException(INCORRECT_ARBITRARY_MESSAGE);
@@ -622,28 +828,22 @@ public final class ParameterParser {
         if (req.getContentType() == null || !req.getContentType().startsWith("multipart/form-data")) {
             return null;
         }
-        try {
-            Part part = req.getPart("messageFile");
-            if (part == null) {
-                return null;
-            }
-            FileData fileData = new FileData(part).invoke();
-            byte[] message = fileData.getData();
-            String detectedMimeType = Search.detectMimeType(message);
-            if (detectedMimeType != null) {
-                messageIsText = detectedMimeType.startsWith("text/");
-            }
-            if (messageIsText && !Arrays.equals(message, Convert.toBytes(Convert.toString(message)))) {
-                messageIsText = false;
-            }
-            if (prunable) {
-                return new Appendix.PrunablePlainMessage(message, messageIsText);
-            } else {
-                return new Appendix.Message(message, messageIsText);
-            }
-        } catch (IOException | ServletException e) {
-            Logger.logDebugMessage("error in reading file data", e);
-            throw new ParameterException(INCORRECT_ARBITRARY_MESSAGE);
+        FileData fileData = getFileData(req, "messageFile",false);
+        if (fileData == null) {
+            return null;
+        }
+        byte[] message = fileData.getData();
+        String detectedMimeType = Search.detectMimeType(message);
+        if (detectedMimeType != null) {
+            messageIsText = detectedMimeType.startsWith("text/");
+        }
+        if (messageIsText && !Arrays.equals(message, Convert.toBytes(Convert.toString(message)))) {
+            messageIsText = false;
+        }
+        if (prunable) {
+            return new PrunablePlainMessageAppendix(message, messageIsText);
+        } else {
+            return new MessageAppendix(message, messageIsText);
         }
     }
 
@@ -659,23 +859,17 @@ public final class ParameterParser {
                 if (req.getContentType() == null || !req.getContentType().startsWith("multipart/form-data")) {
                     return null;
                 }
-                try {
-                    Part part = req.getPart("messageToEncryptFile");
-                    if (part == null) {
-                        return null;
-                    }
-                    FileData fileData = new FileData(part).invoke();
-                    plainMessageBytes = fileData.getData();
-                    String detectedMimeType = Search.detectMimeType(plainMessageBytes);
-                    if (detectedMimeType != null) {
-                        isText = detectedMimeType.startsWith("text/");
-                    }
-                    if (isText && !Arrays.equals(plainMessageBytes, Convert.toBytes(Convert.toString(plainMessageBytes)))) {
-                        isText = false;
-                    }
-                } catch (IOException | ServletException e) {
-                    Logger.logDebugMessage("error in reading file data", e);
-                    throw new ParameterException(INCORRECT_MESSAGE_TO_ENCRYPT);
+                FileData fileData = getFileData(req, "messageToEncryptFile",false);
+                if (fileData == null) {
+                    return null;
+                }
+                plainMessageBytes = fileData.getData();
+                String detectedMimeType = Search.detectMimeType(plainMessageBytes);
+                if (detectedMimeType != null) {
+                    isText = detectedMimeType.startsWith("text/");
+                }
+                if (isText && !Arrays.equals(plainMessageBytes, Convert.toBytes(Convert.toString(plainMessageBytes)))) {
+                    isText = false;
                 }
             } else {
                 try {
@@ -700,20 +894,20 @@ public final class ParameterParser {
         }
         if (encryptedData != null) {
             if (prunable) {
-                return new Appendix.PrunableEncryptedMessage(encryptedData, isText, compress);
+                return new PrunableEncryptedMessageAppendix(encryptedData, isText, compress);
             } else {
-                return new Appendix.EncryptedMessage(encryptedData, isText, compress);
+                return new EncryptedMessageAppendix(encryptedData, isText, compress);
             }
         } else {
             if (prunable) {
-                return new Appendix.UnencryptedPrunableEncryptedMessage(plainMessageBytes, isText, compress, recipientPublicKey);
+                return new UnencryptedPrunableEncryptedMessageAppendix(plainMessageBytes, isText, compress, recipientPublicKey);
             } else {
-                return new Appendix.UnencryptedEncryptedMessage(plainMessageBytes, isText, compress, recipientPublicKey);
+                return new UnencryptedEncryptedMessageAppendix(plainMessageBytes, isText, compress, recipientPublicKey);
             }
         }
     }
 
-    public static Attachment.TaggedDataUpload getTaggedData(HttpServletRequest req) throws ParameterException, NxtException.NotValidException {
+    public static TaggedDataAttachment getTaggedData(HttpServletRequest req) throws ParameterException, NxtException.NotValidException {
         String name = Convert.emptyToNull(req.getParameter("name"));
         String description = Convert.nullToEmpty(req.getParameter("description"));
         String tags = Convert.nullToEmpty(req.getParameter("tags"));
@@ -724,24 +918,18 @@ public final class ParameterParser {
         String dataValue = Convert.emptyToNull(req.getParameter("data"));
         byte[] data;
         if (dataValue == null) {
-            try {
-                Part part = req.getPart("file");
-                if (part == null) {
-                    throw new ParameterException(INCORRECT_TAGGED_DATA_FILE);
-                }
-                FileData fileData = new FileData(part).invoke();
-                data = fileData.getData();
-                // Depending on how the client submits the form, the filename, can be a regular parameter
-                // or encoded in the multipart form. If its not a parameter we take from the form
-                if (filename.isEmpty() && fileData.getFilename() != null) {
-                    filename = fileData.getFilename().trim();
-                }
-                if (name == null) {
-                    name = filename;
-                }
-            } catch (IOException | ServletException e) {
-                Logger.logDebugMessage("error in reading file data", e);
+            FileData fileData = getFileData(req,"file", true);
+            if (fileData == null) {
                 throw new ParameterException(INCORRECT_TAGGED_DATA_FILE);
+            }
+            data = fileData.getData();
+            // Depending on how the client submits the form, the filename, can be a regular parameter
+            // or encoded in the multipart form. If its not a parameter we take from the form
+            if (filename.isEmpty() && fileData.getFilename() != null) {
+                filename = fileData.getFilename().trim();
+            }
+            if (name == null) {
+                name = filename;
             }
         } else {
             data = isText ? Convert.toBytes(dataValue) : Convert.parseHexString(dataValue);
@@ -792,18 +980,122 @@ public final class ParameterParser {
         if (filename.length() > Constants.MAX_TAGGED_DATA_FILENAME_LENGTH) {
             throw new ParameterException(INCORRECT_TAGGED_DATA_FILENAME);
         }
-        return new Attachment.TaggedDataUpload(name, description, tags, type, channel, isText, filename, data);
+        return new TaggedDataAttachment(name, description, tags, type, channel, isText, filename, data);
+    }
+
+    public static FileData getFileData(HttpServletRequest req, String paramName, boolean isMandatory) throws ParameterException {
+        if (req.getContentType() == null || !req.getContentType().startsWith("multipart/form-data")) {
+            if (isMandatory) {
+                throw new ParameterException(INCORRECT_FILE);
+            } else {
+                return null;
+            }
+        }
+        try {
+            Part part = req.getPart(paramName);
+            if (part == null) {
+                if (isMandatory) {
+                    throw new ParameterException(INCORRECT_FILE);
+                } else {
+                    return null;
+                }
+            }
+            return new FileData(part);
+        } catch (IOException | ServletException e) {
+            Logger.logDebugMessage("error in reading file data", e);
+            throw new ParameterException(INCORRECT_FILE);
+        }
+    }
+
+    public static Chain getChain(HttpServletRequest request) throws ParameterException {
+        return getChain(request, true);
+    }
+
+    public static Chain getChain(HttpServletRequest request, boolean isMandatory) throws ParameterException {
+        String chainName = Convert.emptyToNull(request.getParameter("chain"));
+        if (chainName != null) {
+            Chain chain = Chain.getChain(chainName.toUpperCase(Locale.ROOT));
+            if (chain == null) {
+                try {
+                    chain = Chain.getChain(Integer.valueOf(chainName));
+                } catch (NumberFormatException ignore) {}
+                if (chain == null) {
+                    throw new ParameterException(UNKNOWN_CHAIN);
+                }
+            }
+            return chain;
+        } else if (isMandatory) {
+            throw new ParameterException(MISSING_CHAIN);
+        } else {
+            return null;
+        }
+    }
+
+    public static Chain getChain(HttpServletRequest request, String name, boolean isMandatory) throws ParameterException {
+        String chainName = Convert.emptyToNull(request.getParameter(name));
+        if (chainName != null) {
+            Chain chain = Chain.getChain(chainName.toUpperCase(Locale.ROOT));
+            if (chain == null) {
+                try {
+                    chain = Chain.getChain(Integer.valueOf(chainName));
+                } catch (NumberFormatException ignore) {}
+                if (chain == null) {
+                    throw new ParameterException(JSONResponses.unknown(name));
+                }
+            }
+            return chain;
+        } else if (isMandatory) {
+            throw new ParameterException(JSONResponses.missing(name));
+        }
+        return null;
+    }
+
+    public static ChildChain getChildChain(HttpServletRequest request) throws ParameterException {
+        return getChildChain(request, true);
+    }
+
+    public static ChildChain getChildChain(HttpServletRequest request, boolean isMandatory) throws ParameterException {
+        String chainName = Convert.emptyToNull(request.getParameter("chain"));
+        if (chainName != null) {
+            ChildChain chain = ChildChain.getChildChain(chainName.toUpperCase(Locale.ROOT));
+            if (chain == null) {
+                try {
+                    chain = ChildChain.getChildChain(Integer.valueOf(chainName));
+                } catch (NumberFormatException ignore) {}
+                if (chain == null) {
+                    throw new ParameterException(UNKNOWN_CHAIN);
+                }
+            }
+            return chain;
+        } else if (isMandatory) {
+            throw new ParameterException(MISSING_CHAIN);
+        } else {
+            return null;
+        }
     }
 
     private ParameterParser() {} // never
 
     public static class FileData {
-        private final Part part;
         private String filename;
         private byte[] data;
 
-        public FileData(Part part) {
-            this.part = part;
+        public FileData(Part part) throws ParameterException {
+            try {
+                try (InputStream is = part.getInputStream()) {
+                    int nRead;
+                    byte[] bytes = new byte[1024];
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    while ((nRead = is.read(bytes, 0, bytes.length)) != -1) {
+                        baos.write(bytes, 0, nRead);
+                    }
+                    data = baos.toByteArray();
+                }
+                filename = part.getSubmittedFileName();
+            } catch (IOException e) {
+                Logger.logDebugMessage("error in reading file data " + part.getSubmittedFileName(), e);
+                throw new ParameterException(JSONResponses.INCORRECT_FILE);
+            }
         }
 
         public String getFilename() {
@@ -814,18 +1106,184 @@ public final class ParameterParser {
             return data;
         }
 
-        public FileData invoke() throws IOException {
-            try (InputStream is = part.getInputStream()) {
-                int nRead;
-                byte[] bytes = new byte[1024];
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                while ((nRead = is.read(bytes, 0, bytes.length)) != -1) {
-                    baos.write(bytes, 0, nRead);
-                }
-                data = baos.toByteArray();
-                filename = part.getSubmittedFileName();
-            }
-            return this;
+    }
+
+    public static JSONObject parseVoucher(byte[] data) throws ParameterException {
+        // Parse the voucher
+        JSONObject voucherJson;
+        try {
+            voucherJson = (JSONObject)JSONValue.parseWithException(Convert.toString(data));
+            return parseVoucher(voucherJson);
+        } catch (ParseException e) {
+            return voucherError("Incorrect voucher " + e, e);
         }
+    }
+
+    public static JSONObject parseVoucher(JSONObject voucherJson) throws ParameterException {
+        // Verify the voucher bytes signature
+        String unsignedTransactionBytesHex = ((String) voucherJson.get("unsignedTransactionBytes"));
+        if (!Crypto.verify(Convert.parseHexString((String)voucherJson.get("signature")),
+                Convert.parseHexString(unsignedTransactionBytesHex),
+                Convert.parseHexString((String)voucherJson.get("publicKey")))) {
+            return voucherError("Cannot verify voucher signature", null);
+        }
+
+        // Verify that the transaction JSON matches the transaction bytes
+        JSONObject transactionJSON = (JSONObject)voucherJson.get("transactionJSON");
+        try {
+            Transaction transaction = ParameterParser.parseTransaction(transactionJSON.toJSONString(), null, null).build();
+            transactionJSON = transaction.getJSONObject();
+        } catch (NxtException.NotValidException e) {
+            return voucherError("Invalid voucher JSON", e);
+        }
+        JSONObject transactionFromBytes;
+        try {
+            Transaction transaction = ParameterParser.parseTransaction(null, unsignedTransactionBytesHex, ((JSONObject)transactionJSON.get("attachment")).toJSONString()).build();
+            transactionFromBytes = transaction.getJSONObject();
+        } catch (NxtException.NotValidException e) {
+            return voucherError("Invalid voucher Bytes", e);
+        }
+        if (!transactionJSON.equals(transactionFromBytes)) {
+            return voucherError(String.format("Voucher transaction bytes data %s differ from transaction json %s", transactionFromBytes, transactionJSON), null);
+        }
+        return voucherJson;
+    }
+
+    private static JSONObject voucherError(String message, Exception e) throws ParameterException {
+        if (e != null) {
+            Logger.logErrorMessage(message, e);
+        } else {
+            Logger.logErrorMessage(message);
+        }
+        JSONObject response = new JSONObject();
+        response.put("errorCode", 4);
+        response.put("errorDescription", message);
+        throw new ParameterException(response);
+    }
+
+    public static PhasingParams parsePhasingParams(HttpServletRequest req, String parameterPrefix) throws ParameterException {
+        return parsePhasingParams(req, parameterPrefix, false);
+    }
+
+    private static PhasingParams parsePhasingParams(HttpServletRequest req, String parameterPrefix, boolean isSubVoting) throws ParameterException {
+        byte votingModel = ParameterParser.getByte(req, parameterPrefix + "VotingModel",
+                (byte) VoteWeighting.VotingModel.MIN_CODE, (byte)VoteWeighting.VotingModel.MAX_CODE, true);
+        long quorum = ParameterParser.getLong(req, parameterPrefix + "Quorum", 0, Long.MAX_VALUE, false);
+        long minBalance = ParameterParser.getLong(req, parameterPrefix + "MinBalance", 0, Long.MAX_VALUE, false);
+        byte minBalanceModel = ParameterParser.getByte(req, parameterPrefix + "MinBalanceModel", (byte)0, (byte)3, false);
+        long holdingId = ParameterParser.getUnsignedLong(req, parameterPrefix + "Holding", false);
+        if (holdingId == 0 &&
+                (votingModel == VoteWeighting.VotingModel.COIN.getCode() || minBalanceModel == VoteWeighting.MinBalanceModel.COIN.getCode())) {
+            holdingId = ParameterParser.getChain(req).getId();
+        }
+        long[] whitelist = null;
+        String[] whitelistValues = req.getParameterValues(parameterPrefix + "Whitelisted");
+        if (whitelistValues != null && whitelistValues.length > 0) {
+            whitelist = new long[whitelistValues.length];
+            for (int i = 0; i < whitelistValues.length; i++) {
+                whitelist[i] = Convert.parseAccountId(whitelistValues[i]);
+                if (whitelist[i] == 0) {
+                    throw new ParameterException(INCORRECT_WHITELIST);
+                }
+            }
+        }
+        VoteWeighting voteWeighting = new VoteWeighting(votingModel, holdingId, minBalance, minBalanceModel);
+
+        List<ChainTransactionId> linkedTransactionIds;
+        PhasingParams.HashVoting hashVoting;
+        if (parameterPrefix.startsWith("phasing")) {
+            linkedTransactionIds = ParameterParser.getChainTransactionIds(req, parameterPrefix + "LinkedTransaction");
+            byte[] hashedSecret = Convert.parseHexString(Convert.emptyToNull(req.getParameter(parameterPrefix + "HashedSecret")));
+            byte algorithm = ParameterParser.getByte(req, parameterPrefix + "HashedSecretAlgorithm", (byte) 0, Byte.MAX_VALUE, false);
+            hashVoting = new PhasingParams.HashVoting(hashedSecret, algorithm);
+        } else {
+            linkedTransactionIds = Collections.emptyList();
+            hashVoting = null;
+        }
+
+        PhasingParams.PropertyVoting senderPropertyVoting = parsePropertyVoting(req, parameterPrefix + "Sender");
+        PhasingParams.PropertyVoting recipientPropertyVoting = parsePropertyVoting(req, parameterPrefix + "Recipient");
+
+        PhasingParams.CompositeVoting compositeVoting = null;
+        if (votingModel == VoteWeighting.VotingModel.COMPOSITE.getCode()) {
+            if (isSubVoting) {
+                throw new ParameterException(JSONResponses.error("Sub-polls cannot have sub-polls"));
+            }
+            if (quorum != 1) {
+                throw new ParameterException(incorrect("quorum"));
+            }
+            String expressionParamName = parameterPrefix + "Expression";
+            String expressionStr = Convert.emptyToNull(req.getParameter(expressionParamName));
+            if (expressionStr == null) {
+                throw new ParameterException(missing(expressionParamName));
+            }
+            BooleanExpression expression = new BooleanExpression(expressionStr);
+
+            if (expression.hasErrors(true)) {
+                throw new ParameterException(JSONResponses.booleanExpressionError(expression));
+            }
+
+            Set<String> variableNames = expression.getVariables();
+            SortedMap<String, PhasingParams> subPolls = new TreeMap<>();
+            JSONObject subPollsJson = ParameterParser.getJson(req, "phasingSubPolls");
+            PhasingParams subPollParams;
+            if (subPollsJson != null) {
+                for (String name : variableNames) {
+                    JSONObject subPollJson = (JSONObject)JSONValue.parse((String)subPollsJson.get(name));
+                    subPolls.put(name, new PhasingParams(subPollJson));
+                }
+            } else {
+                for (String name : variableNames) {
+                    name = name.trim();
+                    try {
+                        subPollParams = parsePhasingParams(req, parameterPrefix + name, true);
+                    } catch(ParameterException e) {
+                        // Add the subPoll to the error response (ugly)
+                        JSONStreamAware errorResponse = e.getErrorResponse();
+                        StringWriter sw = new StringWriter();
+                        try {
+                            errorResponse.writeJSONString(sw);
+                            JSONObject subPollError = (JSONObject)JSONValue.parse(sw.toString());
+                            subPollError.put("subPoll", name);
+                            throw new ParameterException(JSON.prepare(subPollError));
+                        } catch (IOException ioe) {
+                            throw new IllegalStateException(ioe);
+                        }
+                    }
+                    subPolls.put(name, subPollParams);
+                }
+            }
+            compositeVoting = new PhasingParams.CompositeVoting(expressionStr, subPolls);
+        }
+        
+        return new PhasingParams(voteWeighting, quorum,  whitelist, linkedTransactionIds, hashVoting, compositeVoting,
+                senderPropertyVoting, recipientPropertyVoting);
+    }
+
+    private static PhasingParams.PropertyVoting parsePropertyVoting(HttpServletRequest req, String parameterPrefix) throws ParameterException {
+        long propertySetterId = ParameterParser.getAccountId(req, parameterPrefix + "PropertySetter", false);
+        String propertyName = Convert.nullToEmpty(req.getParameter(parameterPrefix + "PropertyName")).trim();
+        String propertyValue = Convert.nullToEmpty(req.getParameter(parameterPrefix + "PropertyValue")).trim();
+        return new PhasingParams.PropertyVoting(propertySetterId, propertyName, propertyValue);
+    }
+
+    public static List<Bundler.Filter> getBundlingFilters(HttpServletRequest req) {
+        String[] filterStrings = req.getParameterValues("filter");
+        List<Bundler.Filter> filters;
+        if (filterStrings != null) {
+            filters = new ArrayList<>(filterStrings.length);
+            for (String filterStr : filterStrings) {
+                String[] nameAndParameter = filterStr.split(":", 2);
+                String name = nameAndParameter[0];
+                String parameter = null;
+                if (nameAndParameter.length == 2) {
+                    parameter = nameAndParameter[1];
+                }
+                filters.add(Bundler.createBundlingFilter(name, parameter));
+            }
+        } else {
+            filters = Collections.emptyList();
+        }
+        return filters;
     }
 }

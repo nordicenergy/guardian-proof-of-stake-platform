@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -21,6 +22,7 @@ import nxt.util.Convert;
 import nxt.util.Logger;
 import nxt.util.ThreadPool;
 import nxt.util.UPnP;
+import nxt.util.security.BlockchainPermission;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.SecurityHandler;
@@ -70,29 +72,35 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
-import static nxt.http.JSONResponses.MISSING_ADMIN_PASSWORD;
 import static nxt.http.JSONResponses.INCORRECT_ADMIN_PASSWORD;
 import static nxt.http.JSONResponses.LOCKED_ADMIN_PASSWORD;
+import static nxt.http.JSONResponses.MISSING_ADMIN_PASSWORD;
 import static nxt.http.JSONResponses.NO_PASSWORD_IN_CONFIG;
 
 public final class API {
 
-    public static final int TESTNET_API_PORT = 6876;
-    public static final int TESTNET_API_SSLPORT = 6877;
-    private static final String[] DISABLED_HTTP_METHODS = {"TRACE", "OPTIONS", "HEAD"};
+    public static final int TESTNET_API_PORT = Constants.isAutomatedTest ? 26875 : 26876;
+    public static final int TESTNET_API_SSLPORT = 26877;
+    public static final int MIN_COMPRESS_SIZE = 256;
+    private static final String[] DISABLED_HTTP_METHODS = {"TRACE", "HEAD"};
+    static final Set<String> SENSITIVE_PARAMS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("secretPhrase", "adminPassword", "sharedKey", "sharedPiece", "encryptionPassword")));
 
-    public static final int openAPIPort;
-    public static final int openAPISSLPort;
-    public static final boolean isOpenAPI;
+    private static boolean isInitialized = false;
 
-    public static final List<String> disabledAPIs;
-    public static final List<APITag> disabledAPITags;
+    static final int openAPIPort;
+    static final int openAPISSLPort;
+    static final boolean isOpenAPI;
+
+    private static List<APIEnum> disabledAPIs;
+    private static List<APITag> disabledAPITags;
 
     private static final Set<String> allowedBotHosts;
     private static final List<NetworkAddress> allowedBotNets;
     private static final Map<String, PasswordCount> incorrectPasswords = new HashMap<>();
-    public static final String adminPassword = Nxt.getStringProperty("nxt.adminPassword", "", true);
+    static final String adminPassword = Nxt.getStringProperty("nxt.adminPassword", "", true);
     static final boolean disableAdminPassword;
     static final int maxRecords = Nxt.getIntProperty("nxt.maxAPIRecords");
     static final boolean enableAPIUPnP = Nxt.getBooleanProperty("nxt.enableAPIUPnP");
@@ -101,18 +109,13 @@ public final class API {
     private static final String forwardedForHeader = Nxt.getStringProperty("nxt.forwardedForHeader");
 
     private static final Server apiServer;
+    private static final BlockchainPermission API_PERMISSION = new BlockchainPermission("api");
     private static URI welcomePageUri;
     private static URI serverRootUri;
+    private static URI paperWalletUri;
+    private static volatile String paperWalletPage;
 
     static {
-        List<String> disabled = new ArrayList<>(Nxt.getStringListProperty("nxt.disabledAPIs"));
-        Collections.sort(disabled);
-        disabledAPIs = Collections.unmodifiableList(disabled);
-        disabled = Nxt.getStringListProperty("nxt.disabledAPITags");
-        Collections.sort(disabled);
-        List<APITag> apiTags = new ArrayList<>(disabled.size());
-        disabled.forEach(tagName -> apiTags.add(APITag.fromDisplayName(tagName)));
-        disabledAPITags = Collections.unmodifiableList(apiTags);
         List<String> allowedBotHostsList = Nxt.getStringListProperty("nxt.allowedBotHosts");
         if (! allowedBotHostsList.contains("*")) {
             Set<String> hosts = new HashSet<>();
@@ -173,7 +176,7 @@ public final class API {
                 https_config.setSecureScheme("https");
                 https_config.setSecurePort(sslPort);
                 https_config.addCustomizer(new SecureRequestCustomizer());
-                sslContextFactory = new SslContextFactory();
+                sslContextFactory = new SslContextFactory.Server();
                 String keyStorePath = Paths.get(Nxt.getUserHomeDir()).resolve(Paths.get(Nxt.getStringProperty("nxt.keyStorePath"))).toString();
                 Logger.logInfoMessage("Using keystore: " + keyStorePath);
                 sslContextFactory.setKeyStorePath(keyStorePath);
@@ -185,8 +188,15 @@ public final class API {
                 sslContextFactory.setKeyStoreType(Nxt.getStringProperty("nxt.keyStoreType"));
                 List<String> ciphers = Nxt.getStringListProperty("nxt.apiSSLCiphers");
                 if (!ciphers.isEmpty()) {
-                    sslContextFactory.setIncludeCipherSuites(ciphers.toArray(new String[ciphers.size()]));
+                    sslContextFactory.setIncludeCipherSuites(ciphers.toArray(new String[0]));
                 }
+                ThreadPool.scheduleThread("JettySSLContextReloader", () -> {
+                    try {
+                        sslContextFactory.reload(scf -> Logger.logInfoMessage("Reloading SSL context and keyStore"));
+                    } catch (Exception e) {
+                        Logger.logWarningMessage("Couldn't reload SSLContextFactory", e);
+                    }
+                }, 1, TimeUnit.DAYS); // once a day should be enough
                 connector = new ServerConnector(apiServer, new SslConnectionFactory(sslContextFactory, "http/1.1"),
                         new HttpConnectionFactory(https_config));
                 connector.setPort(sslPort);
@@ -202,6 +212,7 @@ public final class API {
             try {
                 welcomePageUri = new URI(enableSSL ? "https" : "http", null, localhost, enableSSL ? sslPort : port, "/index.html", null, null);
                 serverRootUri = new URI(enableSSL ? "https" : "http", null, localhost, enableSSL ? sslPort : port, "", null, null);
+                paperWalletUri = new URI(enableSSL ? "https" : "http", null, localhost, enableSSL ? sslPort : port, "/paperwallet", null, null);
             } catch (URISyntaxException e) {
                 Logger.logInfoMessage("Cannot resolve browser URI", e);
             }
@@ -251,13 +262,14 @@ public final class API {
                 gzipHandler.setExcludedPaths("/nxt", "/nxt-proxy");
             }
             gzipHandler.setIncludedMethods("GET", "POST");
-            gzipHandler.setMinGzipSize(nxt.peer.Peers.MIN_COMPRESS_SIZE);
+            gzipHandler.setMinGzipSize(MIN_COMPRESS_SIZE);
             apiHandler.setGzipHandler(gzipHandler);
 
             apiHandler.addServlet(APITestServlet.class, "/test");
             apiHandler.addServlet(APITestServlet.class, "/test-proxy");
 
             apiHandler.addServlet(DbShellServlet.class, "/dbshell");
+            apiHandler.addServlet(PaperWalletServlet.class, "/paperwallet");
 
             if (apiServerCORS) {
                 FilterHolder filterHolder = apiHandler.addFilter(CrossOriginFilter.class, "/*", null);
@@ -270,6 +282,16 @@ public final class API {
                 filterHolder.setAsyncSupported(true);
             }
             disableHttpMethods(apiHandler);
+
+            String customAPISetupImplClassName = Convert.emptyToNull(Nxt.getStringProperty("nxt.apiCustomSetupImpl"));
+            if (customAPISetupImplClassName != null) {
+                try {
+                    CustomAPISetup customAPISetup = (CustomAPISetup) Class.forName(customAPISetupImplClassName).newInstance();
+                    customAPISetup.apply(apiHandlers);
+                } catch (ReflectiveOperationException e) {
+                    Logger.logErrorMessage("Failed to load custom API setup", e);
+                }
+            }
 
             apiHandlers.addHandler(apiHandler);
             apiHandlers.addHandler(new DefaultHandler());
@@ -296,7 +318,7 @@ public final class API {
                     }
                     Logger.logMessage("Started API server at " + host + ":" + port + (enableSSL && port != sslPort ? ", " + host + ":" + sslPort : ""));
                 } catch (Exception e) {
-                    Logger.logErrorMessage("Failed to start API server", e);
+                    Logger.logErrorMessage("Failed to start API server at " + host + ":" + port + (enableSSL && port != sslPort ? ", " + host + ":" + sslPort : ""), e);
                     throw new RuntimeException(e.toString(), e);
                 }
 
@@ -313,7 +335,26 @@ public final class API {
 
     }
 
-    public static void init() {}
+    public static void init() {
+        if (!isInitialized) {
+            isInitialized = true;
+            List<String> disabled = new ArrayList<>(Nxt.getStringListProperty("nxt.disabledAPIs"));
+            disabledAPIs = disabled.stream().map(APIEnum::fromName).collect(Collectors.toCollection(ArrayList::new));
+            if (Constants.DISABLE_FULL_TEXT_SEARCH) {
+                disabledAPIs.add(APIEnum.SEARCH_ACCOUNTS);
+                disabledAPIs.add(APIEnum.SEARCH_ASSETS);
+                disabledAPIs.add(APIEnum.SEARCH_CURRENCIES);
+                disabledAPIs.add(APIEnum.SEARCH_DGS_GOODS);
+                disabledAPIs.add(APIEnum.SEARCH_POLLS);
+                disabledAPIs.add(APIEnum.SEARCH_TAGGED_DATA);
+            }
+            disabled = Nxt.getStringListProperty("nxt.disabledAPITags");
+            Collections.sort(disabled);
+            List<APITag> apiTags = new ArrayList<>(disabled.size());
+            disabled.forEach(tagName -> apiTags.add(APITag.fromDisplayName(tagName)));
+            disabledAPITags = Collections.unmodifiableList(apiTags);
+        }
+    }
 
     public static void shutdown() {
         if (apiServer != null) {
@@ -342,7 +383,7 @@ public final class API {
         checkOrLockPassword(req);
     }
 
-    public static boolean checkPassword(HttpServletRequest req) {
+    static boolean checkPassword(HttpServletRequest req) {
         if (API.disableAdminPassword) {
             return true;
         }
@@ -360,6 +401,55 @@ public final class API {
         }
     }
 
+    public static int getOpenAPIPort() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(API_PERMISSION);
+        }
+        return openAPIPort;
+    }
+
+    public static int getOpenAPISSLPort() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(API_PERMISSION);
+        }
+        return openAPISSLPort;
+    }
+
+    public static boolean isIsOpenAPI() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(API_PERMISSION);
+        }
+        return isOpenAPI;
+    }
+
+    public static String getAdminPassword() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(API_PERMISSION);
+        }
+        return adminPassword;
+    }
+
+    public static List<APIEnum> getDisabledApis() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(API_PERMISSION);
+        }
+        init();
+        return disabledAPIs;
+    }
+
+    public static List<APITag> getDisabledApiTags() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(API_PERMISSION);
+        }
+        init();
+        return disabledAPITags;
+    }
 
     private static class PasswordCount {
         private int count;
@@ -408,22 +498,23 @@ public final class API {
         }
     }
 
-    static boolean isAllowed(String remoteHost) {
+    static boolean isForbiddenHost(String remoteHost) {
         if (API.allowedBotHosts == null || API.allowedBotHosts.contains(remoteHost)) {
-            return true;
+            return false;
         }
         try {
             BigInteger hostAddressToCheck = new BigInteger(InetAddress.getByName(remoteHost).getAddress());
             for (NetworkAddress network : API.allowedBotNets) {
                 if (network.contains(hostAddressToCheck)) {
-                    return true;
+                    return false;
                 }
             }
         } catch (UnknownHostException e) {
             // can't resolve, disallow
             Logger.logMessage("Unknown remote host " + remoteHost);
         }
-        return false;
+        Logger.logDebugMessage("Not allowing " + remoteHost);
+        return true;
 
     }
 
@@ -513,8 +604,24 @@ public final class API {
         return welcomePageUri;
     }
 
+    public static URI getPaperWalletUri() {
+        return paperWalletUri;
+    }
+
     public static URI getServerRootUri() {
         return serverRootUri;
+    }
+
+    public static void setPaperWalletPage(String page) {
+        paperWalletPage = page;
+    }
+
+    public static String getPaperWalletPage() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("sensitiveInfo"));
+        }
+        return paperWalletPage;
     }
 
     private API() {} // never

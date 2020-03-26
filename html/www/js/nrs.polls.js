@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -70,57 +70,38 @@ var NRS = (function(NRS, $, undefined) {
 		}, function(response) {
 			if (response.polls && response.polls.length) {
 				var polls = {};
-				var nrPolls = 0;
-
 				if (response.polls.length > NRS.itemsPerPage) {
 					NRS.hasMorePages = true;
 					response.polls.pop();
 				}
-
+                var rows = "";
 				for (var i = 0; i < response.polls.length; i++) {
-					NRS.sendRequest("getTransaction+", {
-						"transaction": response.polls[i].poll
-					}, function(poll, input) {
-						if (NRS.currentPage != "polls") {
-							polls = {};
-							return;
-						}
+					var poll = response.polls[i];
+					if (NRS.currentPage != "polls") {
+						polls = {};
+						return;
+					}
+					polls[poll.poll] = poll;
 
-						if (!poll.errorCode) {
-							polls[input.transaction] = poll;
-						}
-
-						nrPolls++;
-						if (nrPolls == response.polls.length) {
-							var rows = "";
-							for (var i = 0; i < nrPolls; i++) {
-								poll = polls[response.polls[i].poll];
-								if (!poll) {
-									continue;
-								}
-
-								var pollDescription = String(poll.attachment.description);
-								if (pollDescription.length > 100) {
-									pollDescription = pollDescription.substring(0, 100) + "...";
-								}
-								rows += "<tr>";
-								rows += "<td>" + NRS.getTransactionLink(poll.transaction, poll.attachment.name) + "</td>";
-								rows += "<td>" + NRS.escapeRespStr(pollDescription) + "</td>";
-								rows += "<td>" + NRS.getAccountLink(poll, "sender") + "</td>";
-								rows += "<td>" + NRS.formatTimestamp(poll.timestamp) + "</td>";
-								rows += "<td style='text-align:center;'>" + String(poll.attachment.finishHeight - NRS.lastBlockHeight) + "</td>";
-								rows += "<td style='text-align:center;'><nobr><a href='#' class='vote_button btn btn-xs btn-default' data-poll='" + poll.transaction +"'>" + $.t('vote_btn_short') + "</a> ";
-								rows += "<a href='#' class='follow_button btn btn-xs btn-default' data-follow='" + poll.transaction + "'>" + $.t('vote_follow_btn_short') + "</a> ";
-								rows += "<a href='#' class='view_button btn btn-xs btn-default' data-view='" + poll.transaction + "'>" + $.t('view') + "</a></nobr></td>";
-								rows += "</tr>";
-							}
-							NRS.dataLoaded(rows);
-							_setFollowButtonStates();
-							_setVoteButtonStates();
-						}
-					});
+					var pollDescription = String(poll.description);
+					if (pollDescription.length > 100) {
+						pollDescription = pollDescription.substring(0, 100) + "...";
+					}
+					rows += "<tr>";
+					rows += "<td>" + NRS.getEntityLink({ text: NRS.unescapeRespStr(poll.name), request: "getPoll", key: "poll", id: poll.poll }) + "</td>";
+					rows += "<td>" + NRS.escapeRespStr(pollDescription) + "</td>";
+					rows += "<td>" + NRS.getAccountLink(poll, "account") + "</td>";
+					rows += "<td>" + NRS.formatTimestamp(poll.timestamp) + "</td>";
+					rows += "<td style='text-align:center;'>" + String(poll.finishHeight - NRS.lastBlockHeight) + "</td>";
+					rows += "<td style='text-align:center;'><nobr><a href='#' class='vote_button btn btn-xs btn-default' data-poll='" + poll.poll +"'>" + $.t('vote_btn_short') + "</a> ";
+					rows += "<a href='#' class='follow_button btn btn-xs btn-default' data-follow='" + poll.poll + "'>" + $.t('vote_follow_btn_short') + "</a> ";
+					rows += "<a href='#' class='view_button btn btn-xs btn-default' data-view='" + poll.poll + "'>" + $.t('view') + "</a></nobr></td>";
+					rows += "</tr>";
 				}
-			} else {
+                NRS.dataLoaded(rows);
+                _setFollowButtonStates();
+                _setVoteButtonStates();
+            } else {
 				NRS.dataLoaded();
 			}
 		});
@@ -138,54 +119,37 @@ var NRS = (function(NRS, $, undefined) {
 		}, function(response) {
 			if (response.polls && response.polls.length) {
 				var polls = {};
-				var nrPolls = 0;
-
+                var rows = "";
 				for (var i = 0; i < response.polls.length; i++) {
-					NRS.sendRequest("getTransaction+", {
-						"transaction": response.polls[i].poll
-					}, function(poll, input) {
-						if (NRS.currentPage != "my_polls") {
-							polls = {};
-							return;
-						}
-						if (!poll.errorCode) {
-							polls[input.transaction] = poll;
-						}
-
-						nrPolls++;
-						if (nrPolls == response.polls.length) {
-							var rows = "";
-							for (var i = 0; i < nrPolls; i++) {
-								poll = polls[response.polls[i].poll];
-								if (!poll) {
-									continue;
-								}
-								var pollDescription = String(poll.attachment.description);
-								if (pollDescription.length > 100) {
-									pollDescription = pollDescription.substring(0, 100) + "...";
-								}
-								rows += "<tr>";
-								rows += "<td>" + NRS.getTransactionLink(poll.transaction, poll.attachment.name) + "</td>";
-								rows += "<td>" + NRS.escapeRespStr(pollDescription) + "</td>";
-								rows += "<td>" + NRS.getAccountLink(poll, "sender") + "</td>";
-								rows += "<td>" + NRS.formatTimestamp(poll.timestamp) + "</td>";
-								if(poll.attachment.finishHeight > NRS.lastBlockHeight) {
-									rows += "<td style='text-align:center;'>" + String(poll.attachment.finishHeight - NRS.lastBlockHeight) + "</td>";
-									rows += "<td style='text-align:center;'><a href='#' class='vote_button btn btn-xs btn-default' data-poll='" + poll.transaction +"'>" + $.t('vote_btn_short') + "</a> ";
-								} else {
-									rows += "<td style='text-align:center;'>" + $.t('complete') + "</td>";
-									rows += "<td style='text-align:center;'><a href='#' class='results_button btn btn-xs btn-default' data-results='" + poll.transaction +"'>" + $.t('vote_results_btn_short') + "</a> ";
-								}
-								rows += "<a href='#' class='follow_button btn btn-xs btn-default' data-follow='" + poll.transaction + "'>" + $.t('vote_follow_btn_short') + "</a></td>";
-								rows += "</tr>";
-							}
-							NRS.dataLoaded(rows);
-							_setFollowButtonStates();
-							_setVoteButtonStates();
-						}
-					});
+					var poll = response.polls[i];
+					if (NRS.currentPage != "my_polls") {
+						polls = {};
+						return;
+					}
+					polls[poll.poll] = poll;
+					var pollDescription = String(poll.description);
+					if (pollDescription.length > 100) {
+						pollDescription = pollDescription.substring(0, 100) + "...";
+					}
+					rows += "<tr>";
+					rows += "<td>" + NRS.getEntityLink({ text: NRS.unescapeRespStr(poll.name), request: "getPoll", key: "poll", id: poll.poll }) + "</td>";
+					rows += "<td>" + NRS.escapeRespStr(pollDescription) + "</td>";
+					rows += "<td>" + NRS.getAccountLink(poll, "account") + "</td>";
+					rows += "<td>" + NRS.formatTimestamp(poll.timestamp) + "</td>";
+					if(poll.finishHeight > NRS.lastBlockHeight) {
+						rows += "<td style='text-align:center;'>" + String(poll.finishHeight - NRS.lastBlockHeight) + "</td>";
+						rows += "<td style='text-align:center;'><a href='#' class='vote_button btn btn-xs btn-default' data-poll='" + poll.poll +"'>" + $.t('vote_btn_short') + "</a> ";
+					} else {
+						rows += "<td style='text-align:center;'>" + $.t('complete') + "</td>";
+						rows += "<td style='text-align:center;'><a href='#' class='results_button btn btn-xs btn-default' data-results='" + poll.poll +"'>" + $.t('vote_results_btn_short') + "</a> ";
+					}
+					rows += "<a href='#' class='follow_button btn btn-xs btn-default' data-follow='" + poll.poll + "'>" + $.t('vote_follow_btn_short') + "</a></td>";
+					rows += "</tr>";
 				}
-			} else {
+                NRS.dataLoaded(rows);
+                _setFollowButtonStates();
+                _setVoteButtonStates();
+            } else {
 				NRS.dataLoaded();
 			}
 		});
@@ -196,23 +160,19 @@ var NRS = (function(NRS, $, undefined) {
 	};
 
 	NRS.pages.voted_polls = function() {
-		NRS.sendRequest("getBlockchainTransactions",{"account": NRS.accountRS, "type": 1, "subtype": 3}, function(response) {
+		NRS.sendRequest("getBlockchainTransactions",{"account": NRS.accountRS, "type": 9, "subtype": 1}, function(response) {
 			if (response.transactions && response.transactions.length > 0) {
 				var polls = {};
 				var nrPolls = 0;
-
 				for (var i = 0; i < response.transactions.length; i++) {
-					NRS.sendRequest("getTransaction", {
-						"transaction": response.transactions[i].attachment.poll
-					}, function(poll, input) {
+					NRS.sendRequest("getPoll", {
+						"poll": response.transactions[i].attachment.poll
+					}, function(poll) {
 						if (NRS.currentPage != "voted_polls") {
 							polls = {};
 							return;
 						}
-						if (!poll.errorCode) {
-							polls[input.transaction] = poll;
-						}
-
+						polls[poll.poll] = poll;
 						nrPolls++;
 						if (nrPolls == response.transactions.length) {
 							var rows = "";
@@ -221,23 +181,23 @@ var NRS = (function(NRS, $, undefined) {
 								if (!poll) {
 									continue;
 								}
-								var pollDescription = String(poll.attachment.description);
+								var pollDescription = String(poll.description);
 								if (pollDescription.length > 100) {
 									pollDescription = pollDescription.substring(0, 100) + "...";
 								}
 								rows += "<tr>";
-								rows += "<td>" + NRS.getTransactionLink(poll.transaction, poll.attachment.name) + "</td>";
+								rows += "<td>" + poll.name + "</td>";
 								rows += "<td>" + NRS.escapeRespStr(pollDescription) + "</td>";
-								rows += "<td>" + NRS.getAccountLink(poll, "sender") + "</td>";
+								rows += "<td>" + NRS.getAccountLink(poll, "account") + "</td>";
 								rows += "<td>" + NRS.formatTimestamp(poll.timestamp) + "</td>";
-								if(poll.attachment.finishHeight > NRS.lastBlockHeight) {
-									rows += "<td style='text-align:center;'>" + String(poll.attachment.finishHeight - NRS.lastBlockHeight) + "</td>";
+								if(poll.finishHeight > NRS.lastBlockHeight) {
+									rows += "<td style='text-align:center;'>" + String(poll.finishHeight - NRS.lastBlockHeight) + "</td>";
 									rows += "<td style='text-align:center;'>-</td>";
 								} else {
 									rows += "<td style='text-align:center;'>" + $.t('complete') + "</td>";
-									rows += "<td style='text-align:center;'><a href='#' class='results_button btn btn-xs btn-default' data-results='" + poll.transaction +"'>" + $.t('vote_results_btn_short') + "</a></td>";
+									rows += "<td style='text-align:center;'><a href='#' class='results_button btn btn-xs btn-default' data-results='" + poll.poll +"'>" + $.t('vote_results_btn_short') + "</a></td>";
 								}
-								rows += "<td style='text-align:center;'><a href='#' class='follow_button btn btn-xs btn-default' data-follow='" + poll.transaction + "'>" + $.t('vote_follow_btn_short') + "</a></td>";
+								rows += "<td style='text-align:center;'><a href='#' class='follow_button btn btn-xs btn-default' data-follow='" + poll.poll + "'>" + $.t('vote_follow_btn_short') + "</a></td>";
 								rows += "</tr>";
 							}
 							NRS.dataLoaded(rows);
@@ -259,7 +219,7 @@ var NRS = (function(NRS, $, undefined) {
 		var sidebarId = 'sidebar_voting_system';
 		var options = {
 			"id": sidebarId,
-			"titleHTML": '<i class="fa fa-check-square-o"></i><span data-i18n="voting_system">Voting</span>',
+			"titleHTML": '<i class="far fa-check-square"></i><span data-i18n="voting_system">Voting</span>',
 			"page": 'polls',
 			"desiredPosition": 50,
 			"depends": { tags: [ NRS.constants.API_TAGS.VS ] }
@@ -321,7 +281,7 @@ var NRS = (function(NRS, $, undefined) {
 			$('#create_poll_min_balance').attr('disabled', false);
 		}
 		if ((pollType == 0 && mbType == 1) || pollType == 1) {
-			$('#min_voting_balance_label_unit').html(NRS.constants.COIN_SYMBOL);
+			$('#min_voting_balance_label_unit').html(NRS.getActiveChainName());
 			$('#create_poll_min_balance').attr('name', 'minBalanceNXT');
 		}
 		if ((pollType == 0 && mbType == 2) || pollType == 2) {
@@ -374,24 +334,24 @@ var NRS = (function(NRS, $, undefined) {
 	var body = $("body");
     body.on("click", ".vote_button[data-poll]", function(e) {
 		e.preventDefault();
-		var transactionId = $(this).data("poll");
-		NRS.sendRequest("getTransaction", {
-			"transaction": transactionId
+		var poll = $(this).data("poll");
+		NRS.sendRequest("getPoll", {
+			"poll": poll
 		}, function(response, input) {
-			$("#cast_vote_poll_name").text(response.attachment.name);
-			$("#cast_vote_poll_description").text(response.attachment.description);
+			$("#cast_vote_poll_name").text(NRS.unescapeRespStr(response.name));
+			$("#cast_vote_poll_description").text(NRS.unescapeRespStr(response.description));
 			var castVoteAnswersEntry = $("#cast_vote_answers_entry");
             castVoteAnswersEntry.text("");
 			var selectText;
-			if(response.attachment.minNumberOfOptions != response.attachment.maxNumberOfOptions) {
+			if(response.minNumberOfOptions != response.maxNumberOfOptions) {
 				selectText = $.t('poll_select_min_max_options', {
-					'min': response.attachment.minNumberOfOptions,
-					'max': response.attachment.maxNumberOfOptions
+					'min': response.minNumberOfOptions,
+					'max': response.maxNumberOfOptions
 				});
 				$("#cast_vote_range").text(selectText);
-			} else if (response.attachment.minNumberOfOptions != 1) {
+			} else if (response.minNumberOfOptions != 1) {
 				selectText = $.t('poll_select_num_options', {
-					'num': response.attachment.minNumberOfOptions
+					'num': response.minNumberOfOptions
 				});
 				$("#cast_vote_range").text(selectText);
 			} else {
@@ -399,19 +359,19 @@ var NRS = (function(NRS, $, undefined) {
 				$("#cast_vote_range").text(selectText);
 			}
 
-			$("#cast_vote_poll").val(response.transaction);
-			if(response.attachment.maxRangeValue != 1) {
-				for (var b=0; b<response.attachment.options.length; b++) {
+			$("#cast_vote_poll").val(response.poll);
+			if(response.maxRangeValue != 1) {
+				for (var b=0; b < response.options.length; b++) {
 					var html = "<div class='answer_slider' style='padding:6px;background-color:#f9f9f9;border:1px solid #ddd;margin-bottom:4px;'>";
-					html += "<label>"+NRS.escapeRespStr(response.attachment.options[b])+"</label> &nbsp;&nbsp;";
-					html += "<span class='cast_vote_value label label-default' style='float:right;'>"+response.attachment.minRangeValue+"</span><br/>";
-					html += "<input class='form-control' step='1' value='"+response.attachment.minRangeValue+"' max='"+response.attachment.maxRangeValue+"' min='"+response.attachment.minRangeValue+"' type='range'/>";
+					html += "<label>" + NRS.escapeRespStr(response.options[b])+"</label> &nbsp;&nbsp;";
+					html += "<span class='cast_vote_value label label-default' style='float:right;'>"+response.minRangeValue+"</span><br/>";
+					html += "<input class='form-control' step='1' value='" + response.minRangeValue + "' max='" + response.maxRangeValue + "' min='" + response.minRangeValue + "' type='range'/>";
 					html += "</div>";
 					castVoteAnswersEntry.append(html);
 				}
 			} else {
-				for (b=0; b<response.attachment.options.length; b++) {
-					castVoteAnswersEntry.append("<div class='answer_boxes'><label><input type='checkbox'/>&nbsp;&nbsp;"+NRS.escapeRespStr(response.attachment.options[b])+"</label></div>");
+				for (b=0; b < response.options.length; b++) {
+					castVoteAnswersEntry.append("<div class='answer_boxes'><label><input type='checkbox'/>&nbsp;&nbsp;"+NRS.escapeRespStr(response.options[b])+"</label></div>");
 				}
 			}
 			$("#cast_vote_modal").modal();
@@ -656,8 +616,8 @@ var NRS = (function(NRS, $, undefined) {
 			labelI18n: "finish_height",
 			helpI18n: "create_poll_finish_height_help",
 			inputName: "finishHeight",
-			initBlockHeight: NRS.lastBlockHeight + 7000,
-			changeHeightBlocks: 500
+			initBlockHeight: NRS.lastBlockHeight + 1440,
+			changeHeightBlocks: 60
 		};
 		NRS.initModalUIElement($(this), '.create_poll_finish_height', 'block_height_modal_ui_element', context);
 	});
@@ -710,6 +670,7 @@ var NRS = (function(NRS, $, undefined) {
             }
 		} else if(pollType.val() == "1") {
 			data["votingModel"] = 1;
+            data["holding"] = NRS.getActiveChainId();
 			data["minBalanceModel"] = 1;
 		} else if(pollType.val() == "2") {
 			data["votingModel"] = 2;
@@ -977,7 +938,7 @@ var NRS = (function(NRS, $, undefined) {
 			rows += "data-cache='" + i + "' ";
 			rows += "data-poll='" + NRS.escapeRespStr(poll.poll) + "' ";
 			rows += "data-closed='false'>";
-			rows += "<h4 class='list-group-item-heading'>" + poll.name.escapeHTML() + "</h4>";
+			rows += "<h4 class='list-group-item-heading'>" + poll.name + "</h4>";
 
 			if(NRS.lastBlockHeight > parseInt(poll.finishHeight)) {
 				rows += "<p class='list-group-item-text'><span data-i18n=\"completed\">Completed</span></p>";
@@ -1060,7 +1021,8 @@ var NRS = (function(NRS, $, undefined) {
 		var pollId = poll.poll;
 		NRS.currentPoll = poll;
 		NRS.currentSubPage = pollId;
-		var pollLink = $("#followed_polls_sidebar").find("a[data-poll=" + pollId + "]");
+        var followedPollsSidebar = $("#followed_polls_sidebar");
+        var pollLink = followedPollsSidebar.find("a[data-poll=" + pollId + "]");
 		if (pollLink.length) {
 			$("#followed_polls_bookmark_poll").hide();
 		} else {
@@ -1069,7 +1031,6 @@ var NRS = (function(NRS, $, undefined) {
 		}
 		requestedPoll = "";
 		if (!refresh) {
-            var followedPollsSidebar = $("#followed_polls_sidebar");
             followedPollsSidebar.find("a.active").removeClass("active");
 			followedPollsSidebar.find("a[data-poll=" + pollId + "]").addClass("active");
 
@@ -1079,7 +1040,7 @@ var NRS = (function(NRS, $, undefined) {
 			}, 0);
 
 			$("#poll_account").html(NRS.getAccountLink(poll, "account"));
-			$("#poll_id").html(NRS.getTransactionLink(pollId));
+			$("#poll_id").html(NRS.getEntityLink({ request: "getPoll", key: "poll", id: pollId }));
 
 			$("#followed_polls_poll_name").html(NRS.escapeRespStr(poll.name));
 			$("#poll_description").html(String(poll.description).autoLink());
@@ -1254,7 +1215,7 @@ var NRS = (function(NRS, $, undefined) {
 				}
 				var actions = '<a class="view_button btn btn-xs btn-default" href="#" data-view="' + poll.poll + '">' + $.t('view') + '</a>';
 				view.data.push({
-					"title": NRS.getTransactionLink(poll.poll, NRS.escapeRespStr(poll.name), true),
+					"title": NRS.getEntityLink({ request: "getPoll", key: "poll", id: poll.poll, text: NRS.unescapeRespStr(poll.name)}),
 					"description": description,
 					"sender": NRS.getAccountLink(poll, "account"),
 					"timestamp": NRS.formatTimestamp(poll.timestamp),

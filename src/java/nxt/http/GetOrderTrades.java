@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,7 +17,8 @@
 package nxt.http;
 
 import nxt.NxtException;
-import nxt.Trade;
+import nxt.ae.TradeHome;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
 import nxt.db.DbUtils;
 import org.json.simple.JSONArray;
@@ -30,39 +32,40 @@ public final class GetOrderTrades extends APIServlet.APIRequestHandler {
     static final GetOrderTrades instance = new GetOrderTrades();
 
     private GetOrderTrades() {
-        super(new APITag[] {APITag.AE}, "askOrder", "bidOrder", "includeAssetInfo", "firstIndex", "lastIndex");
+        super(new APITag[] {APITag.AE}, "askOrderFullHash", "bidOrderFullHash", "includeAssetInfo", "firstIndex", "lastIndex");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
-        long askOrderId = ParameterParser.getUnsignedLong(req, "askOrder", false);
-        long bidOrderId = ParameterParser.getUnsignedLong(req, "bidOrder", false);
+        byte[] askOrderHash = ParameterParser.getBytes(req, "askOrderFullHash", false);
+        byte[] bidOrderHash = ParameterParser.getBytes(req, "bidOrderFullHash", false);
         boolean includeAssetInfo = "true".equalsIgnoreCase(req.getParameter("includeAssetInfo"));
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
-        if (askOrderId == 0 && bidOrderId == 0) {
-            return JSONResponses.missing("askOrder", "bidOrder");
+        if (askOrderHash.length == 0 && bidOrderHash.length == 0) {
+            return JSONResponses.missing("askOrderFullHash", "bidOrderFullHash");
         }
 
         JSONObject response = new JSONObject();
         JSONArray tradesData = new JSONArray();
-        if (askOrderId != 0 && bidOrderId != 0) {
-            Trade trade = Trade.getTrade(askOrderId, bidOrderId);
+        if (askOrderHash.length != 0 && bidOrderHash.length != 0) {
+            TradeHome.Trade trade = childChain.getTradeHome().getTrade(askOrderHash, bidOrderHash);
             if (trade != null) {
                 tradesData.add(JSONData.trade(trade, includeAssetInfo));
             }
         } else {
-            DbIterator<Trade> trades = null;
+            DbIterator<TradeHome.Trade> trades = null;
             try {
-                if (askOrderId != 0) {
-                    trades = Trade.getAskOrderTrades(askOrderId, firstIndex, lastIndex);
+                if (askOrderHash.length != 0) {
+                    trades = childChain.getTradeHome().getAskOrderTrades(askOrderHash, firstIndex, lastIndex);
                 } else {
-                    trades = Trade.getBidOrderTrades(bidOrderId, firstIndex, lastIndex);
+                    trades = childChain.getTradeHome().getBidOrderTrades(bidOrderHash, firstIndex, lastIndex);
                 }
                 while (trades.hasNext()) {
-                    Trade trade = trades.next();
+                    TradeHome.Trade trade = trades.next();
                     tradesData.add(JSONData.trade(trade, includeAssetInfo));
                 }
             } finally {

@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -23,6 +23,22 @@ var NRS = (function(NRS, $) {
 	NRS.pages.account_properties = function() {
         NRS.renderAccountProperties($("#account_properties_page_type").find(".active").data("type"));
 	};
+
+    NRS.forms.setAccountPropertyComplete = function(response) {
+        if (!response.transactionJSON) {
+            return;
+        }
+        const key = response.transactionJSON.attachment.property;
+        const value = response.transactionJSON.attachment.value;
+        $.growl($.t("account_property_set", { key: key, value: value }));
+    };
+
+    NRS.forms.deleteAccountPropertyComplete = function(response, data) {
+        if (!response.transactionJSON) {
+            return;
+        }
+        $.growl($.t("account_property_deleted", { key: data.property }));
+    };
 
     NRS.renderAccountProperties = function(type) {
         NRS.hasMorePages = false;

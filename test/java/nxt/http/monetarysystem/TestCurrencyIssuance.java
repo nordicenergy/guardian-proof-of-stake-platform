@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,9 +17,10 @@
 package nxt.http.monetarysystem;
 
 import nxt.BlockchainTest;
-import nxt.Constants;
-import nxt.CurrencyType;
+import nxt.Tester;
+import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
+import nxt.ms.CurrencyType;
 import org.json.simple.JSONObject;
 import org.junit.Assert;
 import org.junit.Test;
@@ -27,17 +29,27 @@ public class TestCurrencyIssuance extends BlockchainTest {
 
     @Test
     public void issueCurrency() {
+        issueCurrencyImpl();
+    }
+
+    @Test
+    public void issueCurrencyNoBroadcast() {
+        JSONObject issueCurrencyResponse = new Builder().param("broadcast", false).secretPhrase(null).param("publicKey", ALICE.getPublicKey()).build().invoke();
+        Assert.assertNull(issueCurrencyResponse.get("errorCode"));
+    }
+
+    public String issueCurrencyImpl() {
         APICall apiCall = new Builder().build();
-        issueCurrencyApi(apiCall);
+        return issueCurrencyApi(apiCall);
     }
 
     @Test
     public void issueMultipleCurrencies() {
-        APICall apiCall = new Builder().naming("axc", "AXC", "Currency A").build();
+        APICall apiCall = new Builder().naming("axcc", "AXCC", "Currency A").build();
         issueCurrencyApi(apiCall);
-        apiCall = new Builder().naming("bXbx", "BXBX", "Currency B").feeNQT(1000 * Constants.ONE_NXT).build();
+        apiCall = new Builder().naming("bXbx", "BXBX", "Currency B").feeNQT(1000 * ChildChain.IGNIS.ONE_COIN).build();
         issueCurrencyApi(apiCall);
-        apiCall = new Builder().naming("ccXcc", "CCCXC", "Currency C").feeNQT(40 * Constants.ONE_NXT).build();
+        apiCall = new Builder().naming("ccXcc", "CCCXC", "Currency C").feeNQT(40 * ChildChain.IGNIS.ONE_COIN).build();
         issueCurrencyApi(apiCall);
         apiCall = new APICall.Builder("getCurrency").param("code", "BXBX").build();
         JSONObject response = apiCall.invoke();
@@ -46,7 +58,7 @@ public class TestCurrencyIssuance extends BlockchainTest {
 
     static String issueCurrencyApi(APICall apiCall) {
         JSONObject issueCurrencyResponse = apiCall.invoke();
-        String currencyId = (String) issueCurrencyResponse.get("transaction");
+        String currencyId = Tester.responseToStringId(issueCurrencyResponse);
         generateBlock();
 
         apiCall = new APICall.Builder("getCurrency").param("currency", currencyId).build();
@@ -57,25 +69,30 @@ public class TestCurrencyIssuance extends BlockchainTest {
 
     public static class Builder extends APICall.Builder {
 
+        private static int[] FEE_STEPS = new int[] { 0, 0, 0, 25000, 1000, 40};
+        public static final Tester creator = ALICE;
+        public static final int initialSupplyQNT = 100000;
+
         public Builder() {
             super("issueCurrency");
-            secretPhrase(ALICE.getSecretPhrase());
-            feeNQT(0l);
-            //feeNQT(25000 * Constants.ONE_NXT);
+            secretPhrase(creator.getSecretPhrase());
+            chain(ChildChain.IGNIS.getId());
             param("name", "Test1");
             param("code", "TSXXX");
             param("description", "Test Currency 1");
             param("type", CurrencyType.EXCHANGEABLE.getCode());
-            param("maxSupply", 100000);
-            param("initialSupply", 100000);
+            param("maxSupplyQNT", 100000);
+            param("initialSupplyQNT", initialSupplyQNT);
             param("issuanceHeight", 0);
             param("algorithm", (byte)0);
+            feeNQT(40 * ChildChain.IGNIS.ONE_COIN);
         }
 
         public Builder naming(String name, String code, String description) {
             param("name", name);
             param("code", code).
             param("description", description);
+            feeNQT(FEE_STEPS[code.length()] * ChildChain.IGNIS.ONE_COIN);
             return this;
         }
 
@@ -85,17 +102,17 @@ public class TestCurrencyIssuance extends BlockchainTest {
         }
 
         public Builder maxSupply(long maxSupply) {
-            param("maxSupply", maxSupply);
+            param("maxSupplyQNT", maxSupply);
             return this;
         }
 
         public Builder reserveSupply(long reserveSupply) {
-            param("reserveSupply", reserveSupply);
+            param("reserveSupplyQNT", reserveSupply);
             return this;
         }
 
         public Builder initialSupply(long initialSupply) {
-            param("initialSupply", initialSupply);
+            param("initialSupplyQNT", initialSupply);
             return this;
         }
 

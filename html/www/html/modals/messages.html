@@ -1,11 +1,12 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright 2020 Nordic Energy Core Developers                                 ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
   ~                                                                           ~
-  ~ Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
-  ~ no part of the Nxt software, including this file, may be copied, modified,~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
   ~ propagated, or distributed except according to the terms contained in the ~
   ~ LICENSE.txt file.                                                         ~
   ~                                                                           ~
@@ -13,7 +14,7 @@
   ~                                                                           ~
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 
-<div class="modal fade" id="send_message_modal" data-transaction-type="1" data-transaction-subtype="0" tabindex="-1" role="dialog" aria-hidden="true">
+<div aria-hidden="true" class="modal fade has-recipient" data-transaction-subtype="0" data-transaction-type="1" id="send_message_modal" role="dialog" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -29,10 +30,14 @@
                         <textarea class="form-control" id="send_message_message" name="message" rows="4" tabindex="3"></textarea>
                         <div class="col-xs-6 col-sm-6 col-md-6">
                             <div style="margin-top:3px">
-                                <label for="send_message_encrypt" style="font-weight:normal;color:#666"><input type="checkbox" name="encrypt_message" id="send_message_encrypt" value="1" data-default="checked" checked="checked" /> <span data-i18n="encrypt_message">Encrypt Message</span></label>
+                                <label for="send_message_encrypt" style="font-weight:normal;color:#666">
+                                    <input checked="checked" data-default="checked" id="send_message_encrypt" name="encrypt_message" type="checkbox" value="1" /> <span data-i18n="encrypt_message">Encrypt Message</span>
+                                </label>
                             </div>
                             <div style="margin-top:3px">
-                                <label for="send_message_permanent" style="font-weight:normal;color:#666"><input type="checkbox" name="permanent_message" id="send_message_permanent" value="1" data-default="unchecked" /> <span data-i18n="permanent_message">Message is Never Deleted</span></label>
+                                <label for="send_message_permanent" style="font-weight:normal;color:#666">
+                                    <input data-default="unchecked" id="send_message_permanent" name="permanent_message" type="checkbox" value="1" /> <span data-i18n="permanent_message">Message is Never Deleted</span>
+                                </label>
                             </div>
                         </div>
                         <div class="col-xs-6 col-sm-6 col-md-6">

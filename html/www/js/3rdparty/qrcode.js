@@ -36,7 +36,7 @@ var qrcode = function() {
     var _modules = null;
     var _moduleCount = 0;
     var _dataCache = null;
-    var _dataList = new Array();
+    var _dataList = [];
 
     var _this = {};
 
@@ -472,7 +472,7 @@ var qrcode = function() {
   //---------------------------------------------------------------------
 
   qrcode.stringToBytes = function(s) {
-    var bytes = new Array();
+    var bytes = [];
     for (var i = 0; i < s.length; i += 1) {
       var c = s.charCodeAt(i);
       bytes.push(c & 0xff);
@@ -525,7 +525,7 @@ var qrcode = function() {
     var unknownChar = '?'.charCodeAt(0);
 
     return function(s) {
-      var bytes = new Array();
+      var bytes = [];
       for (var i = 0; i < s.length; i += 1) {
         var c = s.charCodeAt(i);
         if (c < 128) {
@@ -790,7 +790,7 @@ var qrcode = function() {
             lostPoint += (3 + sameCount - 5);
           }
         }
-      };
+      }
 
       // LEVEL2
 
@@ -975,7 +975,7 @@ var qrcode = function() {
     };
 
     return _this;
-  };
+  }
 
   //---------------------------------------------------------------------
   // QRRSBlock
@@ -1267,7 +1267,7 @@ var qrcode = function() {
 
       var length = rsBlock.length / 3;
 
-      var list = new Array();
+      var list = [];
 
       for (var i = 0; i < length; i += 1) {
 
@@ -1292,7 +1292,7 @@ var qrcode = function() {
 
   var qrBitBuffer = function() {
 
-    var _buffer = new Array();
+    var _buffer = [];
     var _length = 0;
 
     var _this = {};
@@ -1341,7 +1341,7 @@ var qrcode = function() {
 
     var _mode = QRMode.MODE_8BIT_BYTE;
     var _data = data;
-    var _bytes = qrcode.stringToBytes(data);
+    var _bytes = typeof data === "string" ? qrcode.stringToBytes(data) : data;
 
     var _this = {};
 
@@ -1372,7 +1372,7 @@ var qrcode = function() {
 
   var byteArrayOutputStream = function() {
 
-    var _bytes = new Array();
+    var _bytes = [];
 
     var _this = {};
 

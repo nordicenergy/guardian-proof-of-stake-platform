@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,7 +18,7 @@ package nxt.http.twophased;
 
 
 import nxt.BlockchainTest;
-import nxt.Constants;
+import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
 import nxt.util.Logger;
 import org.json.simple.JSONObject;
@@ -34,14 +35,13 @@ public class TestGetPhasingPoll extends BlockchainTest {
                 .build();
         JSONObject transactionJSON = TestCreateTwoPhased.issueCreateTwoPhased(apiCall, false);
         String fullHash = (String) transactionJSON.get("fullHash");
-        String transactionId = (String) transactionJSON.get("transaction");
 
         generateBlock();
 
-        long fee = Constants.ONE_NXT;
+        long fee = ChildChain.IGNIS.ONE_COIN;
         apiCall = new APICall.Builder("approveTransaction")
                 .param("secretPhrase", CHUCK.getSecretPhrase())
-                .param("transactionFullHash", fullHash)
+                .param("phasedTransaction", ChildChain.IGNIS.getId() + ":" + fullHash)
                 .param("feeNQT", fee)
                 .build();
         JSONObject response = apiCall.invoke();
@@ -50,7 +50,7 @@ public class TestGetPhasingPoll extends BlockchainTest {
         generateBlock();
 
         apiCall = new APICall.Builder("getPhasingPoll")
-                .param("transaction", transactionId)
+                .param("transactionFullHash", fullHash)
                 .param("countVotes", "true")
                 .build();
         response = apiCall.invoke();

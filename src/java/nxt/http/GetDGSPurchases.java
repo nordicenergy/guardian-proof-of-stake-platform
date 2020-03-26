@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,10 +16,11 @@
 
 package nxt.http;
 
-import nxt.DigitalGoodsStore;
 import nxt.NxtException;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
 import nxt.db.DbUtils;
+import nxt.dgs.DigitalGoodsHome;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -42,21 +44,21 @@ public final class GetDGSPurchases extends APIServlet.APIRequestHandler {
         int lastIndex = ParameterParser.getLastIndex(req);
         final boolean completed = "true".equalsIgnoreCase(req.getParameter("completed"));
         final boolean withPublicFeedbacksOnly = "true".equalsIgnoreCase(req.getParameter("withPublicFeedbacksOnly"));
-
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONObject response = new JSONObject();
         JSONArray purchasesJSON = new JSONArray();
         response.put("purchases", purchasesJSON);
 
-        DbIterator<DigitalGoodsStore.Purchase> purchases;
+        DbIterator<DigitalGoodsHome.Purchase> purchases;
         if (sellerId == 0 && buyerId == 0) {
-            purchases = DigitalGoodsStore.Purchase.getPurchases(withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
+            purchases = childChain.getDigitalGoodsHome().getPurchases(withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
         } else if (sellerId != 0 && buyerId == 0) {
-            purchases = DigitalGoodsStore.Purchase.getSellerPurchases(sellerId, withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
+            purchases = childChain.getDigitalGoodsHome().getSellerPurchases(sellerId, withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
         } else if (sellerId == 0) {
-            purchases = DigitalGoodsStore.Purchase.getBuyerPurchases(buyerId, withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
+            purchases = childChain.getDigitalGoodsHome().getBuyerPurchases(buyerId, withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
         } else {
-            purchases = DigitalGoodsStore.Purchase.getSellerBuyerPurchases(sellerId, buyerId, withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
+            purchases = childChain.getDigitalGoodsHome().getSellerBuyerPurchases(sellerId, buyerId, withPublicFeedbacksOnly, completed, firstIndex, lastIndex);
         }
         try {
             while (purchases.hasNext()) {

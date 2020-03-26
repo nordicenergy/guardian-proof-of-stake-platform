@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -18,7 +18,7 @@
  * @depends {nrs.js}
  * @depends {nrs.modals.js}
  */
-var NRS = (function(NRS, $, undefined) {
+var NRS = (function(NRS, $) {
 	$("body").on("click", ".show_block_modal_action", function(event) {
 		event.preventDefault();
 		if (NRS.fetchingModalData) {
@@ -49,6 +49,10 @@ var NRS = (function(NRS, $, undefined) {
         NRS.setBackLink();
         NRS.modalStack.push({ class: "show_block_modal_action", key: "block", value: block.height });
         try {
+            var $blockRawData = $("#block_raw_data");
+            $blockRawData.html(JSON.stringify(block, null, 4));
+            hljs.highlightBlock($blockRawData[0]);
+
             $("#block_info_modal_block").html(NRS.escapeRespStr(block.block));
             $("#block_info_transactions_tab_link").tab("show");
 
@@ -68,8 +72,10 @@ var NRS = (function(NRS, $, undefined) {
             if (blockDetails.timestamp) {
                 blockDetails.blockGenerationTime = NRS.formatTimestamp(blockDetails.timestamp);
             }
+            blockDetails.total_fee_formatted_html = NRS.intToFloat(blockDetails.totalFeeFQT, NRS.getChain(1).decimals) + " " + NRS.getParentChainName();
+            delete blockDetails.totalFeeFQT;
             var detailsTable = $("#block_info_details_table");
-            detailsTable.find("tbody").empty().append(NRS.createInfoTable(blockDetails));
+            detailsTable.find("tbody").empty().append(NRS.createInfoTable(blockDetails), { chain: "1" });
             detailsTable.show();
             var transactionsTable = $("#block_info_transactions_table");
             if (block.transactions.length) {
@@ -81,14 +87,15 @@ var NRS = (function(NRS, $, undefined) {
                     if (transaction.amountNQT) {
                         transaction.amount = new BigInteger(transaction.amountNQT);
                         transaction.fee = new BigInteger(transaction.feeNQT);
+                        var decimals = NRS.getChain(transaction.chain).decimals;
                         rows += "<tr>" +
-                        "<td>" + transaction.transactionIndex + (transaction.phased ? "&nbsp<i class='fa fa-gavel' title='" + $.t("phased") + "'></i>" : "") + "</td>" +
-                        "<td>" + NRS.getTransactionLink(transaction.transaction, NRS.formatTimestamp(transaction.timestamp)) + "</td>" +
-                        "<td>" + NRS.getTransactionIconHTML(transaction.type, transaction.subtype) + "</td>" +
-                        "<td>" + NRS.formatAmount(transaction.amount) + "</td>" +
-                        "<td>" + NRS.formatAmount(transaction.fee) + "</td>" +
-                        "<td>" + NRS.getAccountLink(transaction, "sender") + "</td>" +
-                        "<td>" + NRS.getAccountLink(transaction, "recipient") + "</td>" +
+                            "<td>" + transaction.transactionIndex + " " + (transaction.phased ? "<i class='far fa-gavel' title='" + $.t("phased") + "'></i>" : "") + "</td>" +
+                            "<td>" + NRS.getTransactionLink(transaction.fullHash, NRS.formatTimestamp(transaction.timestamp), false, transaction.chain) + "</td>" +
+                            "<td>" + NRS.getTransactionIconHTML(transaction.type, transaction.subtype) + "</td>" +
+                            "<td>" + NRS.formatQuantity(transaction.amount, decimals) + "</td>" +
+                            "<td>" + NRS.formatQuantity(transaction.fee, decimals) + "</td>" +
+                            "<td>" + NRS.getAccountLink(transaction, "sender") + "</td>" +
+                            "<td>" + NRS.getAccountLink(transaction, "recipient") + "</td>" +
                         "</tr>";
                     }
                 }
@@ -105,10 +112,11 @@ var NRS = (function(NRS, $, undefined) {
                 for (i = 0; i < block.executedPhasedTransactions.length; i++) {
                     transaction = block.executedPhasedTransactions[i];
                     rows += "<tr>" +
-                        "<td>" + NRS.getTransactionLink(transaction.transaction, NRS.formatTimestamp(transaction.timestamp)) + "</td>" +
+                        "<td>" + NRS.getTransactionLink(transaction.fullHash, NRS.formatTimestamp(transaction.timestamp), false, transaction.chain) + "</td>" +
                         "<td>" + NRS.getTransactionIconHTML(transaction.type, transaction.subtype) + "</td>" +
                         "<td>" + NRS.getBlockLink(transaction.height) + "</td>" +
-                        "<td>" + (transaction.attachment.phasingFinishHeight == block.height ? $.t("finished") : $.t("approved")) + "</td>";
+                        "<td>" + (transaction.attachment.phasingFinishHeight == block.height ? $.t("finished") : $.t("approved")) + "</td>" +
+                    "</tr>";
                 }
                 executedPhasedTable.find("tbody").empty().append(rows);
             } else {

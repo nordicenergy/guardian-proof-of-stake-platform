@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,13 +16,17 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Appendix;
 import nxt.Nxt;
-import nxt.PrunableMessage;
-import nxt.Transaction;
+import nxt.account.Account;
+import nxt.blockchain.Chain;
+import nxt.blockchain.ChildTransaction;
+import nxt.blockchain.Transaction;
 import nxt.crypto.Crypto;
 import nxt.crypto.EncryptedData;
+import nxt.messaging.EncryptToSelfMessageAppendix;
+import nxt.messaging.EncryptedMessageAppendix;
+import nxt.messaging.MessageAppendix;
+import nxt.messaging.PrunableMessageHome;
 import nxt.util.Convert;
 import nxt.util.Logger;
 import org.json.simple.JSONObject;
@@ -39,30 +44,32 @@ public final class ReadMessage extends APIServlet.APIRequestHandler {
     static final ReadMessage instance = new ReadMessage();
 
     private ReadMessage() {
-        super(new APITag[] {APITag.MESSAGES}, "transaction", "secretPhrase", "sharedKey", "retrieve");
+        super(new APITag[] {APITag.MESSAGES}, "transactionFullHash", "secretPhrase", "sharedKey", "retrieve");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
 
-        long transactionId = ParameterParser.getUnsignedLong(req, "transaction", true);
+        byte[] transactionFullHash = ParameterParser.getBytes(req, "transactionFullHash", true);
         boolean retrieve = "true".equalsIgnoreCase(req.getParameter("retrieve"));
-        Transaction transaction = Nxt.getBlockchain().getTransaction(transactionId);
+        Chain chain = ParameterParser.getChain(req);
+        Transaction transaction = Nxt.getBlockchain().getTransaction(chain, transactionFullHash);
         if (transaction == null) {
             return UNKNOWN_TRANSACTION;
         }
-        PrunableMessage prunableMessage = PrunableMessage.getPrunableMessage(transactionId);
+        PrunableMessageHome prunableMessageHome = chain.getPrunableMessageHome();
+        PrunableMessageHome.PrunableMessage prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         if (prunableMessage == null && (transaction.getPrunablePlainMessage() != null || transaction.getPrunableEncryptedMessage() != null) && retrieve) {
-            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(transactionId) == null) {
+            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(chain, transactionFullHash) == null) {
                 return PRUNED_TRANSACTION;
             }
-            prunableMessage = PrunableMessage.getPrunableMessage(transactionId);
+            prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         }
 
         JSONObject response = new JSONObject();
-        Appendix.Message message = transaction.getMessage();
-        Appendix.EncryptedMessage encryptedMessage = transaction.getEncryptedMessage();
-        Appendix.EncryptToSelfMessage encryptToSelfMessage = transaction.getEncryptToSelfMessage();
+        MessageAppendix message = transaction instanceof ChildTransaction ? ((ChildTransaction)transaction).getMessage() : null;
+        EncryptedMessageAppendix encryptedMessage = transaction instanceof ChildTransaction ? ((ChildTransaction)transaction).getEncryptedMessage() : null;
+        EncryptToSelfMessageAppendix encryptToSelfMessage = transaction instanceof ChildTransaction ? ((ChildTransaction)transaction).getEncryptToSelfMessage() : null;
         if (message == null && encryptedMessage == null && encryptToSelfMessage == null && prunableMessage == null) {
             return NO_MESSAGE;
         }

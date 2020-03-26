@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,10 +18,12 @@ package nxt.http;
 
 import nxt.Constants;
 import nxt.Nxt;
+import nxt.configuration.SubSystem;
 import nxt.peer.Peer;
 import nxt.peer.Peers;
 import nxt.util.Logger;
 import nxt.util.ThreadPool;
+import nxt.util.security.BlockchainPermission;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,12 +36,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class APIProxy {
-    public static final Set<String> NOT_FORWARDED_REQUESTS;
+    static final Set<String> NOT_FORWARDED_REQUESTS;
 
     private static final APIProxy instance = new APIProxy();
 
     static final boolean enableAPIProxy = Constants.isLightClient ||
-            (Nxt.getBooleanProperty("nxt.enableAPIProxy") && ! API.isOpenAPI);
+            (Nxt.getBooleanProperty("nxt.enableAPIProxy") && ! API.isOpenAPI && Nxt.isEnabled(SubSystem.PEER_NETWORKING));
     private static final int blacklistingPeriod = Nxt.getIntProperty("nxt.apiProxyBlacklistingPeriod") / 1000;
     static final String forcedServerURL = Nxt.getStringProperty("nxt.forceAPIProxyServerURL", "");
 
@@ -75,11 +78,11 @@ public class APIProxy {
             return false;
         });
         List<String> currentPeersHosts = instance.peersHosts;
-        if (currentPeersHosts != null) {
+        if (currentPeersHosts != null && Peers.isNetworkingEnabled()) {
             for (String host : currentPeersHosts) {
                 Peer peer = Peers.getPeer(host);
                 if (peer != null) {
-                    Peers.connectPeer(peer);
+                    peer.connectPeer();
                 }
             }
         }
@@ -98,6 +101,10 @@ public class APIProxy {
     public static void init() {}
 
     public static APIProxy getInstance() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("api"));
+        }
         return instance;
     }
 

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,8 +17,8 @@
 package nxt.http;
 
 import nxt.NxtException;
-import nxt.PhasingPoll;
-import nxt.Transaction;
+import nxt.blockchain.Transaction;
+import nxt.voting.PhasingPollHome;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -37,11 +38,17 @@ public class GetLinkedPhasedTransactions extends APIServlet.APIRequestHandler {
         byte[] linkedFullHash = ParameterParser.getBytes(req, "linkedFullHash", true);
 
         JSONArray json = new JSONArray();
-        List<? extends Transaction> transactions = PhasingPoll.getLinkedPhasedTransactions(linkedFullHash);
+        List<? extends Transaction> transactions = PhasingPollHome.getLinkedPhasedTransactions(linkedFullHash);
         transactions.forEach(transaction -> json.add(JSONData.transaction(transaction)));
         JSONObject response = new JSONObject();
         response.put("transactions", json);
 
         return response;
     }
+
+    @Override
+    protected boolean isChainSpecific() {
+        return false;
+    }
+
 }

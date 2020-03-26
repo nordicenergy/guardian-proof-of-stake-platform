@@ -1,6 +1,6 @@
 {
-  "name": "Nordic Energy",
-  "short_name": "NET",
+  "name": "",
+  "short_name": "",
   "start_url": "index.html",
   "display": "standalone",
   "icons": [{
@@ -8,6 +8,6 @@
     "sizes": "512x512",
     "type": "image/png"
   }],
-  "background_color": "#cca300",
-  "theme_color": "#cca300"
+  "background_color": "#4e8ef7",
+  "theme_color": "#4e8ef7"
 }

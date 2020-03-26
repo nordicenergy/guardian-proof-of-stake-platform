@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,8 +18,9 @@ package nxt.http;
 
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.Transaction;
+import nxt.blockchain.Transaction;
 import nxt.util.Convert;
+import nxt.util.Logger;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
@@ -42,7 +44,7 @@ import javax.servlet.http.HttpServletRequest;
  * In case the client submits transactionBytes for a transaction containing prunable appendages, the client also needs
  * to submit the prunableAttachmentJSON parameter which includes the attachment JSON for the prunable appendages.<br>
  * <p>
- * Prunable appendages are classes implementing the {@link nxt.Appendix.Prunable} interface.
+ * Prunable appendages are classes implementing the {@link nxt.blockchain.Appendix.Prunable} interface.
  */
 public final class BroadcastTransaction extends APIServlet.APIRequestHandler {
 
@@ -64,9 +66,11 @@ public final class BroadcastTransaction extends APIServlet.APIRequestHandler {
             Transaction.Builder builder = ParameterParser.parseTransaction(transactionJSON, transactionBytes, prunableAttachmentJSON);
             Transaction transaction = builder.build();
             Nxt.getTransactionProcessor().broadcast(transaction);
-            response.put("transaction", transaction.getStringId());
-            response.put("fullHash", transaction.getFullHash());
+            response.put("fullHash", Convert.toHexString(transaction.getFullHash()));
         } catch (NxtException.ValidationException|RuntimeException e) {
+            if (e instanceof RuntimeException) {
+                Logger.logDebugMessage("Request processing failed", e);
+            }
             JSONData.putException(response, e, "Failed to broadcast transaction");
         }
         return response;
@@ -80,6 +84,11 @@ public final class BroadcastTransaction extends APIServlet.APIRequestHandler {
 
     @Override
     protected final boolean allowRequiredBlockParameters() {
+        return false;
+    }
+
+    @Override
+    protected boolean isChainSpecific() {
         return false;
     }
 

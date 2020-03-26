@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -20,7 +20,7 @@
 var NRS = (function(NRS, $) {
 	NRS.loadContacts = function() {
 		NRS.contacts = {};
-		NRS.storageSelect("contacts", null, function (error, contacts) {
+		return NRS.storageSelect("contacts", null, function (error, contacts) {
 			if (contacts && contacts.length) {
 				$.each(contacts, function (index, contact) {
 					NRS.contacts[contact.account] = contact;
@@ -33,11 +33,6 @@ var NRS = (function(NRS, $) {
 	NRS.pages.contacts = function() {
 		$("#contacts_table_container").show();
 		$("#contact_page_database_error").hide();
-		if (NRS.isExportContactsAvailable()) {
-			$("#export_contacts_button").show();
-		} else {
-			$("#export_contacts_button").hide();
-		}
 		NRS.storageSelect("contacts", null, function (error, contacts) {
 			var rows = "";
 			if (contacts && contacts.length) {
@@ -63,7 +58,7 @@ var NRS = (function(NRS, $) {
 						"<td>" + (contact.email ? contact.email.escapeHTML() : "-") + "</td>" +
 						"<td>" + contactDescription.escapeHTML() + "</td>" +
 						"<td style='white-space:nowrap'>" +
-						"<a class='btn btn-xs btn-default' href='#' data-toggle='modal' data-target='#send_money_modal' data-contact='" + String(contact.name).escapeHTML() + "'>" + $.t("send") + " " + NRS.constants.COIN_SYMBOL + "</a>&nbsp;" +
+						"<a class='btn btn-xs btn-default' href='#' data-toggle='modal' data-target='#send_money_modal' data-contact='" + String(contact.name).escapeHTML() + "'>" + $.t("send_money") + "</a>&nbsp;" +
 						"<a class='btn btn-xs btn-default' href='#' data-toggle='modal' data-target='#send_message_modal' data-contact='" + String(contact.name).escapeHTML() + "'>" + $.t("message") + "</a>&nbsp;" +
 						"<a class='btn btn-xs btn-default' href='#' data-toggle='modal' data-target='#delete_contact_modal' data-contact='" + String(contact.id).escapeHTML() + "'>" + $.t("delete") + "</a>" +
 						"</td>" +
@@ -71,6 +66,8 @@ var NRS = (function(NRS, $) {
 				});
 			}
 			NRS.dataLoaded(rows);
+
+			NRS.setupChainWarning($("a[data-target=\\#send_message_modal]"), false);
 		});
 	};
 
@@ -375,13 +372,17 @@ var NRS = (function(NRS, $) {
 
 	NRS.exportContacts = function() {
 		if (NRS.contacts && (Object.keys(NRS.contacts).length > 0)) {
-			var contacts_download = document.createElement('a');
-			contacts_download.href = 'data:text/json,' + JSON.stringify( NRS.contacts );
-			contacts_download.target = '_blank';
-			contacts_download.download = 'contacts.json';
-			document.body.appendChild(contacts_download);
-			contacts_download.click();
-			document.body.removeChild(contacts_download);
+			if (window.java) {
+				window.java.downloadTextFile(JSON.stringify( NRS.contacts ), "contacts.json");
+			} else {
+				var contacts_download = document.createElement('a');
+				contacts_download.href = 'data:text/json,' + JSON.stringify( NRS.contacts );
+				contacts_download.target = '_blank';
+				contacts_download.download = 'contacts.json';
+				document.body.appendChild(contacts_download);
+				contacts_download.click();
+				document.body.removeChild(contacts_download);
+			}
 		} else {
 			$.growl($.t("error_no_contacts_available"), {"type":"warning"}).show();
 		}
@@ -460,17 +461,27 @@ var NRS = (function(NRS, $) {
 		if (NRS.isFileReaderSupported()) {
             $("#import_contacts_button_field").click();
         } else if (window.java) {
-            var result = java.readContactsFile();
-            var contacts = JSON.parse(result);
-            if (contacts.error) {
-                if (contacts.type == 1) {
-                    $.growl($.t(contacts.error, { file: contacts.file, folder: contacts.folder }));
-                } else {
-                    $.growl(contacts.error);
-                }
-            } else {
-                NRS.importContacts(contacts);
-            }
+            const result = window.java.readContactsFile();
+            if (result !== null) {
+				let contacts;
+				try {
+					contacts = JSON.parse(result);
+				} catch (e) {
+					NRS.logConsole(e);
+					$.growl($.t('cannot_parse_json'), {type:'warning'});
+				}
+				if (contacts.error) {
+					$.growl($.t('error') + ': ' + contacts.error, {type:'error'});
+				} else {
+				    const keys = Object.keys(contacts);
+					const address = new NxtAddress();
+				    if (!keys || keys.length === 0 || !address.set(keys[0])) {
+                        $.growl($.t('wrong_file_format'), {type:'warning'});
+                    } else {
+                        NRS.importContacts(contacts);
+                    }
+				}
+			}
         }
 	});
 

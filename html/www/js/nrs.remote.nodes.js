@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -164,7 +164,7 @@ var NRS = (function(NRS) {
                 normalizePrunableAttachment(transaction);
             }
         } else if (requestType == "getAccountLedger") {
-            for (var i=0; i<origResponse.entries.length; i++) {
+            for (i=0; i<origResponse.entries.length; i++) {
                 var entry = origResponse.entries[i];
                 delete entry.ledgerId;
             }
@@ -224,6 +224,10 @@ var NRS = (function(NRS) {
                     // here it's Ok to modify the response since it is only being used for comparison
                     var node = data["_extra"].node;
                     var type = data["_extra"].requestType;
+                    if (!node) {
+                        NRS.logConsole("Node not specified, extra data is " + JSON.stringify(data["_extra"]));
+                        return;
+                    }
                     NRS.logConsole("Confirm request " + type + " with node " + node.announcedAddress);
                     var responseStr = NRS.getComparableResponse(response, type);
                     if (responseStr == expectedResponseStr
@@ -245,14 +249,18 @@ var NRS = (function(NRS) {
                         NRS.updateConfirmationsIndicator();
                     }
                 } else {
-                    // Confirmation request received error
-                    NRS.logConsole("Confirm request error " + response.errorDescription);
+                    if (!data["_extra"]) {
+                        NRS.logConsole("Confirm request no extra data in response " + JSON.stringify(response));
+                    } else {
+                        // Confirmation request received error
+                        NRS.logConsole("Confirm request error " + JSON.stringify(response));
+                    }
                 }
             }
 
             for (var i=0; i<nodes.length; i++) {
                 var node = nodes[i];
-                if (node.isBlacklisted()) {
+                if (NRS.remoteNodesMgr.isBlacklisted(node.address)) {
                     continue;
                 }
                 confirmationReport.processing.push(node.announcedAddress);
@@ -261,7 +269,8 @@ var NRS = (function(NRS) {
                     data = { "querystring": data };
                 }
                 data["_extra"] = { node: node, requestType: requestType };
-                NRS.sendRequest(requestType, data, onConfirmation, { noProxy: true, remoteNode: node, doNotEscape: true });
+                NRS.sendRequest(requestType, data, onConfirmation,
+                        { noProxy: true, remoteNode: node, doNotEscape: true, timeout: 5000 });
             }
         }
     };

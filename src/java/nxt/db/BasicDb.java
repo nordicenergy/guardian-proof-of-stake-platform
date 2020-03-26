@@ -1,12 +1,12 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2018 Jelurida IP B.V.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,12 +17,15 @@
 package nxt.db;
 
 import nxt.Nxt;
+import nxt.db.pool.ConnectionPool;
+import nxt.db.pool.H2ConnectionPool;
 import nxt.util.Logger;
-import org.h2.jdbcx.JdbcConnectionPool;
+import nxt.util.security.BlockchainPermission;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 
 public class BasicDb {
 
@@ -97,8 +100,7 @@ public class BasicDb {
 
     }
 
-    private JdbcConnectionPool cp;
-    private volatile int maxActiveConnections;
+    private ConnectionPool cp;
     private final String dbUrl;
     private final String dbUsername;
     private final String dbPassword;
@@ -109,6 +111,10 @@ public class BasicDb {
     private volatile boolean initialized = false;
 
     public BasicDb(DbProperties dbProperties) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("db"));
+        }
         long maxCacheSize = dbProperties.maxCacheSize;
         if (maxCacheSize == 0) {
             maxCacheSize = Math.min(256, Math.max(16, (Runtime.getRuntime().maxMemory() / (1024 * 1024) - 128)/2)) * 1024;
@@ -117,9 +123,6 @@ public class BasicDb {
         if (dbUrl == null) {
             String dbDir = Nxt.getDbDir(dbProperties.dbDir);
             dbUrl = String.format("jdbc:%s:%s;%s", dbProperties.dbType, dbDir, dbProperties.dbParams);
-        }
-        if (!dbUrl.contains("MV_STORE=")) {
-            dbUrl += ";MV_STORE=FALSE";
         }
         if (!dbUrl.contains("CACHE_SIZE=")) {
             dbUrl += ";CACHE_SIZE=" + maxCacheSize;
@@ -133,40 +136,57 @@ public class BasicDb {
         this.maxMemoryRows = dbProperties.maxMemoryRows;
     }
 
-    public void init(DbVersion dbVersion) {
+    public final void init(List<DbVersion> dbVersions) {
         Logger.logDebugMessage("Database jdbc url set to %s username %s", dbUrl, dbUsername);
+
+        String implClassName = Nxt.getStringProperty("nxt.connectionPoolImpl");
+
+        try {
+            Class<?> poolImplClass = Class.forName(implClassName);
+            cp = (ConnectionPool) poolImplClass.newInstance();
+        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+            Logger.logErrorMessage("Failed to create connection pool instance", e);
+            cp = new H2ConnectionPool();
+        }
+        cp.initialize(dbUrl, dbUsername, dbPassword, maxConnections, loginTimeout);
+
         FullTextTrigger.setActive(true);
-        cp = JdbcConnectionPool.create(dbUrl, dbUsername, dbPassword);
-        cp.setMaxConnections(maxConnections);
-        cp.setLoginTimeout(loginTimeout);
-        try (Connection con = cp.getConnection();
+
+        try (Connection con = getPooledConnection();
              Statement stmt = con.createStatement()) {
             stmt.executeUpdate("SET DEFAULT_LOCK_TIMEOUT " + defaultLockTimeout);
             stmt.executeUpdate("SET MAX_MEMORY_ROWS " + maxMemoryRows);
         } catch (SQLException e) {
             throw new RuntimeException(e.toString(), e);
         }
-        dbVersion.init(this);
+        dbVersions.forEach(DbVersion::createSchema);
+        dbVersions.forEach(DbVersion::init);
         initialized = true;
     }
 
-    public void shutdown() {
+    public final void shutdown() {
         if (!initialized) {
             return;
         }
         try {
             FullTextTrigger.setActive(false);
-            Connection con = cp.getConnection();
+            Connection con = getPooledConnection();
             Statement stmt = con.createStatement();
-            stmt.execute("SHUTDOWN COMPACT");
-            Logger.logShutdownMessage("Database shutdown completed");
+            boolean compact = ! Nxt.getBooleanProperty("nxt.disableCompactOnShutdown");
+            if (compact) {
+                stmt.execute("SHUTDOWN COMPACT");
+                Logger.logShutdownMessage("Database shutdown completed");
+            } else {
+                stmt.execute("SHUTDOWN");
+                Logger.logShutdownMessage("Database shutdown without compact completed");
+            }
         } catch (SQLException e) {
             Logger.logShutdownMessage(e.toString(), e);
         }
     }
 
-    public void analyzeTables() {
-        try (Connection con = cp.getConnection();
+    public final void analyzeTables() {
+        try (Connection con = getPooledConnection();
              Statement stmt = con.createStatement()) {
             stmt.execute("ANALYZE");
         } catch (SQLException e) {
@@ -174,23 +194,21 @@ public class BasicDb {
         }
     }
 
-    public Connection getConnection() throws SQLException {
+    public Connection getConnection(String schema) throws SQLException {
         Connection con = getPooledConnection();
         con.setAutoCommit(true);
-        return con;
-    }
-
-    protected Connection getPooledConnection() throws SQLException {
-        Connection con = cp.getConnection();
-        int activeConnections = cp.getActiveConnections();
-        if (activeConnections > maxActiveConnections) {
-            maxActiveConnections = activeConnections;
-            Logger.logDebugMessage("Database connection pool current size: " + activeConnections);
+        try (Statement stmt = con.createStatement()) {
+            stmt.executeUpdate("SET SCHEMA " + schema);
+            stmt.executeUpdate("SET SCHEMA_SEARCH_PATH " + schema + ", PUBLIC");
         }
         return con;
     }
 
-    public String getUrl() {
+    protected Connection getPooledConnection() throws SQLException {
+        return cp.getConnection();
+    }
+
+    public final String getUrl() {
         return dbUrl;
     }
 

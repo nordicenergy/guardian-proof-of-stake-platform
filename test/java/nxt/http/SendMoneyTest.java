@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,7 +17,8 @@
 package nxt.http;
 
 import nxt.BlockchainTest;
-import nxt.Constants;
+import nxt.blockchain.ChildChain;
+import nxt.blockchain.FxtChain;
 import nxt.util.Logger;
 import org.json.simple.JSONObject;
 import org.junit.Assert;
@@ -27,40 +29,42 @@ public class SendMoneyTest extends BlockchainTest {
     @Test
     public void sendMoney() {
         JSONObject response = new APICall.Builder("sendMoney").
+                param("chain", "" + FxtChain.FXT.getId()).
                 param("secretPhrase", ALICE.getSecretPhrase()).
                 param("recipient", BOB.getStrId()).
-                param("amountNQT", 100 * Constants.ONE_NXT).
-                param("feeNQT", Constants.ONE_NXT).
+                param("amountNQT", 100 * FxtChain.FXT.ONE_COIN).
+                param("feeNQT", FxtChain.FXT.ONE_COIN * 10).
                 build().invoke();
         Logger.logDebugMessage("sendMoney: " + response);
         // Forger
-        Assert.assertEquals(0, FORGY.getBalanceDiff());
-        Assert.assertEquals(0, FORGY.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, FORGY.getFxtBalanceDiff());
+        Assert.assertEquals(0, FORGY.getFxtUnconfirmedBalanceDiff());
         // Sender
-        Assert.assertEquals(0, ALICE.getBalanceDiff());
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtUnconfirmedBalanceDiff());
         // Recipient
-        Assert.assertEquals(0, BOB.getBalanceDiff());
-        Assert.assertEquals(0, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(0, BOB.getFxtUnconfirmedBalanceDiff());
         generateBlock();
         // Forger
-        Assert.assertEquals(Constants.ONE_NXT, FORGY.getBalanceDiff());
-        Assert.assertEquals(Constants.ONE_NXT, FORGY.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(10 * FxtChain.FXT.ONE_COIN, FORGY.getFxtBalanceDiff());
+        Assert.assertEquals(10 * FxtChain.FXT.ONE_COIN, FORGY.getFxtUnconfirmedBalanceDiff());
         // Sender
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getBalanceDiff());
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtUnconfirmedBalanceDiff());
         // Recipient
-        Assert.assertEquals(100 * Constants.ONE_NXT, BOB.getBalanceDiff());
-        Assert.assertEquals(100 * Constants.ONE_NXT, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(100 * FxtChain.FXT.ONE_COIN, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(100 * FxtChain.FXT.ONE_COIN, BOB.getFxtUnconfirmedBalanceDiff());
     }
 
     @Test
     public void sendTooMuchMoney() {
         JSONObject response = new APICall.Builder("sendMoney").
+                param("chain", "" + FxtChain.FXT.getId()).
                 param("secretPhrase", ALICE.getSecretPhrase()).
                 param("recipient", BOB.getStrId()).
-                param("amountNQT", ALICE.getInitialBalance()).
-                param("feeNQT", Constants.ONE_NXT).
+                param("amountNQT", ALICE.getInitialFxtBalance()).
+                param("feeNQT", 10 * FxtChain.FXT.ONE_COIN).
                 build().invoke();
         Logger.logDebugMessage("sendMoney: " + response);
         Assert.assertEquals((long)6, response.get("errorCode"));
@@ -69,55 +73,58 @@ public class SendMoneyTest extends BlockchainTest {
     @Test
     public void sendAndReturn() {
         JSONObject response = new APICall.Builder("sendMoney").
+                param("chain", "" + FxtChain.FXT.getId()).
                 param("secretPhrase", ALICE.getSecretPhrase()).
                 param("recipient", BOB.getStrId()).
-                param("amountNQT", 100 * Constants.ONE_NXT).
-                param("feeNQT", Constants.ONE_NXT).
+                param("amountNQT", 100 * FxtChain.FXT.ONE_COIN).
+                param("feeNQT", 10 * FxtChain.FXT.ONE_COIN).
                 build().invoke();
         Logger.logDebugMessage("sendMoney1: " + response);
         response = new APICall.Builder("sendMoney").
+                param("chain", "" + FxtChain.FXT.getId()).
                 param("secretPhrase", BOB.getSecretPhrase()).
                 param("recipient", ALICE.getStrId()).
-                param("amountNQT", 100 * Constants.ONE_NXT).
-                param("feeNQT", Constants.ONE_NXT).
+                param("amountNQT", 100 * FxtChain.FXT.ONE_COIN).
+                param("feeNQT", 10 * FxtChain.FXT.ONE_COIN).
                 build().invoke();
         Logger.logDebugMessage("sendMoney2: " + response);
         // Forger
-        Assert.assertEquals(0, FORGY.getBalanceDiff());
-        Assert.assertEquals(0, FORGY.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, FORGY.getFxtBalanceDiff());
+        Assert.assertEquals(0, FORGY.getFxtUnconfirmedBalanceDiff());
         // Sender
-        Assert.assertEquals(0, ALICE.getBalanceDiff());
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtUnconfirmedBalanceDiff());
         // Recipient
-        Assert.assertEquals(0, BOB.getBalanceDiff());
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, BOB.getFxtUnconfirmedBalanceDiff());
         generateBlock();
         // Forger
-        Assert.assertEquals(2*Constants.ONE_NXT, FORGY.getBalanceDiff());
-        Assert.assertEquals(2*Constants.ONE_NXT, FORGY.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(20* FxtChain.FXT.ONE_COIN, FORGY.getFxtBalanceDiff());
+        Assert.assertEquals(20* FxtChain.FXT.ONE_COIN, FORGY.getFxtUnconfirmedBalanceDiff());
         // Sender
-        Assert.assertEquals(-Constants.ONE_NXT, ALICE.getBalanceDiff());
-        Assert.assertEquals(-Constants.ONE_NXT, ALICE.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(-10*FxtChain.FXT.ONE_COIN, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(-10*FxtChain.FXT.ONE_COIN, ALICE.getFxtUnconfirmedBalanceDiff());
         // Recipient
-        Assert.assertEquals(-Constants.ONE_NXT, BOB.getBalanceDiff());
-        Assert.assertEquals(-Constants.ONE_NXT, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(-10*FxtChain.FXT.ONE_COIN, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(-10*FxtChain.FXT.ONE_COIN, BOB.getFxtUnconfirmedBalanceDiff());
     }
 
     @Test
     public void signAndBroadcastBytes() {
         JSONObject response = new APICall.Builder("sendMoney").
+                param("chain", "" + FxtChain.FXT.getId()).
                 param("publicKey", ALICE.getPublicKeyStr()).
                 param("recipient", BOB.getStrId()).
-                param("amountNQT", 100 * Constants.ONE_NXT).
-                param("feeNQT", Constants.ONE_NXT).
+                param("amountNQT", 100 * FxtChain.FXT.ONE_COIN).
+                param("feeNQT", 10 * FxtChain.FXT.ONE_COIN).
                 build().invoke();
         Logger.logDebugMessage("sendMoney: " + response);
         generateBlock();
         // No change transaction not broadcast
-        Assert.assertEquals(0, ALICE.getBalanceDiff());
-        Assert.assertEquals(0, ALICE.getUnconfirmedBalanceDiff());
-        Assert.assertEquals(0, BOB.getBalanceDiff());
-        Assert.assertEquals(0, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(0, ALICE.getFxtUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(0, BOB.getFxtUnconfirmedBalanceDiff());
 
         response = new APICall.Builder("signTransaction").
                 param("secretPhrase", ALICE.getSecretPhrase()).
@@ -132,28 +139,29 @@ public class SendMoneyTest extends BlockchainTest {
         generateBlock();
 
         // Sender
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getBalanceDiff());
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtUnconfirmedBalanceDiff());
         // Recipient
-        Assert.assertEquals(100 * Constants.ONE_NXT, BOB.getBalanceDiff());
-        Assert.assertEquals(100 * Constants.ONE_NXT, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(100 * FxtChain.FXT.ONE_COIN, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(100 * FxtChain.FXT.ONE_COIN, BOB.getFxtUnconfirmedBalanceDiff());
     }
 
     @Test
     public void signAndBroadcastJSON() {
         JSONObject response = new APICall.Builder("sendMoney").
+                param("chain", "" + FxtChain.FXT.getId()).
                 param("publicKey", ALICE.getPublicKeyStr()).
                 param("recipient", BOB.getStrId()).
-                param("amountNQT", 100 * Constants.ONE_NXT).
-                param("feeNQT", Constants.ONE_NXT).
+                param("amountNQT", 100 * FxtChain.FXT.ONE_COIN).
+                param("feeNQT", 10 * FxtChain.FXT.ONE_COIN).
                 build().invoke();
         Logger.logDebugMessage("sendMoney: " + response);
         generateBlock();
         // No change transaction not broadcast
-        Assert.assertEquals(0, ALICE.getBalanceDiff());
-        Assert.assertEquals(0, ALICE.getUnconfirmedBalanceDiff());
-        Assert.assertEquals(0, BOB.getBalanceDiff());
-        Assert.assertEquals(0, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(0, ALICE.getFxtUnconfirmedBalanceDiff());
+        Assert.assertEquals(0, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(0, BOB.getFxtUnconfirmedBalanceDiff());
 
         response = new APICall.Builder("signTransaction").
                 param("secretPhrase", ALICE.getSecretPhrase()).
@@ -168,10 +176,10 @@ public class SendMoneyTest extends BlockchainTest {
         generateBlock();
 
         // Sender
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getBalanceDiff());
-        Assert.assertEquals(-100 * Constants.ONE_NXT - Constants.ONE_NXT, ALICE.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtBalanceDiff());
+        Assert.assertEquals(-100 * FxtChain.FXT.ONE_COIN - 10 * FxtChain.FXT.ONE_COIN, ALICE.getFxtUnconfirmedBalanceDiff());
         // Recipient
-        Assert.assertEquals(100 * Constants.ONE_NXT, BOB.getBalanceDiff());
-        Assert.assertEquals(100 * Constants.ONE_NXT, BOB.getUnconfirmedBalanceDiff());
+        Assert.assertEquals(100 * FxtChain.FXT.ONE_COIN, BOB.getFxtBalanceDiff());
+        Assert.assertEquals(100 * FxtChain.FXT.ONE_COIN, BOB.getFxtUnconfirmedBalanceDiff());
     }
 }

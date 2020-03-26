@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,9 +16,11 @@
 
 package nxt.http;
 
+import nxt.Constants;
 import nxt.NxtException;
-import nxt.Shuffler;
-import nxt.Shuffling;
+import nxt.blockchain.ChildChain;
+import nxt.shuffling.Shuffler;
+import nxt.shuffling.ShufflingHome;
 import nxt.util.JSON;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -29,7 +32,8 @@ public final class StartShuffler extends APIServlet.APIRequestHandler {
     static final StartShuffler instance = new StartShuffler();
 
     private StartShuffler() {
-        super(new APITag[]{APITag.SHUFFLING}, "secretPhrase", "shufflingFullHash", "recipientSecretPhrase", "recipientPublicKey");
+        super(new APITag[]{APITag.SHUFFLING}, "secretPhrase", "shufflingFullHash",
+                "recipientSecretPhrase", "recipientPublicKey", "feeRateNQTPerFXT");
     }
 
     @Override
@@ -37,8 +41,11 @@ public final class StartShuffler extends APIServlet.APIRequestHandler {
         byte[] shufflingFullHash = ParameterParser.getBytes(req, "shufflingFullHash", true);
         String secretPhrase = ParameterParser.getSecretPhrase(req, true);
         byte[] recipientPublicKey = ParameterParser.getPublicKey(req, "recipient");
+        long feeRateNQTPerFXT = ParameterParser.getLong(req, "feeRateNQTPerFXT", 0, Constants.MAX_BALANCE_NQT, true);
+        ChildChain childChain = ParameterParser.getChildChain(req);
         try {
-            Shuffler shuffler = Shuffler.addOrGetShuffler(secretPhrase, recipientPublicKey, shufflingFullHash);
+            Shuffler shuffler = Shuffler.addOrGetShuffler(childChain, secretPhrase, recipientPublicKey,
+                    shufflingFullHash, feeRateNQTPerFXT);
             return shuffler != null ? JSONData.shuffler(shuffler, false) : JSON.emptyJSON;
         } catch (Shuffler.ShufflerLimitException e) {
             JSONObject response = new JSONObject();
@@ -59,7 +66,7 @@ public final class StartShuffler extends APIServlet.APIRequestHandler {
             return JSON.prepare(response);
         } catch (Shuffler.ShufflerException e) {
             if (e.getCause() instanceof NxtException.InsufficientBalanceException) {
-                Shuffling shuffling = Shuffling.getShuffling(shufflingFullHash);
+                ShufflingHome.Shuffling shuffling = childChain.getShufflingHome().getShuffling(shufflingFullHash);
                 if (shuffling == null) {
                     return JSONResponses.NOT_ENOUGH_FUNDS;
                 }

@@ -1,11 +1,12 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright 2020 Nordic Energy Core Developers                                 ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
   ~                                                                           ~
-  ~ Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
-  ~ no part of the Nxt software, including this file, may be copied, modified,~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
   ~ propagated, or distributed except according to the terms contained in the ~
   ~ LICENSE.txt file.                                                         ~
   ~                                                                           ~
@@ -13,7 +14,7 @@
   ~                                                                           ~
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 
-<div class="modal fade" id="changelly_buy_modal" data-type="buy" tabindex="-1" role="dialog" aria-hidden="true">
+<div aria-hidden="true" class="modal fade" data-disable-fee-calculation="true" data-type="buy" id="changelly_buy_modal" role="dialog" tabindex="-1">
     <div class="modal-dialog modal-dialog-700">
         <div class="modal-content">
             <div class="modal-header">
@@ -51,7 +52,7 @@
                                 <label for="changelly_buy_amount" data-i18n="amount">AMOUNT</label>
                                 <div class="input-group">
                                     <input type="text" name="amountNXT" id="changelly_buy_amount" step="any" min="0" class="form-control" placeholder="Amount" data-i18n="[placeholder]amount" tabindex="1">
-                                    <span class="input-group-addon">NXT</span>
+                                    <span class="input-group-addon"><span class="coin-symbol"></span></span>
                                 </div>
                             </div>
                         </div>
@@ -78,14 +79,16 @@
                             </div>
                         </div>
                     </div>
+                    <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <input type="hidden" id="changelly_buy_from" value="" />
                     <input type="hidden" id="changelly_buy_to" value="" />
+                    <input data-default="sendMoney" name="request_type" type="hidden" value="sendMoney" />
                 </form>
             </div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
-                <button type="button" class="btn btn-primary" id="changelly_buy_submit" data-ignore="true" data-loading-text="Submitting..." data-i18n="send_nxt;[data-loading-text]submitting">Send NXT</button>
+                <button class="btn btn-primary" data-i18n="send;[data-loading-text]submitting" data-ignore="true" data-loading-text="Submitting..." id="changelly_buy_submit" type="button">Send</button>
             </div>
         </div>
     </div>
@@ -126,7 +129,7 @@
                     <div class="row">
                         <div class="col-xs-12 col-sm-6 col-md-6">
                             <div class="form-group">
-                                <label for="changelly_sell_amount" data-i18n="deposit_amount_optional">DEPOSIT AMOUNT (OPTIONAL)</label>
+                                <label data-i18n="deposit_amount" for="changelly_sell_amount">DEPOSIT AMOUNT</label>
                                 <div class="input-group">
                                     <input type="text" id="changelly_sell_amount" step="any" min="0" class="form-control" placeholder="Amount" data-i18n="[placeholder]amount" tabindex="1">
                                     <span class="input-group-addon" id="changelly_sell_amount_text"></span>
@@ -140,7 +143,7 @@
                                 <label for="changelly_sell_estimated_amount" data-i18n="estimated_amount">ESTIMATED AMOUNT</label>
                                 <div class="input-group">
                                     <input id="changelly_sell_estimated_amount" class="form-control" readonly>
-                                    <span class="input-group-addon">NXT</span>
+                                    <span class="input-group-addon"><span class="coin-symbol"></span></span>
                                 </div>
                             </div>
                         </div>
@@ -211,6 +214,38 @@
             </div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="close">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div aria-hidden="true" class="modal fade" id="changelly_scratchpad" role="dialog" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title" data-i18n="changelly_scratchpad">Scratchpad</h4>
+            </div>
+            <div class="modal-body">
+                <form autocomplete="off" role="form">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="form-group">
+                        <label data-i18n="api" for="changelly_api">API</label>
+                        <input class="form-control" id="changelly_api" tabindex="1">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="parameters" for="changelly_parameters">Parameters</label>
+                        <textarea class="form-control" id="changelly_parameters" rows="4" tabindex="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="response" for="changelly_response"></label>
+                        <pre class='hljs json' id="changelly_response"><code></code></pre>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button class="btn btn-default" data-dismiss="modal" data-i18n="close" type="button">Close</button>
+                <button class="btn btn-primary" data-i18n="submit;[data-loading-text]submitting" data-ignore="true" data-loading-text="Submitting..." id="changelly_submit" type="button">Submit</button>
             </div>
         </div>
     </div>

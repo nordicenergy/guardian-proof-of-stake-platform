@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,12 +17,15 @@
 package nxt.http;
 
 import nxt.Constants;
-import nxt.Db;
 import nxt.Nxt;
 import nxt.NxtException;
 import nxt.addons.AddOns;
+import nxt.blockchain.Chain;
+import nxt.blockchain.ChildChain;
+import nxt.dbschema.Db;
 import nxt.util.JSON;
 import nxt.util.Logger;
+import nxt.util.security.BlockchainPermission;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
@@ -55,6 +59,7 @@ public final class APIServlet extends HttpServlet {
         private final List<String> parameters;
         private final String fileParameter;
         private final Set<APITag> apiTags;
+        private final String docsUrlPath;
 
         protected APIRequestHandler(APITag[] apiTags, String... parameters) {
             this(null, apiTags, parameters);
@@ -62,6 +67,9 @@ public final class APIServlet extends HttpServlet {
 
         protected APIRequestHandler(String fileParameter, APITag[] apiTags, String... origParameters) {
             List<String> parameters = new ArrayList<>();
+            if (isChainSpecific()) {
+                parameters.add("chain");
+            }
             Collections.addAll(parameters, origParameters);
             if ((requirePassword() || parameters.contains("lastIndex")) && ! API.disableAdminPassword) {
                 parameters.add("adminPassword");
@@ -70,9 +78,31 @@ public final class APIServlet extends HttpServlet {
                 parameters.add("requireBlock");
                 parameters.add("requireLastBlock");
             }
+            if (parameters.contains("secretPhrase") && ! (this instanceof CreateTransaction) && ! (this instanceof SplitSecret)) {
+                parameters.add("sharedPieceAccount");
+                parameters.add("sharedPiece");
+                parameters.add("sharedPiece");
+                parameters.add("sharedPiece");
+            }
             this.parameters = Collections.unmodifiableList(parameters);
             this.apiTags = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(apiTags)));
             this.fileParameter = fileParameter;
+            StringBuilder buf = new StringBuilder();
+            buf.append(apiTags[0].getDisplayName().replace(' ', '_'));
+            buf.append('#');
+            char[] className = getClass().getSimpleName().toCharArray();
+            for (int i = 0; i < className.length; i++) {
+                char c = className[i];
+                if (i == 0) {
+                    c = Character.toUpperCase(c);
+                }
+                buf.append(c);
+                if (i < className.length - 2 && Character.isUpperCase(className[i+1])
+                        && (Character.isLowerCase(c) || Character.isLowerCase(className[i+2]))) {
+                    buf.append('_');
+                }
+            }
+            docsUrlPath = buf.toString();
         }
 
         public final List<String> getParameters() {
@@ -85,6 +115,10 @@ public final class APIServlet extends HttpServlet {
 
         public final String getFileParameter() {
             return fileParameter;
+        }
+
+        public boolean isIgnisOnly() {
+            return false;
         }
 
         protected abstract JSONStreamAware processRequest(HttpServletRequest request) throws NxtException;
@@ -117,12 +151,20 @@ public final class APIServlet extends HttpServlet {
             return false;
         }
 
+        protected boolean isChainSpecific() {
+            return true;
+        }
+        
         protected boolean isTextArea(String parameter) {
             return false;
         }
 
         protected boolean isPassword(String parameter) {
             return false;
+        }
+
+        String getDocsUrlPath() {
+            return docsUrlPath;
         }
 
     }
@@ -142,17 +184,18 @@ public final class APIServlet extends HttpServlet {
                 map.put(api.getName(), api.getHandler());
             }
         }
-
         AddOns.registerAPIRequestHandlers(map);
 
-        API.disabledAPIs.forEach(api -> {
-            APIRequestHandler handler = map.remove(api);
+        List<APIEnum> disabledApis = API.getDisabledApis();
+        disabledApis.forEach(api -> {
+            APIRequestHandler handler = map.remove(api.getName());
             if (handler == null) {
                 throw new RuntimeException("Invalid API in nxt.disabledAPIs: " + api);
             }
-            disabledMap.put(api, handler);
+            disabledMap.put(api.getName(), handler);
         });
-        API.disabledAPITags.forEach(apiTag -> {
+        List<APITag> disabledApiTags = API.getDisabledApiTags();
+        disabledApiTags.forEach(apiTag -> {
             Iterator<Map.Entry<String, APIRequestHandler>> iterator = map.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<String, APIRequestHandler> entry = iterator.next();
@@ -162,11 +205,11 @@ public final class APIServlet extends HttpServlet {
                 }
             }
         });
-        if (!API.disabledAPIs.isEmpty()) {
-            Logger.logInfoMessage("Disabled APIs: " + API.disabledAPIs);
+        if (!disabledApis.isEmpty()) {
+            Logger.logInfoMessage("Disabled APIs: " + disabledApis);
         }
-        if (!API.disabledAPITags.isEmpty()) {
-            Logger.logInfoMessage("Disabled APITags: " + API.disabledAPITags);
+        if (!disabledApiTags.isEmpty()) {
+            Logger.logInfoMessage("Disabled APITags: " + disabledApiTags);
         }
 
         apiRequestHandlers = Collections.unmodifiableMap(map);
@@ -174,7 +217,19 @@ public final class APIServlet extends HttpServlet {
     }
 
     public static APIRequestHandler getAPIRequestHandler(String requestType) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("api"));
+        }
         return apiRequestHandlers.get(requestType);
+    }
+
+    public static Map<String, APIRequestHandler> getAPIRequestHandlers() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("api"));
+        }
+        return apiRequestHandlers;
     }
 
     static void initClass() {}
@@ -185,7 +240,7 @@ public final class APIServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         process(req, resp);
     }
 
@@ -205,7 +260,7 @@ public final class APIServlet extends HttpServlet {
 
         try {
 
-            if (!API.isAllowed(req.getRemoteHost())) {
+            if (API.isForbiddenHost(req.getRemoteHost())) {
                 response = ERROR_NOT_ALLOWED;
                 return;
             }
@@ -224,6 +279,20 @@ public final class APIServlet extends HttpServlet {
                     response = ERROR_INCORRECT_REQUEST;
                 }
                 return;
+            }
+
+            if (apiRequestHandler.isChainSpecific()) {
+                Chain chain = ParameterParser.getChain(req, false);
+                if (chain != null) {
+                    if (chain.getDisabledAPIs().contains(APIEnum.fromName(requestType))) {
+                        response = ERROR_DISABLED;
+                        return;
+                    }
+                    if (chain != ChildChain.IGNIS && apiRequestHandler.isIgnisOnly()) {
+                        response = JSONResponses.error("This feature is available on the IGNIS child chain only");
+                        return;
+                    }
+                }
             }
 
             if (Constants.isLightClient && apiRequestHandler.requireFullClient()) {
@@ -283,7 +352,7 @@ public final class APIServlet extends HttpServlet {
         } catch (ExceptionInInitializerError err) {
             Logger.logErrorMessage("Initialization Error", err.getCause());
             response = ERROR_INCORRECT_REQUEST;
-        } catch (Exception e) {
+        } catch (Exception | IllegalAccessError e) {
             Logger.logErrorMessage("Error processing request", e);
             response = ERROR_INCORRECT_REQUEST;
         } finally {

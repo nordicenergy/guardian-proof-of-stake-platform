@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -18,17 +19,18 @@ package nxtdesktop;
 import javafx.application.Platform;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import nxt.Nxt;
+import nxt.addons.JO;
+import nxt.crypto.Crypto;
 import nxt.http.API;
-import nxt.util.JSON;
+import nxt.util.Convert;
 import nxt.util.Logger;
-import org.json.simple.JSONObject;
+import nxt.util.security.BlockchainPermission;
 
-import java.awt.*;
+import java.awt.Desktop;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
@@ -37,10 +39,14 @@ import java.nio.file.Paths;
 @SuppressWarnings("WeakerAccess")
 public class JavaScriptBridge {
 
-    DesktopApplication application;
+    final DesktopApplication application;
     private Clipboard clipboard;
 
     public JavaScriptBridge(DesktopApplication application) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("desktop"));
+        }
         this.application = application;
     }
 
@@ -62,32 +68,28 @@ public class JavaScriptBridge {
 
     @SuppressWarnings("unused")
     public String readContactsFile() {
-        String fileName = "contacts.json";
-        byte[] bytes;
+        return readJsonFile("contacts.json");
+    }
+
+    @SuppressWarnings("unused")
+    public String readApprovalModelsFile() {
+        return readJsonFile("approval.models.json");
+    }
+
+    private String readJsonFile(String fileName) {
         try {
-            bytes = Files.readAllBytes(Paths.get(Nxt.getUserHomeDir(), fileName));
+            Path folderPath = Paths.get(System.getProperty("user.home"), "downloads");
+            return application.readTextfile(folderPath, fileName).orElse(null);
         } catch (IOException e) {
-            Logger.logInfoMessage("Cannot read file " + fileName + " error " + e.getMessage());
-            JSONObject response = new JSONObject();
-            response.put("error", "contacts_file_not_found");
-            response.put("file", fileName);
-            response.put("folder", Nxt.getUserHomeDir());
-            response.put("type", "1");
-            return JSON.toJSONString(response);
-        }
-        try {
-            return new String(bytes, "utf8");
-        } catch (UnsupportedEncodingException e) {
-            Logger.logInfoMessage("Cannot parse file " + fileName + " content error " + e.getMessage());
-            JSONObject response = new JSONObject();
-            response.put("error", "unsupported_encoding");
-            response.put("type", "2");
-            return JSON.toJSONString(response);
+            Logger.logInfoMessage("Error reading " + fileName + ", error " + e.getMessage());
+            JO response = new JO();
+            response.put("error", e.getMessage());
+            return response.toJSONString();
         }
     }
 
     public String getAdminPassword() {
-        return API.adminPassword;
+        return API.getAdminPassword();
     }
 
     @SuppressWarnings("unused")
@@ -108,4 +110,28 @@ public class JavaScriptBridge {
         return clipboard.setContent(content);
     }
 
+    @SuppressWarnings("unused")
+    public void renderPaperWallet(String page) {
+        API.setPaperWalletPage(page);
+        byte[] hash = Crypto.sha256().digest(page.getBytes(StandardCharsets.UTF_8));
+        Platform.runLater(() -> {
+            try {
+                URI uri = API.getPaperWalletUri();
+                Desktop.getDesktop().browse(new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), "hash=" + Convert.toHexString(hash), uri.getFragment()));
+            } catch (Exception e) {
+                Logger.logInfoMessage("Cannot open paper wallet " + e);
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void downloadTextFile(String text, String filename) {
+        application.downloadFile(text, filename);
+    }
+
+    @SuppressWarnings("unused")
+    public boolean isFileReaderSupported() {
+        String version = System.getProperty("javafx.version");
+        return Integer.parseInt(version.substring(0, version.indexOf('.'))) >= 12;
+    }
 }

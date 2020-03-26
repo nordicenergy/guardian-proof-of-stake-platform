@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,9 +16,9 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Generator;
 import nxt.Nxt;
+import nxt.account.Account;
+import nxt.blockchain.Generator;
 import nxt.crypto.Crypto;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -72,4 +73,13 @@ public final class GetForging extends APIServlet.APIRequestHandler {
         return true;
     }
 
+    @Override
+    protected boolean isChainSpecific() {
+        return false;
+    }
+
+    @Override
+    String getDocsUrlPath() {
+        return "Forging#Start_.2F_Stop_.2F_Get_Forging";
+    }
 }

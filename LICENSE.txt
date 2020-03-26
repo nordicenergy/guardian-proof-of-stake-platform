@@ -2,13 +2,13 @@ Copyright © 2013-2016 The Nxt Core Developers.
 Copyright © 2016-2019 Jelurida IP B.V.
 
 This program is distributed under the terms of the Jelurida Public License
-version 1.1 for the Nxt Public Blockchain Platform.
+version 1.2 for the Ardor Public Blockchain Platform.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-Please contact Nordic Energy. at info@jelurida.com for commercial licensing
+Please contact Jelurida B.V. at info@jelurida.com for commercial licensing
 options if the Jelurida Public License does not fit your private blockchain
 needs.
 
@@ -20,7 +20,7 @@ This software also uses third party code and libraries, distributed under
 licenses described in 3RD-PARTY-LICENSES.txt.
 
 Below is the full text of the Jelurida Public License version 1.1 for
-the Nxt Public Blockchain Platform:
+the Ardor Public Blockchain Platform:
 
 
 JELURIDA PUBLIC LICENSE
@@ -88,7 +88,7 @@ Public License and any other license terms and conditions other than this JPL
 are explicitly excluded.
 
 
-JPL version: 1.1
+JPL version: 1.2
 
 
 Article 0. Definitions:
@@ -288,6 +288,11 @@ way distributes tokens to its users. The specific percentage of the airdrop
 and the tokens to which it applies, which may also depend on how the new DLT
 Instance relates to the original one, are defined in the Special Conditions.
 
+3.4.2 For the avoidance of doubt, satisfying the requirements of article 3.4.1
+for another work (i.e. a different DLT Instance) of the same or different
+copyright holder, released under the JPL, does not give permission of copying
+or porting any code from this one and vice versa.
+
 3.5 All other provisions, designated in the Special Conditions and consistent
 with the specific requirements arising from the architecture of each particular
 decentralized ledger/consensus platform, are observed as well.
@@ -466,41 +471,51 @@ of liability accompanies a copy of the Covered Work in return for a fee.
 
 II. Special Conditions
 
-Article 0. The Copyright Holder of the Nxt Reference Software (NRS) is Jelurida
-IP B.V.
+Article 0. The Copyright Holder of the Ardor Software is Jelurida IP B.V.
 
 
 Article 1. The airdrop requirement of Article 3.4.1 of the General Conditions,
-as related to the Nxt Reference Software (NRS) is the following:
+as related to the Ardor Software is the following:
 
-1.1 The NXT holders from the original Nxt Public Blockchain Platform as
-maintained by Jelurida Swiss SA must be allocated at least 10% (ten percent) of
-the forging tokens in the new DLT Instance, proportional to their NXT holdings,
+1.1 The IGNIS holders from the original Ardor Public Blockchain Platform as
+maintained by Jelurida Swiss SA must be allocated at least 10% (ten percent)
+of the forging tokens in the new DLT Instance, proportional to their IGNIS
+holdings,
 
 OR
 
-1.2 The forging token holders from a DLT Instance which is based on the NRS that
-has already satisfied the JPL airdrop requirement, are allocated 100% (one
-hundred percent) of the forging tokens in that new DLT Instance, proportional to
-their forging token holdings.
+1.2 The ARDR holders from the original Ardor Public Blockchain Platform as
+maintained by Jelurida Swiss SA, or the forging token holders from a DLT
+Instance which is based on the Ardor Software that has already satisfied the
+JPL airdrop requirements, are allocated 100% (one hundred percent) of the
+forging tokens in that new DLT Instance, proportional to their forging token
+holdings.
 
-The first case covers clones and forks of the Nxt platform, and ensures that NXT
-owners will receive an airdrop from any such clone or fork launched in the
-future, or any existing Nxt clone that decides to upgrade to this NRS version or
-copy or backport code from it.
+The first case covers clones of the Ardor platform, and ensures that IGNIS
+owners will receive an airdrop from any such clone launched in the future, or
+any existing Nxt clone that decides to either migrate to the Ardor Source Code
+or copy or backport code from it.
 
-The second case is to cover forks of Nxt clones which have already satisfied the
-JPL airdrop, as by definition at the time of the hard fork all accounts start
-with the same balances on either fork, and it would be difficult to make a hard
-fork satisfy the first condition. The Nxt holders who received the airdrop
-would still have the same balances on either fork.
+The second case is to cover forks, including forks of Ardor clones, as by
+definition at the time of the hard fork all accounts start with the same
+balances on either fork, and it would be difficult to make a hard fork satisfy
+the first condition. In the case of an Ardor platform clone which undergoes a
+fork, the original IGNIS holders who received the airdrop would still have the
+same balances on either fork.
 
 
-Article 2. In both cases (Articles 1.1 or 1.2 of the Special Conditions), token
+Article 2.
+
+2.1 In both cases (Articles 1.1 or 1.2 of the Special Conditions), token
 holdings must be calculated based on a snapshot taken not earlier than 3 months
 before the launch of the new DLT Instance. For a new DLT Instance, the snapshot
 should also be taken not later than 24 h before the launch, to avoid the
 uncertainty due to the 720 blocks rolling checkpoint.
+
+2.2 The airdrop, and the fact that it is being done in order to satisfy this
+license, should be clearly announced in any places or media that describe the
+distribution of the tokens of the new DLT Instance, at least one month before
+the snapshot date.
 
 
 Article 3.
@@ -509,30 +524,30 @@ Article 3.
 discrimination against accounts receiving tokens as an airdrop.
 
 3.2 If token distribution must be restricted by some criteria that not all
-existing NXT holders can potentially satisfy, a specific exemption from the full
-JPL airdrop requirements must be obtained in advance. The Copyright Holder
+existing IGNIS holders can potentially satisfy, a specific exemption from the
+full JPL airdrop requirements must be obtained in advance. The Copyright Holder
 reserves the right to not grant such exemption, or to require a commercial
 license in such situations, to be decided on a case by case basis.
 
-3.3 As internal (private) use of Nxt software for evaluating and testing
+3.3 As internal (private) use of Ardor software for evaluating and testing
 purposes cannot satisfy the JPL airdrop requirement, any such use will also
 require an evaluation license agreement with the Copyright Holder if it lasts
 longer than 3 months.
 
-3.4 Nothing in this license shall be understood as giving NXT token holders the
-right to hold the Licensor, its affiliate parties, or sublicensors, liable in
-case the NXT holders do not obtain any airdrop, or liable for not taking action
-to enforce the airdrop requirement, or for not observing, verifying or
+3.4 Nothing in this license shall be understood as giving IGNIS token holders
+the right to hold the Licensor, its affiliate parties, or sublicensors, liable
+in case the IGNIS holders do not obtain any airdrop, or liable for not taking
+action to enforce the airdrop requirement, or for not observing, verifying or
 monitoring the compliance with any airdrop. The Licensor also retains the right
 to change the percentage of the airdrop requirement in Article 1.1 or to
 completely eliminate this airdrop requirement at any time.
 
 
 Article 4. DLT Instances that by design do not use a fixed number of tokens
-issued all at once, or that have substituted the proof-of-stake algorithm with a
-different one and as a result do not use forging tokens, have to contact the
-Copyright Holder for a custom license agreement. However the Copyright Holder is
-in no way obliged to provide such a custom license.
+issued all at once, or that have substituted the proof-of-stake algorithm with
+a different one and as a result do not use forging tokens, have to contact the
+Copyright Holder for a custom license agreement. However the Copyright Holder
+is in no way obliged to provide such a custom license.
 
 
 Article 5. Interpretation
@@ -554,3 +569,4 @@ of the Netherlands. Any and all disputes arising out of or in connection with
 this License, the documents related to it and any agreement that incorporates
 any of these shall be exclusively referred to the competent court in Amsterdam,
 the Netherlands.
+

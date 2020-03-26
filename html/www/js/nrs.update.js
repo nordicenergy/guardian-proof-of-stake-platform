@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -18,17 +18,17 @@
  * @depends {nrs.js}
  */
 var NRS = (function(NRS, $) {
-	var DOWNLOAD_REPOSITORY_URL = "https://bitbucket.org/Jelurida/nxt/downloads/";
+	var DOWNLOAD_REPOSITORY_URL = "https://bitbucket.org/Jelurida/ardor/downloads/";
 	var index = 0;
 	var bundles = [
-		{alias: "nrsVersion", status: "release", prefix: "nxt-client-", ext: "zip"},
-		{alias: "nrsBetaVersion", status: "beta", prefix: "nxt-client-", ext: "zip"},
-		{alias: "nrsVersionWin", status: "release", prefix: "nxt-client-", ext: "exe"},
-		{alias: "nrsBetaVersionWin", status: "beta", prefix: "nxt-client-", ext: "exe"},
-		{alias: "nrsVersionMac", status: "release", prefix: "nxt-installer-", ext: "dmg"},
-		{alias: "nrsBetaVersionMac", status: "beta", prefix: "nxt-installer-", ext: "dmg"},
-		{alias: "nrsVersionLinux", status: "release", prefix: "nxt-client-", ext: "sh"},
-		{alias: "nrsBetaVersionLinux", status: "beta", prefix: "nxt-client-", ext: "sh"}
+		{alias: "nrsVersion", status: "release", prefix: "ardor-client-", ext: "zip"},
+		{alias: "nrsBetaVersion", status: "beta", prefix: "ardor-client-", ext: "zip"},
+		{alias: "nrsVersionWin", status: "release", prefix: "ardor-client-", ext: "exe"},
+		{alias: "nrsBetaVersionWin", status: "beta", prefix: "ardor-client-", ext: "exe"},
+		{alias: "nrsVersionMac", status: "release", prefix: "ardor-installer-", ext: "dmg"},
+		{alias: "nrsBetaVersionMac", status: "beta", prefix: "ardor-installer-", ext: "dmg"},
+		{alias: "nrsVersionLinux", status: "release", prefix: "ardor-client-", ext: "sh"},
+		{alias: "nrsBetaVersionLinux", status: "beta", prefix: "ardor-client-", ext: "sh"}
 	];
 	NRS.isOutdated = false;
 
@@ -105,7 +105,7 @@ var NRS = (function(NRS, $) {
 		updateHashProgress.show();
 		var worker = new Worker("js/crypto/sha256worker.js");
 		worker.onmessage = function(e) {
-			if (e.data.progress) {
+			if (e.data.progress !== undefined) {
 				$("#nrs_update_hash_progress").css("width", e.data.progress + "%");
 			} else {
 				$("#nrs_update_hash_progress").hide();
@@ -186,13 +186,14 @@ var NRS = (function(NRS, $) {
 
 		return false;
 	};
-
+	
     // Get latest version number and hash of version specified by the alias
     function getVersionInfo(callback) {
 		var aliasName = bundles[index].alias;
 		index ++;
         NRS.sendRequest("getAlias", {
-            "aliasName": aliasName
+            "aliasName": aliasName,
+			"chain": 2
         }, function (response) {
             if (response.aliasURI) {
                 var token = response.aliasURI.trim().split(" ");

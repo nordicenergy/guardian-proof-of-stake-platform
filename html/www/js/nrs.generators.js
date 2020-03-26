@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -118,7 +118,7 @@ var NRS = (function(NRS) {
         var remaining = generator.deadline - (NRS.toEpochTime() - lastBlockTime) + TIME_DRIFT;
         return {
             accountFormatted: NRS.getAccountLink(generator, "account"),
-            balanceFormatted: NRS.formatAmount(generator.effectiveBalanceNXT),
+            balanceFormatted: NRS.formatAmount(generator.effectiveBalanceFXT),
             hitTimeFormatted: NRS.formatTimestamp(generator.hitTime),
             deadline: generator.deadline,
             remaining: remaining

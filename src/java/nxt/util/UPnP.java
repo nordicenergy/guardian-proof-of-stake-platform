@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,6 +17,7 @@
 package nxt.util;
 
 import nxt.Nxt;
+import nxt.util.security.BlockchainPermission;
 import org.bitlet.weupnp.GatewayDevice;
 import org.bitlet.weupnp.GatewayDiscover;
 
@@ -45,6 +47,11 @@ public class UPnP {
      * @param   port                Port to add
      */
     public static synchronized void addPort(int port) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("upnp"));
+        }
+
         if (!initDone)
             init();
         //
@@ -73,6 +80,11 @@ public class UPnP {
      * @param   port                Port to delete
      */
     public static synchronized void deletePort(int port) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("upnp"));
+        }
+
         if (!initDone || gateway == null)
             return;
         //
@@ -95,6 +107,11 @@ public class UPnP {
      * @return                      Local address or null if the address is not available
      */
     public static synchronized InetAddress getLocalAddress() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("upnp"));
+        }
+
         if (!initDone)
             init();
         return localAddress;
@@ -106,6 +123,11 @@ public class UPnP {
      * @return                      External address or null if the address is not available
      */
     public static synchronized InetAddress getExternalAddress() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("upnp"));
+        }
+
         if (!initDone)
             init();
         return externalAddress;

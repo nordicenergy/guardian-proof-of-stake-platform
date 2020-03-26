@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,11 +16,12 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Alias;
-import nxt.Attachment;
 import nxt.Constants;
 import nxt.NxtException;
+import nxt.account.Account;
+import nxt.aliases.AliasHome;
+import nxt.aliases.AliasSellAttachment;
+import nxt.blockchain.Attachment;
 import nxt.util.Convert;
 import org.json.simple.JSONStreamAware;
 
@@ -39,7 +41,7 @@ public final class SellAlias extends CreateTransaction {
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-        Alias alias = ParameterParser.getAlias(req);
+        AliasHome.Alias alias = ParameterParser.getAlias(req);
         Account owner = ParameterParser.getSenderAccount(req);
 
         long priceNQT = ParameterParser.getLong(req, "priceNQT", 0L, Constants.MAX_BALANCE_NQT, true);
@@ -61,7 +63,12 @@ public final class SellAlias extends CreateTransaction {
             return INCORRECT_ALIAS_OWNER;
         }
 
-        Attachment attachment = new Attachment.MessagingAliasSell(alias.getAliasName(), priceNQT);
-        return createTransaction(req, owner, recipientId, 0, attachment);
+        Attachment attachment = new AliasSellAttachment(alias.getAliasName(), priceNQT);
+        return transactionParameters(req, owner, attachment).setRecipientId(recipientId).createTransaction();
+    }
+
+    @Override
+    String getDocsUrlPath() {
+        return "Aliases#Buy_.2F_Sell_Alias";
     }
 }

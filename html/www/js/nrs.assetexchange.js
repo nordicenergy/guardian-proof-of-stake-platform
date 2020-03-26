@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -17,7 +17,7 @@
 /**
  * @depends {nrs.js}
  */
-var NRS = (function (NRS, $, undefined) {
+var NRS = (function (NRS, $) {
     var assets;
     var assetIds;
     var closedGroups;
@@ -27,6 +27,7 @@ var NRS = (function (NRS, $, undefined) {
     var assetTradeHistoryType;
     var currentAssetID;
     var selectedApprovalAsset;
+    var assetControlParams;
 
     NRS.resetAssetExchangeState = function () {
         assets = [];
@@ -38,6 +39,7 @@ var NRS = (function (NRS, $, undefined) {
         assetTradeHistoryType = "everyone";
         currentAssetID = 0;
         selectedApprovalAsset = "";
+        assetControlParams = false;
     };
     NRS.resetAssetExchangeState();
 
@@ -47,6 +49,21 @@ var NRS = (function (NRS, $, undefined) {
 
     NRS.getCurrentAsset = function() {
         return currentAsset;
+    };
+
+    NRS.isSubjectToAssetControl = function(requestType) {
+        if ($.inArray(requestType, NRS.constants.ASSET_EXCHANGE_REQUEST_TYPES) > -1) {
+            if ("hasPhasingAssetControl" in currentAsset) {
+                return currentAsset.hasPhasingAssetControl;
+            } else if (assetControlParams) {
+                return assetControlParams.phasingVotingModel >= 0;
+            }
+        }
+        return false;
+    };
+
+    NRS.getCurrentAssetControl = function() {
+        return assetControlParams;
     };
 
     function loadAssetFromURL() {
@@ -61,7 +78,6 @@ var NRS = (function (NRS, $, undefined) {
             });
             return;
         }
-        page = page.escapeHTML();
         asset = asset.escapeHTML();
         NRS.sendRequest("getAsset", {
             "asset": asset
@@ -71,6 +87,7 @@ var NRS = (function (NRS, $, undefined) {
                     "type": "danger"
                 });
             } else {
+                updateAssetStorage(response);
                 NRS.loadAsset(response, false);
             }
         });
@@ -145,6 +162,7 @@ var NRS = (function (NRS, $, undefined) {
             "account": String(asset.account),
             "accountRS": String(asset.accountRS),
             "quantityQNT": String(asset.quantityQNT),
+            "hasPhasingAssetControl": (asset.hasPhasingAssetControl ? 1 : 0),
             "decimals": parseInt(asset.decimals, 10)
         };
         assets.push(cachedAsset);
@@ -200,6 +218,7 @@ var NRS = (function (NRS, $, undefined) {
                         }
                     });
                 } else {
+                    updateAssetStorage(response);
                     NRS.saveAssetBookmarks(new Array(response), NRS.forms.addAssetBookmarkComplete);
                 }
             });
@@ -257,6 +276,7 @@ var NRS = (function (NRS, $, undefined) {
                 "accountRS": String(asset.accountRS),
                 "quantityQNT": String(asset.quantityQNT),
                 "decimals": parseInt(asset.decimals, 10),
+                "hasPhasingAssetControl": (asset.hasPhasingAssetControl ? 1 : 0),
                 "groupName": ""
             };
             newAssets.push(newAsset);
@@ -378,11 +398,11 @@ var NRS = (function (NRS, $, undefined) {
                     rows += (asset.groupName != "Ignore List" ? " data-context='asset_exchange_sidebar_group_context' " : "data-context=''");
                     rows += " data-groupname='" + NRS.escapeRespStr(asset.groupName) + "' data-closed='" + isClosedGroup + "'>";
                     rows += "<h4 class='list-group-item-heading'>" + NRS.unescapeRespStr(asset.groupName).toUpperCase().escapeHTML() + "</h4>";
-                    rows += "<i class='fa fa-angle-" + (isClosedGroup ? "right" : "down") + " group_icon'></i></h4></a>";
+                    rows += "<i class='far fa-angle-" + (isClosedGroup ? "right" : "down") + " group_icon'></i></h4></a>";
                 } else {
                     ungrouped = true;
                     rows += "<a href='#' class='list-group-item list-group-item-header no-context' data-closed='" + isClosedGroup + "'>";
-                    rows += "<h4 class='list-group-item-heading'>UNGROUPED <i class='fa pull-right fa-angle-" + (isClosedGroup ? "right" : "down") + "'></i></h4>";
+                    rows += "<h4 class='list-group-item-heading'>UNGROUPED <i class='far pull-right fa-angle-" + (isClosedGroup ? "right" : "down") + "'></i></h4>";
                     rows += "</a>";
                 }
                 lastGroup = asset.groupName.toLowerCase();
@@ -430,7 +450,11 @@ var NRS = (function (NRS, $, undefined) {
                 exchangeSidebar.find("a[data-asset=" + assetSearch[0] + "]").addClass("active").trigger("click");
             }
         } else if (active) {
-            exchangeSidebar.find("a[data-asset=" + active + "]").addClass("active");
+            var activeAsset = exchangeSidebar.find("a[data-asset=" + active + "]");
+            activeAsset.addClass("active");
+            if (!callback) {
+                activeAsset.trigger("click");
+            }
         }
 
         if (isSearch || assets.length >= 10) {
@@ -553,7 +577,8 @@ var NRS = (function (NRS, $, undefined) {
                 "scrollTop": 0
             }, 0);
             $("#asset_account").html(NRS.getAccountLink(asset, "account"));
-            $("#asset_id").html(NRS.getTransactionLink(assetId));
+            $("#asset_id").html(NRS.getEntityLink({ request: "getAsset", key: "asset", id: assetId }) +
+                "&nbsp;<span><a class='btn btn-default btn-xs copy_link' href='#' data-clipboard-target='#asset_id a'><span class='far fa-copy'></span></a></span>");
             $("#asset_decimals").html(NRS.escapeRespStr(asset.decimals));
             $("#asset_name").html(NRS.escapeRespStr(asset.name));
             $("#asset_description").html(String(asset.description).autoLink());
@@ -561,11 +586,12 @@ var NRS = (function (NRS, $, undefined) {
             $("#sell_asset_button").data("asset", assetId);
             $("#buy_asset_button").data("asset", assetId);
             $("#view_asset_distribution_link").data("asset", assetId);
-            $("#sell_asset_for_nxt").html($.t("sell_asset_for_nxt", {
-                "assetName": NRS.escapeRespStr(asset.name), "symbol": NRS.constants.COIN_SYMBOL
+            $("#asset_properties_link").data("asset", assetId);
+            $("#sell_asset_for_nxt").html($.t("sell_asset_for_coin", {
+                assetName: NRS.escapeRespStr(asset.name), coin: NRS.getActiveChainName()
             }));
-            $("#buy_asset_with_nxt").html($.t("buy_asset_with_nxt", {
-                "assetName": NRS.escapeRespStr(asset.name), "symbol": NRS.constants.COIN_SYMBOL
+            $("#buy_asset_with_nxt").html($.t("buy_asset_with_coin", {
+                assetName: NRS.escapeRespStr(asset.name), coin: NRS.getActiveChainName()
             }));
             $("#sell_asset_price, #buy_asset_price").val("");
             $("#sell_asset_quantity, #sell_asset_total, #buy_asset_quantity, #buy_asset_total").val("0");
@@ -612,6 +638,8 @@ var NRS = (function (NRS, $, undefined) {
                                 });
                             }, 50);
                         });
+                    } else {
+                        updateAssetStorage(response);
                     }
                     $("#asset_quantity").html(NRS.formatQuantity(response.quantityQNT, response.decimals));
                 }
@@ -626,11 +654,25 @@ var NRS = (function (NRS, $, undefined) {
             }
         }
 
-        // Only asset issuers have the ability to pay dividends.
+        if (asset.hasPhasingAssetControl || asset.accountRS == NRS.accountRS) {
+            $("#asset_control_links").show();
+        } else {
+            $("#asset_control_links").hide();
+        }
+
+        if (asset.hasPhasingAssetControl) {
+            $("#view_asset_control_link").show();
+        } else {
+            $("#view_asset_control_link").hide();
+        }
+
+        // Only asset issuers have the ability to pay dividends and change asset control
         if (asset.accountRS == NRS.accountRS) {
             $("#dividend_payment_link").show();
+            $("#setup_asset_control_link").show();
         } else {
             $("#dividend_payment_link").hide();
+            $("#setup_asset_control_link").hide();
         }
 
         if (NRS.accountInfo.unconfirmedBalanceNQT == "0") {
@@ -664,6 +706,9 @@ var NRS = (function (NRS, $, undefined) {
 
         NRS.loadAssetOrders("ask", assetId, refresh);
         NRS.loadAssetOrders("bid", assetId, refresh);
+        if (asset.hasPhasingAssetControl) {
+            NRS.loadAssetControl(assetId);
+        }
         NRS.getAssetTradeHistory(assetId, refresh);
         NRS.getAssetDividendHistory(assetId, "asset_dividend");
     };
@@ -677,30 +722,30 @@ var NRS = (function (NRS, $, undefined) {
             var quantityDecimals = NRS.getNumberOfDecimals(orders, "quantityQNT", function(val) {
                 return NRS.formatQuantity(val.quantityQNT, currentAsset.decimals);
             });
-            var priceDecimals = NRS.getNumberOfDecimals(orders, "priceNQT", function(val) {
-                return NRS.formatOrderPricePerWholeQNT(val.priceNQT, currentAsset.decimals);
+            var priceDecimals = NRS.getNumberOfDecimals(orders, "priceNQTPerShare", function(val) {
+                return NRS.formatQuantity(val.priceNQTPerShare, NRS.getActiveChainDecimals());
             });
             var amountDecimals = NRS.getNumberOfDecimals(orders, "totalNQT", function(val) {
-                return NRS.formatAmount(NRS.calculateOrderTotalNQT(val.quantityQNT, val.priceNQT));
+                return NRS.formatQuantity(NRS.multiply(val.quantityQNT, val.priceNQTPerShare), currentAsset.decimals + NRS.getActiveChainDecimals());
             });
             for (var i = 0; i < orders.length; i++) {
                 order = orders[i];
-                order.priceNQT = new BigInteger(order.priceNQT);
+                order.priceNQTPerShare = new BigInteger(order.priceNQTPerShare);
                 order.quantityQNT = new BigInteger(order.quantityQNT);
-                order.totalNQT = new BigInteger(NRS.calculateOrderTotalNQT(order.quantityQNT, order.priceNQT));
+                order.totalNQT = new BigInteger(NRS.multiply(order.quantityQNT, order.priceNQTPerShare));
                 sum = sum.add(order.totalNQT);
                 if (i == 0 && !refresh) {
-                    $("#" + (type == "ask" ? "buy" : "sell") + "_asset_price").val(NRS.calculateOrderPricePerWholeQNT(order.priceNQT, currentAsset.decimals));
+                    $("#" + (type == "ask" ? "buy" : "sell") + "_asset_price").val(NRS.convertToQNTf(order.priceNQTPerShare, NRS.getActiveChainDecimals()));
                 }
                 var statusIcon = NRS.getTransactionStatusIcon(order);
                 var className = (order.account == NRS.account ? "your-order" : "");
-                rows += "<tr class='" + className + "' data-transaction='" + NRS.escapeRespStr(order.order) + "' data-quantity='" + order.quantityQNT.toString().escapeHTML() + "' data-price='" + order.priceNQT.toString().escapeHTML() + "'>" +
-                    "<td>" + NRS.getTransactionLink(order.order, statusIcon, true) + "</td>" +
+                rows += "<tr class='" + className + "' data-transaction='" + NRS.escapeRespStr(order.order) + "' data-quantity='" + order.quantityQNT.toString().escapeHTML() + "' data-price='" + order.priceNQTPerShare.toString().escapeHTML() + "'>" +
+                    "<td>" + NRS.getTransactionLink(order.orderFullHash, statusIcon, true) + "</td>" +
                     "<td>" + NRS.getAccountLink(order, "account", currentAsset.accountRS, "asset_issuer") + "</td>" +
                     "<td class='numeric'>" + NRS.formatQuantity(order.quantityQNT, currentAsset.decimals, false, quantityDecimals) + "</td>" +
-                    "<td class='numeric'>" + NRS.formatOrderPricePerWholeQNT(order.priceNQT, currentAsset.decimals, priceDecimals) + "</td>" +
-                    "<td class='numeric'>" + NRS.formatAmount(order.totalNQT, false, false, amountDecimals) + "</td>" +
-                    "<td class='numeric'>" + NRS.formatAmount(sum, false, false, amountDecimals) + "</td>" +
+                    "<td class='numeric'>" + NRS.formatQuantity(order.priceNQTPerShare, NRS.getActiveChainDecimals(), false, priceDecimals) + "</td>" +
+                    "<td class='numeric'>" + NRS.formatQuantity(order.totalNQT, currentAsset.decimals + NRS.getActiveChainDecimals(), false, amountDecimals) + "</td>" +
+                    "<td class='numeric'>" + NRS.formatQuantity(sum, currentAsset.decimals + NRS.getActiveChainDecimals(), false, amountDecimals) + "</td>" +
                 "</tr>";
             }
             $("#asset_exchange_" + type + "_orders_table tbody").empty().append(rows);
@@ -752,57 +797,12 @@ var NRS = (function (NRS, $, undefined) {
             var orders = results[0].concat(results[1]);
             orders.sort(function (a, b) {
                 if (type == "ask") {
-                    return a.priceNQT - b.priceNQT;
+                    return a.priceNQTPerShare - b.priceNQTPerShare;
                 } else {
-                    return b.priceNQT - a.priceNQT;
+                    return b.priceNQTPerShare - a.priceNQTPerShare;
                 }
             });
             processOrders(orders, type, refresh);
-        });
-    };
-
-    NRS.getAssetDividendHistory = function (assetId, table) {
-        var assetExchangeDividendHistoryTable = $("#" + table + "table");
-        assetExchangeDividendHistoryTable.find("tbody").empty();
-        assetExchangeDividendHistoryTable.parent().addClass("data-loading").removeClass("data-empty");
-        var options = {
-            "asset": assetId
-        };
-        var view = NRS.simpleview.get(table, {
-            errorMessage: null,
-            isLoading: true,
-            isEmpty: false,
-            data: []
-        });
-        NRS.sendRequest("getAssetDividends+", options, function (response) {
-            var dividends = response.dividends;
-            var amountDecimals = NRS.getNumberOfDecimals(dividends, "totalDividend", function(val) {
-                return NRS.formatAmount(val.totalDividend);
-            });
-            var accountsDecimals = NRS.getNumberOfDecimals(dividends, "numberOfAccounts", function(val) {
-                return NRS.formatAmount(val.numberOfAccounts);
-            });
-            var amountNQTPerQNTDecimals = NRS.getNumberOfDecimals(dividends, "amountNQTPerQNT", function(val) {
-                return NRS.formatOrderPricePerWholeQNT(val.amountNQTPerQNT, currentAsset.decimals);
-            });
-            for (var i = 0; i < dividends.length; i++) {
-                var dividend = dividends[i];
-                dividend.numberOfAccounts = new BigInteger(dividend.numberOfAccounts.toString());
-                dividend.amountNQTPerQNT = new BigInteger(dividend.amountNQTPerQNT);
-                dividend.totalDividend = new BigInteger(dividend.totalDividend);
-                view.data.push({
-                    "timestamp": NRS.getTransactionLink(dividend.assetDividend, NRS.formatTimestamp(dividend.timestamp)),
-                    "dividend_height": String(dividend.dividendHeight).escapeHTML(),
-                    "total": NRS.formatAmount(dividend.totalDividend, false, false, amountDecimals),
-                    "accounts": NRS.formatQuantity(dividend.numberOfAccounts, false, false, accountsDecimals),
-                    "amount_per_share": NRS.formatOrderPricePerWholeQNT(dividend.amountNQTPerQNT, currentAsset.decimals, amountNQTPerQNTDecimals)
-                })
-            }
-            view.render({
-                isLoading: false,
-                isEmpty: view.data.length == 0
-            });
-            NRS.pageLoaded();
         });
     };
 
@@ -825,22 +825,22 @@ var NRS = (function (NRS, $, undefined) {
                 var quantityDecimals = NRS.getNumberOfDecimals(trades, "quantityQNT", function(val) {
                     return NRS.formatQuantity(val.quantityQNT, currentAsset.decimals);
                 });
-                var priceDecimals = NRS.getNumberOfDecimals(trades, "priceNQT", function(val) {
-                    return NRS.formatOrderPricePerWholeQNT(val.priceNQT, currentAsset.decimals);
+                var priceDecimals = NRS.getNumberOfDecimals(trades, "priceNQTPerShare", function(val) {
+                    return NRS.formatQuantity(val.priceNQTPerShare, NRS.getActiveChainDecimals());
                 });
                 var amountDecimals = NRS.getNumberOfDecimals(trades, "sum", function(val) {
-                    return NRS.formatAmount(NRS.calculateOrderTotalNQT(val.quantityQNT, val.priceNQT));
+                    return NRS.formatQuantity(NRS.multiply(val.quantityQNT, val.priceNQTPerShare), val.decimals + NRS.getActiveChainDecimals());
                 });
                 for (var i = 0; i < trades.length; i++) {
                     var trade = trades[i];
-                    trade.priceNQT = new BigInteger(trade.priceNQT);
+                    trade.priceNQTPerShare = new BigInteger(trade.priceNQTPerShare);
                     trade.quantityQNT = new BigInteger(trade.quantityQNT);
-                    trade.totalNQT = new BigInteger(NRS.calculateOrderTotalNQT(trade.priceNQT, trade.quantityQNT));
+                    trade.totalNQT = new BigInteger(NRS.multiply(trade.priceNQTPerShare, trade.quantityQNT));
                     rows += "<tr>" +
-                        "<td>" + NRS.getTransactionLink(trade.bidOrder, NRS.formatTimestamp(trade.timestamp)) + "</td>" +
+                        "<td>" + NRS.getTransactionLink(trade.bidOrderFullHash, NRS.formatTimestamp(trade.timestamp)) + "</td>" +
                         "<td>" + $.t(trade.tradeType) + "</td>" +
                         "<td class='numeric'>" + NRS.formatQuantity(trade.quantityQNT, currentAsset.decimals, false, quantityDecimals) + "</td>" +
-                        "<td class='asset_price numeric'>" + NRS.formatOrderPricePerWholeQNT(trade.priceNQT, currentAsset.decimals, priceDecimals) + "</td>" +
+                        "<td class='asset_price numeric'>" + NRS.formatQuantity(trade.priceNQTPerShare, NRS.getActiveChainDecimals(), false, priceDecimals) + "</td>" +
                         "<td style='text-align:right;color:";
                         if (trade.buyer == NRS.account && trade.buyer != trade.seller) {
                             rows += "red";
@@ -849,7 +849,7 @@ var NRS = (function (NRS, $, undefined) {
                         } else {
                             rows += "black";
                         }
-                    rows += "'>" + NRS.formatAmount(trade.totalNQT, false, false, amountDecimals) + "</td>" +
+                    rows += "'>" + NRS.formatQuantity(trade.totalNQT, currentAsset.decimals + NRS.getActiveChainDecimals(), false, amountDecimals) + "</td>" +
                         "<td>" + NRS.getAccountLink(trade, "buyer", currentAsset.accountRS, "asset_issuer") + "</td>" +
                         "<td>" + NRS.getAccountLink(trade, "seller", currentAsset.accountRS, "asset_issuer") + "</td>" +
                     "</tr>";
@@ -859,6 +859,15 @@ var NRS = (function (NRS, $, undefined) {
             } else {
                 exchangeTradeHistoryTable.find("tbody").empty();
                 NRS.dataLoadFinished(exchangeTradeHistoryTable, !refresh);
+            }
+        });
+    };
+
+    NRS.loadAssetControl = function(assetId, callback) {
+        NRS.sendRequest("getPhasingAssetControl", { 'asset': assetId }, function (response) {
+            assetControlParams = response.controlParams;
+            if (callback) {
+                callback();
             }
         });
     };
@@ -936,25 +945,26 @@ var NRS = (function (NRS, $, undefined) {
         var type = ($target.closest("table").attr("id") == "asset_exchange_bid_orders_table" ? "sell" : "buy");
         var $tr = $target.closest("tr");
         try {
-            var priceNQT = new BigInteger(String($tr.data("price")));
+            var priceNQTPerShare = new BigInteger(String($tr.data("price")));
             var quantityQNT = new BigInteger(String($tr.data("quantity")));
-            var totalNQT = new BigInteger(NRS.calculateOrderTotalNQT(quantityQNT, priceNQT));
+            var totalNQTQNT = new BigInteger(NRS.multiply(quantityQNT, priceNQTPerShare));
 
-            $("#" + type + "_asset_price").val(NRS.calculateOrderPricePerWholeQNT(priceNQT, currentAsset.decimals));
+            $("#" + type + "_asset_price").val(NRS.convertToQNTf(priceNQTPerShare, NRS.getActiveChainDecimals()));
             $("#" + type + "_asset_quantity").val(NRS.convertToQNTf(quantityQNT, currentAsset.decimals));
-            $("#" + type + "_asset_total").val(NRS.convertToNXT(totalNQT));
+            $("#" + type + "_asset_total").val(NRS.intToFloat(totalNQTQNT, NRS.getActiveChainDecimals() + currentAsset.decimals));
         } catch (err) {
             return;
         }
 
         if (type == "buy") {
             try {
-                var balanceNQT = new BigInteger(NRS.accountInfo.unconfirmedBalanceNQT);
+                var balanceNQTQNT = new BigInteger(NRS.floatToInt(NRS.accountInfo.unconfirmedBalanceNQT, currentAsset.decimals));
             } catch (err) {
+                NRS.logConsole("asset_exchange_bid_orders_table click " + err.message);
                 return;
             }
-
-            if (totalNQT.compareTo(balanceNQT) > 0) {
+            NRS.logConsole("asset_exchange_bid_orders_table click total " + totalNQTQNT + " balance " + balanceNQTQNT);
+            if (totalNQTQNT.compareTo(balanceNQTQNT) > 0) {
                 $("#" + type + "_asset_total").css({
                     "background": "#ED4348",
                     "color": "white"
@@ -1018,15 +1028,10 @@ var NRS = (function (NRS, $, undefined) {
         }
     });
 
-    $("#buy_asset_quantity, #buy_asset_price, #sell_asset_quantity, #sell_asset_price").keydown(function (e) {
-        var charCode = !e.charCode ? e.which : e.charCode;
-        if (NRS.isControlKey(charCode) || e.ctrlKey || e.metaKey) {
-            return;
-        }
+    $("#buy_asset_quantity, #buy_asset_price, #sell_asset_quantity, #sell_asset_price").decimalValidation(function() {
         var isQuantityField = /_quantity/i.test($(this).attr("id"));
         var decimals = currentAsset.decimals;
-        var maxFractionLength = (isQuantityField ? decimals : 8 - decimals);
-        NRS.validateDecimals(maxFractionLength, charCode, $(this).val(), e);
+        return isQuantityField ? decimals : NRS.getActiveChainDecimals();
     });
 
     //calculate preview price (calculated on every keypress)
@@ -1034,12 +1039,12 @@ var NRS = (function (NRS, $, undefined) {
         var orderType = $(this).data("type").toLowerCase();
         try {
             var quantityQNT = new BigInteger(NRS.convertToQNT(String($("#" + orderType + "_asset_quantity").val()), currentAsset.decimals));
-            var priceNQT = new BigInteger(NRS.calculatePricePerWholeQNT(NRS.convertToNQT(String($("#" + orderType + "_asset_price").val())), currentAsset.decimals));
+            var priceNQTPerShare = new BigInteger(NRS.convertToNQT(String($("#" + orderType + "_asset_price").val())));
 
-            if (priceNQT.toString() == "0" || quantityQNT.toString() == "0") {
+            if (priceNQTPerShare.toString() == "0" || quantityQNT.toString() == "0") {
                 $("#" + orderType + "_asset_total").val("0");
             } else {
-                var total = NRS.calculateOrderTotal(quantityQNT, priceNQT, currentAsset.decimals);
+                var total = NRS.convertToQNTf(NRS.multiply(quantityQNT, priceNQTPerShare), currentAsset.decimals + NRS.getActiveChainDecimals());
                 $("#" + orderType + "_asset_total").val(total.toString());
             }
         } catch (err) {
@@ -1055,56 +1060,56 @@ var NRS = (function (NRS, $, undefined) {
         $(".asset_order_modal_type").html(orderType);
 
         orderType = orderType.toLowerCase();
+        var quantity = String($("#" + orderType + "_asset_quantity").val());
+        var price = String($("#" + orderType + "_asset_price").val());
         try {
-            var quantity = String($("#" + orderType + "_asset_quantity").val());
             var quantityQNT = new BigInteger(NRS.convertToQNT(quantity, currentAsset.decimals));
-            var priceNQT = new BigInteger(NRS.calculatePricePerWholeQNT(NRS.convertToNQT(String($("#" + orderType + "_asset_price").val())), currentAsset.decimals));
-            var totalNXT = NRS.formatAmount(NRS.calculateOrderTotalNQT(quantityQNT, priceNQT, currentAsset.decimals), false, true);
+            var priceNQTPerShare = new BigInteger(NRS.convertToNQT(price));
+            var totalNXT = NRS.formatQuantity(NRS.multiply(quantityQNT, priceNQTPerShare), currentAsset.decimals + NRS.getActiveChainDecimals(), false, true);
         } catch (err) {
-            $.growl($.t("error_invalid_input"), {
+            $.growl($.t("error_invalid_input", { input: "quantity " + quantity + " price " + price + " decimals " + currentAsset.decimals }), {
                 "type": "danger"
             });
             return e.preventDefault();
         }
 
-        if (priceNQT.toString() == "0" || quantityQNT.toString() == "0") {
+        if (priceNQTPerShare.toString() == "0" || quantityQNT.toString() == "0") {
             $.growl($.t("error_amount_price_required"), {
                 "type": "danger"
             });
             return e.preventDefault();
         }
 
-        var priceNQTPerWholeQNT = priceNQT.multiply(new BigInteger("" + Math.pow(10, currentAsset.decimals)));
         var description;
         var tooltipTitle;
         if (orderType == "buy") {
             description = $.t("buy_order_description", {
                 "quantity": NRS.formatQuantity(quantityQNT, currentAsset.decimals, true),
                 "asset_name": $("#asset_name").html().escapeHTML(),
-                "amount": NRS.formatAmount(priceNQTPerWholeQNT),
-                "symbol": NRS.constants.COIN_SYMBOL
+                "coin": NRS.getActiveChainName(),
+                "coin_amount": NRS.formatQuantity(priceNQTPerShare, NRS.getActiveChainDecimals())
             });
             tooltipTitle = $.t("buy_order_description_help", {
-                "amount": NRS.formatAmount(priceNQTPerWholeQNT, false, true),
-                "total": totalNXT,
-                "symbol": NRS.constants.COIN_SYMBOL
+                "coin_amount": NRS.formatQuantity(priceNQTPerShare, NRS.getActiveChainDecimals()),
+                "coin": NRS.getActiveChainName(),
+                "total_coin": totalNXT
             });
         } else {
             description = $.t("sell_order_description", {
                 "quantity": NRS.formatQuantity(quantityQNT, currentAsset.decimals, true),
                 "asset_name": $("#asset_name").html().escapeHTML(),
-                "amount": NRS.formatAmount(priceNQTPerWholeQNT),
-                "symbol": NRS.constants.COIN_SYMBOL
+                "coin": NRS.getActiveChainName(),
+                "coin_amount": NRS.formatQuantity(priceNQTPerShare, NRS.getActiveChainDecimals())
             });
             tooltipTitle = $.t("sell_order_description_help", {
-                "amount": NRS.formatAmount(priceNQTPerWholeQNT, false, true),
-                "total": totalNXT,
-                "symbol": NRS.constants.COIN_SYMBOL
+                "coin_amount": NRS.formatQuantity(priceNQTPerShare, NRS.getActiveChainDecimals()),
+                "coin": NRS.getActiveChainName(),
+                "total_coin": totalNXT
             });
         }
 
         $("#asset_order_description").html(description);
-        $("#asset_order_total").html(totalNXT + " " + NRS.constants.COIN_SYMBOL);
+        $("#asset_order_total").html(totalNXT + " " + NRS.getActiveChainName());
 
         var assetOrderTotalTooltip = $("#asset_order_total_tooltip");
         if (quantity != "1") {
@@ -1122,7 +1127,7 @@ var NRS = (function (NRS, $, undefined) {
         $("#asset_order_type").val((orderType == "buy" ? "placeBidOrder" : "placeAskOrder"));
         $("#asset_order_asset").val(assetId);
         $("#asset_order_quantity").val(quantityQNT.toString());
-        $("#asset_order_price").val(priceNQT.toString());
+        $("#asset_order_price").val(priceNQTPerShare.toString());
     });
 
     NRS.forms.orderAsset = function () {
@@ -1340,6 +1345,17 @@ var NRS = (function (NRS, $, undefined) {
         };
     };
 
+    NRS.forms.setPhasingAssetControl = function($modal) {
+        var data = NRS.getFormData($modal.find("form:first"));
+        if (data.holdingType == "0") {
+            data.holding = NRS.getActiveChainId();
+        }
+        data.asset = NRS.getCurrentAsset().asset;
+        return {
+            "data": data
+        };
+    };
+
     $("#asset_exchange_group_modal").on("hidden.bs.modal", function () {
         $("#asset_exchange_group_new_group_div").val("").hide();
     });
@@ -1361,26 +1377,26 @@ var NRS = (function (NRS, $, undefined) {
                 var quantityDecimals = NRS.getNumberOfDecimals(trades, "quantityQNT", function(val) {
                     return NRS.formatQuantity(val.quantityQNT, val.decimals);
                 });
-                var priceDecimals = NRS.getNumberOfDecimals(trades, "priceNQT", function(val) {
-                    return NRS.formatOrderPricePerWholeQNT(val.priceNQT, val.decimals);
+                var priceDecimals = NRS.getNumberOfDecimals(trades, "priceNQTPerShare", function(val) {
+                    return NRS.formatQuantity(val.priceNQTPerShare, NRS.getActiveChainDecimals());
                 });
                 var amountDecimals = NRS.getNumberOfDecimals(trades, "totalNQT", function(val) {
-                    return NRS.formatAmount(NRS.calculateOrderTotalNQT(val.quantityQNT, val.priceNQT));
+                    return NRS.formatQuantity(NRS.multiply(val.quantityQNT, val.priceNQTPerShare), val.decimals + NRS.getActiveChainDecimals());
                 });
                 var rows = "";
                 for (var i = 0; i < trades.length; i++) {
                     var trade = trades[i];
-                    trade.priceNQT = new BigInteger(trade.priceNQT);
+                    trade.priceNQTPerShare = new BigInteger(trade.priceNQTPerShare);
                     trade.quantityQNT = new BigInteger(trade.quantityQNT);
-                    trade.totalNQT = new BigInteger(NRS.calculateOrderTotalNQT(trade.priceNQT, trade.quantityQNT));
+                    trade.totalNQT = new BigInteger(NRS.multiply(trade.priceNQTPerShare, trade.quantityQNT));
                     var type = (trade.buyerRS == NRS.accountRS ? "buy" : "sell");
                     rows += "<tr>" +
                         "<td><a href='#' data-goto-asset='" + NRS.escapeRespStr(trade.asset) + "'>" + NRS.escapeRespStr(trade.name) + "</a></td>" +
                         "<td>" + NRS.formatTimestamp(trade.timestamp) + "</td>" +
                         "<td>" + $.t(trade.tradeType) + "</td>" +
                         "<td class='numeric'>" + NRS.formatQuantity(trade.quantityQNT, trade.decimals, false, quantityDecimals) + "</td>" +
-                        "<td class='asset_price numeric'>" + NRS.formatOrderPricePerWholeQNT(trade.priceNQT, trade.decimals, priceDecimals) + "</td>" +
-                        "<td style='" + (type == "buy" ? "color:red" : "color:green") + "' class='numeric'>" + NRS.formatAmount(trade.totalNQT, false, false, amountDecimals) + "</td>" +
+                        "<td class='asset_price numeric'>" + NRS.formatQuantity(trade.priceNQTPerShare, NRS.getActiveChainDecimals(), false, priceDecimals) + "</td>" +
+                        "<td style='" + (type == "buy" ? "color:red" : "color:green") + "' class='numeric'>" + NRS.formatQuantity(trade.totalNQT, trade.decimals + NRS.getActiveChainDecimals(), false, amountDecimals) + "</td>" +
                         "<td>" + NRS.getAccountLink(trade, "buyer") + "</td>" +
                         "<td>" + NRS.getAccountLink(trade, "seller") + "</td>" +
                     "</tr>";
@@ -1415,7 +1431,7 @@ var NRS = (function (NRS, $, undefined) {
                     transfer.quantityQNT = new BigInteger(transfer.quantityQNT);
                     var type = (transfer.recipientRS == NRS.accountRS ? "receive" : "send");
                     rows += "<tr>" +
-                        "<td>" + NRS.getTransactionLink(transfer.assetTransfer) + "</td>" +
+                        "<td>" + NRS.getTransactionLink(transfer.assetTransferFullHash, null, true, transfer.chain) + "</td>" +
                         "<td><a href='#' data-goto-asset='" + NRS.escapeRespStr(transfer.asset) + "'>" + NRS.escapeRespStr(transfer.name) + "</a></td>" +
                         "<td>" + NRS.formatTimestamp(transfer.timestamp) + "</td>" +
                         "<td style='" + (type == "receive" ? "color:green" : "color:red") + "' class='numeric'>" + NRS.formatQuantity(transfer.quantityQNT, transfer.decimals, false, quantityDecimals) + "</td>" +
@@ -1430,31 +1446,30 @@ var NRS = (function (NRS, $, undefined) {
         });
     };
 
-    /* DELETES HISTORY PAGE */
-    NRS.pages.deletes_history = function () {
-        NRS.sendRequest("getAssetDeletes+", {
+    NRS.pages.quantity_change_history = function () {
+        NRS.sendRequest("getAssetHistory+", {
             "account": NRS.accountRS,
             "includeAssetInfo": true,
             "firstIndex": NRS.pageNumber * NRS.itemsPerPage - NRS.itemsPerPage,
             "lastIndex": NRS.pageNumber * NRS.itemsPerPage
         }, function (response) {
-            if (response.deletes && response.deletes.length) {
-                if (response.deletes.length > NRS.itemsPerPage) {
+            if (response.assetHistory && response.assetHistory.length) {
+                if (response.assetHistory.length > NRS.itemsPerPage) {
                     NRS.hasMorePages = true;
-                    response.deletes.pop();
+                    response.assetHistory.pop();
                 }
-                var deletes = response.deletes;
-                var quantityDecimals = NRS.getNumberOfDecimals(deletes, "quantityQNT", function(val) {
+                var changes = response.assetHistory;
+                var quantityDecimals = NRS.getNumberOfDecimals(changes, "quantityQNT", function(val) {
                     return NRS.formatQuantity(val.quantityQNT, val.decimals);
                 });
                 var rows = "";
-                for (var i = 0; i < deletes.length; i++) {
-                    deletes[i].quantityQNT = new BigInteger(deletes[i].quantityQNT);
+                for (var i = 0; i < changes.length; i++) {
+                    changes[i].quantityQNT = new BigInteger(changes[i].quantityQNT);
                     rows += "<tr>" +
-                        "<td>" + NRS.getTransactionLink(deletes[i].assetDelete) + "</td>" +
-                        "<td><a href='#' data-goto-asset='" + NRS.escapeRespStr(deletes[i].asset) + "'>" + NRS.escapeRespStr(deletes[i].name) + "</a></td>" +
-                        "<td>" + NRS.formatTimestamp(deletes[i].timestamp) + "</td>" +
-                        "<td class='numeric'>" + NRS.formatQuantity(deletes[i].quantityQNT, deletes[i].decimals, false, quantityDecimals) + "</td>" +
+                        "<td>" + NRS.getTransactionLink(changes[i].assetHistoryFullHash, null, true, changes[i].chain) + "</td>" +
+                        "<td><a href='#' data-goto-asset='" + NRS.escapeRespStr(changes[i].asset) + "'>" + NRS.escapeRespStr(changes[i].name) + "</a></td>" +
+                        "<td>" + NRS.formatTimestamp(changes[i].timestamp) + "</td>" +
+                        "<td class='numeric'>" + NRS.formatQuantity(changes[i].quantityQNT, changes[i].decimals, false, quantityDecimals) + "</td>" +
                     "</tr>";
                 }
                 NRS.dataLoaded(rows);
@@ -1499,7 +1514,7 @@ var NRS = (function (NRS, $, undefined) {
                     }
 
                     if (response.askOrders && response.askOrders.length) {
-                        result.ask_orders[input.asset] = new BigInteger(response.askOrders[0].priceNQT);
+                        result.ask_orders[input.asset] = new BigInteger(response.askOrders[0].priceNQTPerShare);
                     } else {
                         result.ask_orders[input.asset] = -1;
                     }
@@ -1520,7 +1535,7 @@ var NRS = (function (NRS, $, undefined) {
                     }
 
                     if (response.bidOrders && response.bidOrders.length) {
-                        result.bid_orders[input.asset] = new BigInteger(response.bidOrders[0].priceNQT);
+                        result.bid_orders[input.asset] = new BigInteger(response.bidOrders[0].priceNQTPerShare);
                     } else {
                         result.bid_orders[input.asset] = -1;
                     }
@@ -1538,6 +1553,7 @@ var NRS = (function (NRS, $, undefined) {
                         "balanceQNT": NRS.accountInfo.assetBalances[i].balanceQNT
                     }
                 }, function (asset, input) {
+                    updateAssetStorage(asset);
                     if (NRS.currentPage != "my_assets") {
                         return;
                     }
@@ -1586,20 +1602,20 @@ var NRS = (function (NRS, $, undefined) {
             if (!asset.ask_orders || asset.ask_orders == -1) {
                 return "";
             }
-            return NRS.formatOrderPricePerWholeQNT(asset.ask_orders, asset.decimals);
+            return NRS.formatQuantity(asset.ask_orders, NRS.getActiveChainDecimals());
         });
         var bidDecimals = NRS.getNumberOfDecimals(result.assets, "bid", function(asset) {
             if (!asset.bid_orders || asset.bid_orders == -1) {
                 return "";
             }
-            return NRS.formatOrderPricePerWholeQNT(asset.bid_orders, asset.decimals);
+            return NRS.formatQuantity(asset.bid_orders, NRS.getActiveChainDecimals());
         });
         var valueDecimals = NRS.getNumberOfDecimals(result.assets, "bid", function(asset) {
             if (!asset.bid_orders || asset.bid_orders == -1) {
                 return "";
             }
-            var totalNQT = new BigInteger(NRS.calculateOrderTotalNQT(asset.balanceQNT, asset.bid_orders));
-            return NRS.formatAmount(totalNQT);
+            var totalNQT = new BigInteger(NRS.multiply(asset.balanceQNT, asset.bid_orders));
+            return NRS.formatQuantity(totalNQT, asset.decimals + NRS.getActiveChainDecimals());
         });
         for (var i = 0; i < result.assets.length; i++) {
             var asset = result.assets[i];
@@ -1608,21 +1624,28 @@ var NRS = (function (NRS, $, undefined) {
             var percentageAsset = NRS.calculatePercentage(asset.balanceQNT, asset.quantityQNT);
 
             if (highestBidOrder != -1) {
-                var totalNQT = new BigInteger(NRS.calculateOrderTotalNQT(asset.balanceQNT, highestBidOrder));
+                var totalNQT = new BigInteger(NRS.multiply(asset.balanceQNT, highestBidOrder));
             }
-            rows += "<tr data-asset='" + NRS.escapeRespStr(asset.asset) + "'>" +
-                "<td><a href='#' data-goto-asset='" + NRS.escapeRespStr(asset.asset) + "'>" + NRS.escapeRespStr(asset.name) + "</a></td>" +
+            var assetId = NRS.escapeRespStr(asset.asset);
+            var assetName = NRS.escapeRespStr(asset.name);
+            var decimals = NRS.escapeRespStr(asset.decimals);
+            rows += "<tr data-asset='" + assetId + "'>" +
+                "<td><a href='#' data-goto-asset='" + assetId + "'>" + assetName + "</a></td>" +
                 "<td class='quantity numeric'>" + NRS.formatQuantity(asset.balanceQNT, asset.decimals, false, quantityDecimals) + "</td>" +
                 "<td class='numeric'>" + NRS.formatQuantity(asset.quantityQNT, asset.decimals, false, totalDecimals) + "</td>" +
                 "<td class='numeric'>" + percentageAsset + "%</td>" +
-                "<td class='numeric'>" + (lowestAskOrder != -1 ? NRS.formatOrderPricePerWholeQNT(lowestAskOrder, asset.decimals, askDecimals) : "") + "</td>" +
-                "<td class='numeric'>" + (highestBidOrder != -1 ? NRS.formatOrderPricePerWholeQNT(highestBidOrder, asset.decimals, bidDecimals) : "") + "</td>" +
-                "<td class='numeric'>" + (highestBidOrder != -1 ? NRS.formatAmount(totalNQT, false, false, valueDecimals) : "") + "</td>" +
-                "<td>" +
-                    "<a href='#' class='btn btn-xs btn-default' data-toggle='modal' data-target='#transfer_asset_modal' data-asset='" + NRS.escapeRespStr(asset.asset) + "' data-name='" + NRS.escapeRespStr(asset.name) + "' data-decimals='" + NRS.escapeRespStr(asset.decimals) + "' data-action='transfer_asset'>" + $.t("transfer") + "</a>" +
-                    "<a href='#' class='btn btn-xs btn-default' data-toggle='modal' data-target='#transfer_asset_modal' data-asset='" + NRS.escapeRespStr(asset.asset) + "' data-name='" + NRS.escapeRespStr(asset.name) + "' data-decimals='" + NRS.escapeRespStr(asset.decimals) + "' data-action='delete_shares'>" + $.t("delete_shares") + "</a>" +
-                "</td>" +
-            "</tr>";
+                "<td class='numeric'>" + (lowestAskOrder != -1 ? NRS.formatQuantity(lowestAskOrder, NRS.getActiveChainDecimals(), false, askDecimals) : "") + "</td>" +
+                "<td class='numeric'>" + (highestBidOrder != -1 ? NRS.formatQuantity(highestBidOrder, NRS.getActiveChainDecimals(), false, bidDecimals) : "") + "</td>" +
+                "<td class='numeric'>" + (highestBidOrder != -1 ? NRS.formatQuantity(totalNQT, asset.decimals + NRS.getActiveChainDecimals(), false, valueDecimals) : "") + "</td>";
+            rows += "<td><a href='#' class='btn btn-xs btn-default' data-toggle='modal' data-target='#transfer_asset_modal' data-asset='" + assetId + "' data-name='" + assetName + "' data-decimals='" + decimals + "' data-action='transfer_asset'>" + $.t("transfer") + "</a>";
+            if (asset.account == NRS.account && NRS.isIgnisChain()) {
+                // Share increase is only allowed for non-singleton assets
+                if (asset.quantityQNT != 1 || asset.decimals != 0) {
+                    rows += "<a href='#' class='btn btn-xs btn-default' data-toggle='modal' data-target='#transfer_asset_modal' data-asset='" + assetId + "' data-name='" + assetName + "' data-decimals='" + decimals + "' data-action='increase_shares'>" + $.t("increase_shares") + "</a>";
+                }
+            }
+            rows += "<a href='#' class='btn btn-xs btn-default' data-toggle='modal' data-target='#transfer_asset_modal' data-asset='" + assetId + "' data-name='" + assetName + "' data-decimals='" + decimals + "' data-action='delete_shares'>" + $.t("delete_shares") + "</a>";
+            rows += "</td></tr>";
         }
         NRS.dataLoaded(rows);
     };
@@ -1681,6 +1704,9 @@ var NRS = (function (NRS, $, undefined) {
         } else if (action == "delete_shares") {
             $("#transfer_asset_recipient_container").hide();
             $("#transfer_asset_request_type").val("deleteAssetShares");
+        } else if (action == "increase_shares") {
+            $("#transfer_asset_recipient_container").hide();
+            $("#transfer_asset_request_type").val("increaseAssetShares");
         }
 
         var confirmedBalance = 0;
@@ -1714,17 +1740,34 @@ var NRS = (function (NRS, $, undefined) {
             }) + " (" + NRS.formatQuantity(confirmedBalance, decimals) + " " + $.t("total_lowercase") + ")";
         }
         $("#transfer_asset_available").html(availableAssetsMessage);
+
+        var $modal = $(this);
+
+        NRS.loadAssetControl(assetId, function() {
+            if ($modal.hasClass('in')) {
+                //already shown
+                NRS.setupModalMandatoryApproval($modal);
+            } else {
+                $modal.one('shown.bs.modal', function() {
+                    NRS.setupModalMandatoryApproval($modal);
+                });
+            }
+        });
     });
 
     NRS.forms.transferAsset = function ($modal) {
-        return transferOrDeleteShares($modal);
+        return transferOrChangeShares($modal);
     };
 
     NRS.forms.deleteAssetShares = function ($modal) {
-        return transferOrDeleteShares($modal);
+        return transferOrChangeShares($modal);
     };
 
-    function transferOrDeleteShares($modal) {
+    NRS.forms.increaseAssetShares = function ($modal) {
+        return transferOrChangeShares($modal);
+    };
+
+    function transferOrChangeShares($modal) {
         var data = NRS.getFormData($modal.find("form:first"));
         if (!data.quantity) {
             return {
@@ -1734,10 +1777,10 @@ var NRS = (function (NRS, $, undefined) {
             };
         }
 
-        if (!NRS.showedFormWarning) {
+        if (NRS.displayFormWarning["asset_transfer_warning"]) {
             if (NRS.settings["asset_transfer_warning"] && NRS.settings["asset_transfer_warning"] != 0) {
                 if (new Big(data.quantity).cmp(new Big(NRS.settings["asset_transfer_warning"])) > 0) {
-                    NRS.showedFormWarning = true;
+                    NRS.displayFormWarning["asset_transfer_warning"] = false;
                     return {
                         "error": $.t("error_max_asset_transfer_warning", {
                             "qty": String(NRS.settings["asset_transfer_warning"]).escapeHTML()
@@ -1766,7 +1809,8 @@ var NRS = (function (NRS, $, undefined) {
             delete data.permanent_message;
         }
 
-        if ($("#transfer_asset_action").val() == "delete_shares") {
+        var action = $("#transfer_asset_action").val();
+        if (action == "delete_shares" || action == "increase_shares") {
             delete data.recipient;
             delete data.recipientPublicKey;
         }
@@ -1806,6 +1850,7 @@ var NRS = (function (NRS, $, undefined) {
                         "asset": asset
                     }, function (response) {
                         if (!response.errorCode) {
+                            updateAssetStorage(response);
                             NRS.loadAssetExchangeSidebar(function () {
                                 response.groupName = "";
                                 response.viewingAsset = true;
@@ -1905,10 +1950,16 @@ var NRS = (function (NRS, $, undefined) {
         var rows = "";
         for (var i = 0; i < orders.length; i++) {
             var completeOrder = orders[i];
-            completeOrder.priceNQT = new BigInteger(completeOrder.priceNQT);
+            completeOrder.priceNQTPerShare = new BigInteger(completeOrder.priceNQTPerShare);
             completeOrder.quantityQNT = new BigInteger(completeOrder.quantityQNT);
-            completeOrder.totalNQT = new BigInteger(NRS.calculateOrderTotalNQT(completeOrder.quantityQNT, completeOrder.priceNQT));
-            rows += "<tr data-order='" + NRS.escapeRespStr(completeOrder.order) + "'><td><a href='#' data-goto-asset='" + NRS.escapeRespStr(completeOrder.asset) + "'>" + NRS.escapeRespStr(completeOrder.assetName) + "</a></td><td>" + NRS.formatQuantity(completeOrder.quantityQNT, completeOrder.decimals) + "</td><td>" + NRS.formatOrderPricePerWholeQNT(completeOrder.priceNQT, completeOrder.decimals) + "</td><td>" + NRS.formatAmount(completeOrder.totalNQT) + "</td><td class='cancel'><a href='#' data-toggle='modal' data-target='#cancel_order_modal' data-order='" + NRS.escapeRespStr(completeOrder.order) + "' data-type='" + type + "'>" + $.t("cancel") + "</a></td></tr>";
+            completeOrder.totalNQT = new BigInteger(NRS.multiply(completeOrder.quantityQNT, completeOrder.priceNQTPerShare));
+            rows += "<tr data-order='" + NRS.escapeRespStr(completeOrder.order) + "'>" +
+                "<td><a href='#' data-goto-asset='" + NRS.escapeRespStr(completeOrder.asset) + "'>" + NRS.escapeRespStr(completeOrder.assetName) + "</a></td>" +
+                "<td>" + NRS.formatQuantity(completeOrder.quantityQNT, completeOrder.decimals) + "</td>" +
+                "<td>" + NRS.formatQuantity(completeOrder.priceNQTPerShare, NRS.getActiveChainDecimals()) + "</td>" +
+                "<td>" + NRS.formatQuantity(completeOrder.totalNQT, completeOrder.decimals + NRS.getActiveChainDecimals()) + "</td>" +
+                "<td class='cancel'><a href='#' data-toggle='modal' data-target='#cancel_order_modal' data-order='" + NRS.escapeRespStr(completeOrder.order) + "' data-type='" + type + "'>" + $.t("cancel") + "</a></td>" +
+            "</tr>";
         }
         openOrdersTable.find("tbody").empty().append(rows);
         NRS.dataLoadFinished(openOrdersTable);
@@ -2054,7 +2105,7 @@ var NRS = (function (NRS, $, undefined) {
         var sidebarId = 'sidebar_asset_exchange';
         var options = {
             "id": sidebarId,
-            "titleHTML": '<i class="fa fa-signal"></i><span data-i18n="assets">Assets</span>',
+            "titleHTML": '<i class="far fa-signal"></i><span data-i18n="assets">Assets</span>',
             "page": 'asset_exchange',
             "desiredPosition": 30,
             "depends": { tags: [ NRS.constants.API_TAGS.AE ] }
@@ -2079,9 +2130,9 @@ var NRS = (function (NRS, $, undefined) {
         };
         NRS.appendMenuItemToTSMenuItem(sidebarId, options);
         options = {
-            "titleHTML": '<span data-i18n="delete_history">Delete History</span>',
+            "titleHTML": '<span data-i18n="quantity_change_history">Quantity Change History</span>',
             "type": 'PAGE',
-            "page": 'deletes_history'
+            "page": 'quantity_change_history'
         };
         NRS.appendMenuItemToTSMenuItem(sidebarId, options);
         options = {
@@ -2108,7 +2159,23 @@ var NRS = (function (NRS, $, undefined) {
             "modalId": 'issue_asset_modal'
         };
         NRS.appendMenuItemToTSMenuItem(sidebarId, options);
+        $('#dividend_payment_holding_type').change();
     };
+
+    NRS.getAssetCallout = function(infoCallout, asset) {
+        infoCallout.html("<a href='#' data-goto-asset='" + asset.asset + "'>Click here</a> to view this asset in the Asset Exchange.").show();
+        return infoCallout;
+    };
+
+    // updates mutable fields of stored assets
+    function updateAssetStorage(asset) {
+        NRS.storageUpdate("assets", {
+            quantityQNT: asset.quantityQNT,
+            hasPhasingAssetControl: asset.hasPhasingAssetControl
+        }, [{
+            asset: asset.asset
+        }]);
+    }
 
     return NRS;
 }(NRS || {}, jQuery));

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,14 +17,13 @@
 package nxt.util;
 
 import nxt.Constants;
-import nxt.Genesis;
 import nxt.NxtException;
-import nxt.crypto.Crypto;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -44,10 +44,21 @@ public final class Convert {
 
     public static final BigInteger two64 = new BigInteger("18446744073709551616");
     public static final long[] EMPTY_LONG = new long[0];
+    public static final int[] EMPTY_INT = new int[0];
     public static final byte[] EMPTY_BYTE = new byte[0];
     public static final byte[][] EMPTY_BYTES = new byte[0][];
     public static final String[] EMPTY_STRING = new String[0];
+    private static final boolean BIG_INTEGER_HAS_LONG_VALUE_EXACT;
 
+    static {
+        boolean hasMethod = true;
+        try {
+            BigInteger.class.getMethod("longValueExact");
+        } catch (NoSuchMethodException e) {
+            hasMethod = false;
+        }
+        BIG_INTEGER_HAS_LONG_VALUE_EXACT = hasMethod;
+    }
     private Convert() {} //never
 
     public static byte[] parseHexString(String hex) {
@@ -87,6 +98,16 @@ public final class Convert {
         return Long.parseUnsignedLong(number);
     }
 
+    public static int parseInt(Object o) {
+        if (o == null) {
+            return 0;
+        }
+        if (o instanceof Long) {
+            return ((Long)o).intValue();
+        }
+        throw new IllegalArgumentException("Not an integer: " + o);
+    }
+
     public static long parseLong(Object o) {
         if (o == null) {
             return 0;
@@ -106,7 +127,7 @@ public final class Convert {
         account = account.toUpperCase(Locale.ROOT);
         int prefixEnd = account.indexOf('-');
         if (prefixEnd > 0) {
-            return Crypto.rsDecode(account.substring(prefixEnd + 1));
+            return rsDecode(account.substring(prefixEnd + 1));
         } else if (prefixEnd == 0) {
             return Long.valueOf(account);
         } else {
@@ -115,23 +136,48 @@ public final class Convert {
     }
 
     public static String rsAccount(long accountId) {
-        return Constants.ACCOUNT_PREFIX + "-" + Crypto.rsEncode(accountId);
+        return Constants.ACCOUNT_PREFIX + "-" + rsEncode(accountId);
+    }
+
+    public static String rsEncode(long id) {
+        return ReedSolomon.encode(id);
+    }
+
+    public static long rsDecode(String rsString) {
+        rsString = rsString.toUpperCase(Locale.ROOT);
+        try {
+            long id = ReedSolomon.decode(rsString);
+            if (! rsString.equals(ReedSolomon.encode(id))) {
+                throw new RuntimeException("ERROR: Reed-Solomon decoding of " + rsString
+                        + " not reversible, decoded to " + id);
+            }
+            return id;
+        } catch (ReedSolomon.DecodeException e) {
+            Logger.logDebugMessage("Reed-Solomon decoding failed for " + rsString + ": " + e.toString());
+            throw new RuntimeException(e.toString(), e);
+        }
     }
 
     public static long fullHashToId(byte[] hash) {
         if (hash == null || hash.length < 8) {
             throw new IllegalArgumentException("Invalid hash: " + Arrays.toString(hash));
         }
-        BigInteger bigInteger = new BigInteger(1, new byte[] {hash[7], hash[6], hash[5], hash[4], hash[3], hash[2], hash[1], hash[0]});
-        return bigInteger.longValue();
+        return ((((long) hash[7]) << 56) |
+                (((long) hash[6] & 0xff) << 48) |
+                (((long) hash[5] & 0xff) << 40) |
+                (((long) hash[4] & 0xff) << 32) |
+                (((long) hash[3] & 0xff) << 24) |
+                (((long) hash[2] & 0xff) << 16) |
+                (((long) hash[1] & 0xff) << 8) |
+                (((long) hash[0] & 0xff)));
     }
 
     public static long fromEpochTime(int epochTime) {
-        return epochTime * 1000L + Genesis.EPOCH_BEGINNING - 500L;
+        return epochTime * 1000L + Constants.EPOCH_BEGINNING - 500L;
     }
 
     public static int toEpochTime(long currentTime) {
-        return (int)((currentTime - Genesis.EPOCH_BEGINNING + 500) / 1000);
+        return (int)((currentTime - Constants.EPOCH_BEGINNING + 500) / 1000);
     }
 
     public static String emptyToNull(String s) {
@@ -258,8 +304,8 @@ public final class Convert {
         return s == null ? replaceNull : s.length() > limit ? (s.substring(0, dots ? limit - 3 : limit) + (dots ? "..." : "")) : s;
     }
 
-    public static long parseNXT(String nxt) {
-        return parseStringFraction(nxt, 8, Constants.MAX_BALANCE_NXT);
+    public static long decimalMultiplier(int decimals) {
+        return multipliers[decimals];
     }
 
     private static long parseStringFraction(String value, int decimals, long maxValue) {
@@ -323,4 +369,42 @@ public final class Convert {
         return o1.length - o2.length;
     };
 
+    public static long unitRateToAmount(long unitsQNT, int unitsDecimals, long rateNQT, int rateDecimals) {
+        return longValueExact(BigDecimal.valueOf(unitsQNT, unitsDecimals)
+                .multiply(BigDecimal.valueOf(rateNQT, rateDecimals))
+                .movePointRight(rateDecimals)
+                .toBigInteger());
+    }
+
+    public static byte[] longToBytes(long l) {
+        byte[] result = new byte[8];
+        for (int i = 7; i >= 0; i--) {
+            result[i] = (byte)(l & 0xFF);
+            l >>= 8;
+        }
+        return result;
+    }
+
+    public static long bytesToLong(byte[] b) {
+        long result = 0;
+        for (int i = 0; i < 8; i++) {
+            result <<= 8;
+            result |= (b[i] & 0xFF);
+        }
+        return result;
+    }
+
+    public static long longValueExact(BigInteger bigInteger) {
+        if (BIG_INTEGER_HAS_LONG_VALUE_EXACT) {
+            return bigInteger.longValueExact();
+        } else {
+            long result = bigInteger.longValue();
+            if (BigInteger.valueOf(result).equals(bigInteger)) {
+                return result;
+            } else {
+                throw new ArithmeticException("BigInteger out of long range");
+            }
+
+        }
+    }
 }

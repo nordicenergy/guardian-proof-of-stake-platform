@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -24,8 +24,8 @@ var NRS = (function(NRS, $) {
         "marketplace": "-1",
         "exchange": "-1",
         "console_log": "0",
-		"fee_warning": "100000000000",
-		"amount_warning": "10000000000000",
+		"fee_warning": ["100000000000","100000000000","10000","100000000000","100000000000"],
+		"amount_warning": ["10000000000000","10000000000000","10000000","10000000000000","10000000000000"],
 		"asset_transfer_warning": "10000",
 		"currency_transfer_warning": "10000",
 		"24_hour_format": "1",
@@ -34,20 +34,25 @@ var NRS = (function(NRS, $) {
 		"enable_plugins": "0",
 		"items_page": "15",
 		"admin_password": "",
-        "shape_shift_url": "https://cors.shapeshift.io/",
-        "shape_shift_api_key": "773ecd081abd54e760a45b3551bbd4d725cf788590619e3f4bdeb81d01994d1dcad8a1d35771f669cfa47742af38e2207e297bc0eeeaea733853c2235548fba3",
-        "shape_shift_coin0": "BTC",
-        "shape_shift_coin1": "LTC",
-        "shape_shift_coin2": "ETH",
         "changelly_url": "https://api.changelly.com",
         "changelly_api_key": "77c34bb4f2bc40519df33a474097936f",
         "changelly_api_secret": "76021037dd6358c33de88810fa4093852bf278a683843c37ea9913acc2746ee0",
         "changelly_coin0": "BTC",
-        "changelly_coin1": "ARDR",
+        "changelly_coin1": "XRP",
         "changelly_coin2": "ETH",
-		"max_nxt_decimals": "2",
-		"fake_entity_warning": "1",
-		"transact_during_download": "0"
+        "changehero_url": "https://api.changehero.io/v2",
+        "changehero_api_key": "984b0fd5110e4ef790ecd0fe2bb4ffc9",
+        "changehero_api_secret": "9a91e4c54ad8f23f27708d11cef3b828e60abe6adb29211a3763d751b6c4b670",
+        "changehero_coin0": "BTC",
+        "changehero_coin1": "XRP",
+        "changehero_coin2": "ETH",
+		"changeNow_url": "https://changenow.io/",
+		"changeNow_api_key": "e264b97405c84fc0c88105f3da86bb2b5d5c71cf344188d375ddd5f6c80663ff",
+		"changeNow_coin": ['BTC','ETH','LTC'],
+		"max_nxt_decimals": "4",
+        "fake_entity_warning": "1",
+		"transact_during_download": "0",
+		"secretNonce": Math.round(10000 * Math.random())
 	};
 
 	NRS.defaultColors = {
@@ -56,29 +61,29 @@ var NRS = (function(NRS, $) {
 		"boxes": "#3E96BB"
 	};
 
-    NRS.languages = {
-        "en": "English",
+	NRS.languages = {
+		"en": "English",
         "de": "German",
-        "es": "Spanish",
-        "fr": "French",
-        "el": "Greek",
-        "id": "Indonesian",
-        "it": "Italian",
-        "ja": "日本語 (Japanese)",
-        "ko": "Korean",
-        "pt": "Portuguese",
-        "ru": "Russian",
-        "th": "Thai",
-        "vi": "Vietnamese",
-        "zh-cn": "中文 (Chinese Simplified)",
-        "zh-tw": "中文 (Chinese Traditional)"
-    };
+		"es": "Spanish",
+		"fr": "French",
+		"el": "Greek",
+		"id": "Indonesian",
+		"it": "Italian",
+		"ja": "日本語 (Japanese)",
+		"ko": "Korean",
+		"pt": "Portuguese",
+		"ru": "Russian",
+		"th": "Thai",
+		"vi": "Vietnamese",
+		"zh-cn": "中文 (Chinese Simplified)",
+		"zh-tw": "中文 (Chinese Traditional)"
+	};
 
 	var userStyles = {};
 
 	userStyles.header = {
 		"blue": {
-			"header_bg": "#e6b800",
+			"header_bg": "#3c8dbc",
 			"logo_bg": "#367fa9",
 			"link_bg_hover": "#357ca5"
 		},
@@ -204,7 +209,7 @@ var NRS = (function(NRS, $) {
         return key != "asset_transfer_warning" && key != "currency_transfer_warning" && key != "fake_entity_warning";
     }
 
-    NRS.pages.settings = function() {
+	NRS.pages.settings = function() {
 		for (var style in userStyles) {
 			if (!userStyles.hasOwnProperty(style)) {
 				continue;
@@ -244,7 +249,19 @@ var NRS = (function(NRS, $) {
 			var setting = $("#settings_" + key);
             if (/_warning/i.test(key) && isAmountWarning(key)) {
 				if (setting.length) {
-					setting.val(NRS.convertToNXT(NRS.settings[key]));
+					var amount;
+					if (Array.isArray(NRS.settings[key])) {
+						amount = NRS.settings[key][NRS.getActiveChainId() - 1];
+					} else {
+						if (key === "fee_warning" || key === "amount_warning") {
+							NRS.logConsole("Resetting " + key + " value to default");
+							NRS.settings[key] = NRS.defaultSettings[key];
+							amount = NRS.settings[key][NRS.getActiveChainId() - 1];
+						} else {
+							amount = NRS.settings[key];
+						}
+					}
+					setting.val(NRS.convertToNXT(amount));
 				}
 			} else if (!/_color/i.test(key)) {
 				if (setting.length) {
@@ -588,7 +605,17 @@ var NRS = (function(NRS, $) {
 
 	NRS.updateSettings = function(key, value) {
 		if (key) {
-			NRS.settings[key] = value;
+			if (Array.isArray(NRS.settings[key])) {
+				NRS.settings[key][NRS.getActiveChainId() - 1] = value;
+			} else {
+				if (key === "fee_warning" || key === "amount_warning") {
+					NRS.logConsole("Resetting " + key + " value to default");
+					NRS.settings[key] = NRS.defaultSettings[key];
+					NRS.settings[key][NRS.getActiveChainId() - 1] = value;
+				} else {
+					NRS.settings[key] = value;
+				}
+			}
 			if (key == "language") {
 				NRS.setStrItem("language", value);
 			}

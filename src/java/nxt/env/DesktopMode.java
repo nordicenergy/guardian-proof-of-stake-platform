@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,10 +17,13 @@
 package nxt.env;
 
 import nxt.util.Logger;
+import nxt.util.security.BlockchainPermission;
 
 import javax.swing.*;
 import java.io.File;
 import java.net.URI;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class DesktopMode implements RuntimeMode {
 
@@ -28,6 +32,11 @@ public class DesktopMode implements RuntimeMode {
 
     @Override
     public void init() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("desktop"));
+        }
+
         LookAndFeel.init();
         desktopSystemTray = new DesktopSystemTray();
         SwingUtilities.invokeLater(desktopSystemTray::createAndShowGUI);
@@ -35,23 +44,31 @@ public class DesktopMode implements RuntimeMode {
 
     @Override
     public void setServerStatus(ServerStatus status, URI wallet, File logFileDir) {
-        desktopSystemTray.setToolTip(new SystemTrayDataProvider(status.getMessage(), wallet, logFileDir));
-    }
-
-    @Override
-    public void launchDesktopApplication() {
-        Logger.logInfoMessage("Launching desktop wallet");
-        try {
-            desktopApplication = Class.forName("nxtdesktop.DesktopApplication");
-            desktopApplication.getMethod("launch").invoke(null);
-        } catch (ReflectiveOperationException e) {
-            Logger.logInfoMessage("nxtdesktop.DesktopApplication failed to launch", e);
+        if (desktopSystemTray != null) {
+            desktopSystemTray.setToolTip(new SystemTrayDataProvider(status.getMessage(), wallet, logFileDir));
         }
     }
 
     @Override
+    public void launchDesktopApplication() {
+        Logger.logInfoMessage("Launching desktop wallet in a new thread");
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
+            try {
+                desktopApplication = Class.forName("nxtdesktop.DesktopApplication");
+                desktopApplication.getMethod("launch").invoke(null);
+            } catch (ReflectiveOperationException e) {
+                Logger.logInfoMessage("nxtdesktop.DesktopApplication failed to launch", e);
+            }
+            Logger.logInfoMessage("Desktop wallet shutdown completed"); // We never reach this line
+        });
+    }
+
+    @Override
     public void shutdown() {
-        desktopSystemTray.shutdown();
+        if (desktopSystemTray != null) {
+            desktopSystemTray.shutdown();
+        }
         if (desktopApplication == null) {
             return;
         }

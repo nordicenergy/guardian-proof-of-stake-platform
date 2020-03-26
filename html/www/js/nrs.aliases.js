@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -122,7 +122,7 @@ var NRS = (function (NRS, $, undefined) {
         if ($(this).attr("id") == "sell_alias_modal") {
             $(this).find("ul.nav-pills li").removeClass("active");
             $(this).find("ul.nav-pills li:first-child").addClass("active");
-            $("#sell_alias_recipient_div").show();
+            $(this).find("input[name=recipient]").closest(".form-group").show();
         }
     });
 
@@ -144,18 +144,7 @@ var NRS = (function (NRS, $, undefined) {
             successMessage = $.t("success_transfer_alias");
             errorMessage = $.t("error_transfer_alias");
         } else {
-            if (!data.recipient) {
-                return {
-                    "error": $.t("error_not_specified", {
-                        "name": $.t("recipient").toLowerCase()
-                    }).capitalize()
-                };
-            }
-
-            successMessage = $.t("success_sell_alias");
-            errorMessage = $.t("error_sell_alias");
-
-            if (data.recipient == NRS.constants.GENESIS_RS) {
+            if ($modal.find("#sell_alias_to_anyone").closest("li").hasClass('active')) {
                 if (!data.priceNXT || data.priceNXT == "0") {
                     return {
                         "error": $.t("error_not_specified", {
@@ -169,6 +158,17 @@ var NRS = (function (NRS, $, undefined) {
                 delete data.permanent_message;
                 delete data.message;
                 delete data.recipient;
+            } else {
+                if (!data.recipient) {
+                    return {
+                        "error": $.t("error_not_specified", {
+                            "name": $.t("recipient").toLowerCase()
+                        }).capitalize()
+                    };
+                }
+
+                successMessage = $.t("success_sell_alias");
+                errorMessage = $.t("error_sell_alias");
             }
         }
 
@@ -252,12 +252,12 @@ var NRS = (function (NRS, $, undefined) {
         var $modal = $(this).closest(".modal");
 
         if ($(this).attr("id") == "sell_alias_to_anyone") {
-            $modal.find("input[name=recipient]").val(NRS.constants.GENESIS_RS);
-            $("#sell_alias_recipient_div").hide();
+            $modal.find("input[name=recipient]").val("");
+            $modal.find("input[name=recipient]").closest(".form-group").hide();
             $modal.find(".add_message_container, .optional_message").hide();
         } else {
             $modal.find("input[name=recipient]").val("");
-            $("#sell_alias_recipient_div").show();
+            $modal.find("input[name=recipient]").closest(".form-group").show();
             $modal.find(".add_message_container").show();
 
             if ($("#sell_alias_add_message").is(":checked")) {
@@ -345,7 +345,7 @@ var NRS = (function (NRS, $, undefined) {
                     var aliasURI = [];
                     if (/http:\/\//i.test(response.aliasURI)) {
                         setAliasType("uri", response.aliasURI);
-                    } else if ((aliasURI = /acct:(.*)@nxt/.exec(response.aliasURI)) || (aliasURI = /nacc:(.*)/.exec(response.aliasURI))) {
+                    } else if ((/acct:(.*)@nxt/.exec(response.aliasURI)) || (aliasURI = /nacc:(.*)/.exec(response.aliasURI))) {
                         setAliasType("account", response.aliasURI);
                         response.aliasURI = String(aliasURI[1]).toUpperCase();
                     } else {
@@ -507,11 +507,11 @@ var NRS = (function (NRS, $, undefined) {
                     if ("priceNQT" in response) {
                         if (response.buyer == NRS.account) {
                             message = $.t("alias_sale_direct_offer", {
-                                "amount": NRS.formatAmount(response.priceNQT), "symbol": NRS.constants.COIN_SYMBOL
+                                "nxt": NRS.formatAmount(response.priceNQT), "coin": NRS.getActiveChainName()
                             }) + " <a href='#' data-alias='" + NRS.escapeRespStr(response.aliasName) + "' data-toggle='modal' data-target='#buy_alias_modal'>" + $.t("buy_it_q") + "</a>";
                         } else if (typeof response.buyer == "undefined") {
                             message = $.t("alias_sale_indirect_offer", {
-                                "amount": NRS.formatAmount(response.priceNQT), "symbol": NRS.constants.COIN_SYMBOL
+                                "nxt": NRS.formatAmount(response.priceNQT), "coin": NRS.getActiveChainName()
                             }) + " <a href='#' data-alias='" + NRS.escapeRespStr(response.aliasName) + "' data-toggle='modal' data-target='#buy_alias_modal'>" + $.t("buy_it_q") + "</a>";
                         } else {
                             message = $.t("error_alias_sale_different_account");
@@ -580,11 +580,11 @@ var NRS = (function (NRS, $, undefined) {
                 if ("priceNQT" in response) {
                     if (response.buyer == NRS.account) {
                         $("#alias_sale_callout").html($.t("alias_sale_direct_offer", {
-                            "amount": NRS.formatAmount(response.priceNQT), "symbol": NRS.constants.COIN_SYMBOL
+                            "nxt": NRS.formatAmount(response.priceNQT), "coin": NRS.getActiveChainName()
                         }) + " <a href='#' data-alias='" + NRS.escapeRespStr(response.aliasName) + "' data-toggle='modal' data-target='#buy_alias_modal'>" + $.t("buy_it_q") + "</a>").show();
                     } else if (typeof response.buyer == "undefined") {
                         $("#alias_sale_callout").html($.t("alias_sale_indirect_offer", {
-                            "amount": NRS.formatAmount(response.priceNQT), "symbol": NRS.constants.COIN_SYMBOL
+                            "nxt": NRS.formatAmount(response.priceNQT), "coin": NRS.getActiveChainName()
                         }) + " <a href='#' data-alias='" + NRS.escapeRespStr(response.aliasName) + "' data-toggle='modal' data-target='#buy_alias_modal'>" + $.t("buy_it_q") + "</a>").show();
                     } else {
                         $("#alias_sale_callout").html($.t("error_alias_sale_different_account")).show();

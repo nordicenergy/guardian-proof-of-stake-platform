@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -19,7 +19,6 @@
  */
 var NRS = (function (NRS) {
     var isDesktopApplication = navigator.userAgent.indexOf("JavaFX") >= 0;
-    var isPromiseSupported = (typeof Promise !== "undefined" && Promise.toString().indexOf("[native code]") !== -1);
     var isMobileDevice = window["cordova"] !== undefined;
     var isLocalHost = false;
     var remoteNode = null;
@@ -86,20 +85,12 @@ var NRS = (function (NRS) {
         return !isLoadedOverHttps;
     };
 
-    NRS.isExportContactsAvailable = function() {
-        return !isDesktopApplication; // When using JavaFX you cannot export the contact list
-    };
-
     NRS.isFileEncryptionSupported = function() {
         return !isDesktopApplication; // When using JavaFX you cannot read the file to encrypt
     };
 
     NRS.isShowDummyCheckbox = function() {
         return isDesktopApplication && navigator.userAgent.indexOf("Linux") >= 0; // Correct rendering problem of checkboxes on Linux
-    };
-
-    NRS.isDecodePeerHallmark = function() {
-        return isPromiseSupported;
     };
 
     NRS.getRemoteNodeUrl = function() {
@@ -132,6 +123,10 @@ var NRS = (function (NRS) {
             remoteNode.blacklist();
         }
         remoteNode = null;
+    };
+
+    NRS.isMobileForcedRemoteNode = function (address, announcedAddress) {
+        return (address === NRS.mobileSettings.remote_node_address || announcedAddress === NRS.mobileSettings.remote_node_address);
     };
 
     NRS.getDownloadLink = function(url, link) {
@@ -172,12 +167,8 @@ var NRS = (function (NRS) {
         return device && device.platform == "Android" && device.version >= "6.0.0";
     };
 
-    NRS.getShapeShiftUrl = function() {
-        return NRS.settings.shape_shift_url;
-    };
-
-    NRS.getChangellyUrl = function() {
-        return NRS.settings.changelly_url;
+    NRS.changeNow_url = function() {
+        return NRS.settings.changeNow_url;
     };
 
     NRS.isForgingSupported = function() {
@@ -228,13 +219,9 @@ var NRS = (function (NRS) {
     };
 
     NRS.isWindowPrintSupported = function() {
-        return !isDesktopApplication && !isMobileDevice;
+        return !isDesktopApplication && !isMobileDevice && navigator.userAgent.indexOf("Firefox") == -1;
     };
-
-    NRS.isDisableScheduleRequest = function() {
-        return NRS.isMobileApp() || (NRS.state && NRS.state.apiProxy);
-    };
-
+    
     NRS.getAdminPassword = function() {
         if (window.java) {
             return window.java.getAdminPassword();
@@ -245,11 +232,20 @@ var NRS = (function (NRS) {
         return NRS.settings.admin_password;
     };
 
+    NRS.isFileReaderSupported = function() {
+        return (isDesktopApplication && window.java && window.java.isFileReaderSupported())  ||
+               (!isDesktopApplication && !!(window.File && window.FileList && window.FileReader)); // https://github.com/Modernizr/Modernizr/blob/master/feature-detects/file/api.js
+    };
+
+    NRS.isVideoSupported = function() {
+        return !isDesktopApplication;
+    };
+
     NRS.isAnimationAllowed = function() {
         return !isDesktopApplication;
     };
 
-    NRS.isFileReaderSupported = function() {
+    NRS.isCameraAccessSupported = function() {
         return !isDesktopApplication;
     };
 

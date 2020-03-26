@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,11 +16,12 @@
 
 package nxt.http;
 
-import nxt.Attachment;
-import nxt.MonetarySystem;
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.Transaction;
+import nxt.blockchain.ChildChain;
+import nxt.blockchain.Transaction;
+import nxt.ms.ExchangeAttachment;
+import nxt.ms.MonetarySystemTransactionType;
 import nxt.util.Filter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -33,7 +35,7 @@ public final class GetExpectedExchangeRequests extends APIServlet.APIRequestHand
     static final GetExpectedExchangeRequests instance = new GetExpectedExchangeRequests();
 
     private GetExpectedExchangeRequests() {
-        super(new APITag[] {APITag.ACCOUNTS, APITag.MS}, "account", "currency", "includeCurrencyInfo");
+        super(new APITag[] {APITag.MS}, "account", "currency", "includeCurrencyInfo");
     }
 
     @Override
@@ -41,16 +43,20 @@ public final class GetExpectedExchangeRequests extends APIServlet.APIRequestHand
 
         long accountId = ParameterParser.getAccountId(req, "account", false);
         long currencyId = ParameterParser.getUnsignedLong(req, "currency", false);
+        ChildChain childChain = ParameterParser.getChildChain(req, false);
         boolean includeCurrencyInfo = "true".equalsIgnoreCase(req.getParameter("includeCurrencyInfo"));
 
         Filter<Transaction> filter = transaction -> {
-            if (transaction.getType() != MonetarySystem.EXCHANGE_BUY && transaction.getType() != MonetarySystem.EXCHANGE_SELL) {
+            if (transaction.getType() != MonetarySystemTransactionType.EXCHANGE_BUY && transaction.getType() != MonetarySystemTransactionType.EXCHANGE_SELL) {
                 return false;
             }
             if (accountId != 0 && transaction.getSenderId() != accountId) {
                 return false;
             }
-            Attachment.MonetarySystemExchange attachment = (Attachment.MonetarySystemExchange)transaction.getAttachment();
+            if (childChain != null && transaction.getChain() != childChain) {
+                return false;
+            }
+            ExchangeAttachment attachment = (ExchangeAttachment)transaction.getAttachment();
             return currencyId == 0 || attachment.getCurrencyId() == currencyId;
         };
 

@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -20,7 +20,7 @@
 var NRS = (function(NRS, $, undefined) {
 	NRS.fetchingModalData = false;
 	NRS.modalStack = [];
-	var isFakeWarningDisplayed;
+    var isFakeWarningDisplayed;
 
 	// save the original function object
 	var _superModal = $.fn.modal;
@@ -62,11 +62,44 @@ var NRS = (function(NRS, $, undefined) {
 	});
 
 	$(".add_message").on("change", function() {
+		var $form = $(this).closest("form");
+		var $optionalMessage = $form.find(".optional_message");
 		if ($(this).is(":checked")) {
-			$(this).closest("form").find(".optional_message").fadeIn();
+			$optionalMessage.fadeIn();
+            var $recipient_container = $form.find('.recipient_container');
+            if ($recipient_container.length == 0 || $recipient_container.is(":hidden")) {
+                $optionalMessage.find('.add_message_encrypt_option').hide();
+				$optionalMessage.find('input[name=encrypt_message]').prop('checked', false);
+            } else {
+				$optionalMessage.find('.add_message_encrypt_option').show();
+			}
+			var permanentMessageControl = $form.find(".optional_message input[name=permanent_message]").parent();
+			if (NRS.isParentChain()) {
+				permanentMessageControl.hide();
+			} else {
+				permanentMessageControl.show();
+			}
 			$(this).closest(".form-group").css("margin-bottom", "5px");
 		} else {
-			$(this).closest("form").find(".optional_message").hide();
+			$optionalMessage.hide();
+			$(this).closest(".form-group").css("margin-bottom", "");
+		}
+	});
+
+	$(".is-shared-secret").on("change", function() {
+		var $pieceBox = $(this).closest("form").find('div[data-modal-ui-element="multi_piece_modal_ui_element"]');
+		var $secretPhraseInput = $(this).closest("form").find('.secret-phrase-input');
+		if ($(this).is(":checked")) {
+			$pieceBox.find("input").prop("disabled", false);
+			$pieceBox.find("input").val("");
+			$secretPhraseInput.prop("readonly", true);
+			$(this).closest("form").find(".piece_entry_group").fadeIn();
+			$(this).closest(".form-group").css("margin-bottom", "5px");
+		} else {
+			$pieceBox.find("input").prop("disabled", true);
+			$pieceBox.find("input").val("");
+			$secretPhraseInput.prop("readonly", false);
+			$(this).closest("form").find(".piece_entry_group").hide();
 			$(this).closest(".form-group").css("margin-bottom", "");
 		}
 	});
@@ -107,7 +140,7 @@ var NRS = (function(NRS, $, undefined) {
 	//hide modal when another one is activated.
     var modal = $(".modal");
     modal.on("show.bs.modal", function() {
-		var $inputFields = $(this).find("input[name=recipient], input[name=account_id], input[name=phasingWhitelisted]").not("[type=hidden]");
+		var $inputFields = $(this).find("input[name=recipient], input[name=account_id], input[name=phasingWhitelisted], input.account_id_mask").not("[type=hidden]");
 		$.each($inputFields, function() {
 			if ($(this).hasClass("noMask")) {
 				$(this).unmask();
@@ -138,14 +171,19 @@ var NRS = (function(NRS, $, undefined) {
             });
         });
         $(this).find("input[name=secretPhrase]").prop("disabled", false);
-        var name = $(this).attr('id').replace('_modal', '');
 	});
 
 	modal.on("shown.bs.modal", function() {
 		$(this).find("input[type=text]:first, textarea:first, input[type=password]:first").not("[readonly]").first().focus();
 		$(this).find("input[name=converted_account_id]").val("");
-		NRS.showedFormWarning = false; //maybe not the best place... we assume forms are only in modals?
-		isFakeWarningDisplayed = false;
+		$(this).find("input[name=permanent_message]").prop("disabled", false);
+		//maybe not the best place... we assume forms are only in modals?
+		for (var warning in NRS.displayFormWarning) {
+			if (NRS.displayFormWarning.hasOwnProperty(warning)) {
+				NRS.displayFormWarning[warning] = true;
+			}
+		}
+        isFakeWarningDisplayed = false;
 	});
 
 	modal.on("hide.bs.modal", function() {
@@ -162,10 +200,7 @@ var NRS = (function(NRS, $, undefined) {
     //Reset form to initial state when modal is closed
     modal.on("hidden.bs.modal", function() {
 		if(this.id === 'raw_transaction_modal') {
-			var reader = $('#raw_transaction_modal_signature_reader');
-			if (reader.data('stream')) {
-                reader.html5_qrcode_stop();
-            }
+            NRS.stopScanQRCode();
 		}
 		$(this).find("input[name=recipient], input[name=account_id]").not("[type=hidden]").trigger("unmask");
 		$(this).find(":input:not(button)").each(function() {
@@ -202,10 +237,12 @@ var NRS = (function(NRS, $, undefined) {
 		$(this).find("input[name=converted_account_id]").val("");
 
 		//Hide/Reset any possible error messages
+		$(this).find('.secret-phrase-input').prop("readonly", false);
 		$(this).find(".callout-danger:not(.never_hide, .remote_warning), .error_message, .account_info").html("").hide();
 		$(this).find(".advanced").hide();
 		$(this).find(".recipient_public_key").hide();
-		$(this).find(".optional_message, .optional_note, .optional_do_not_sign, .optional_public_key").hide();
+		$(this).find(".recipient_contract_reference_selector").hide();
+		$(this).find(".optional_message, .optional_note, .optional_do_not_sign, .optional_public_key, .piece_entry_group").hide();
 		$(this).find(".advanced_info a").text($.t("advanced"));
 		$(this).find(".advanced_extend").each(function(index, obj) {
 			var normalSize = $(obj).data("normal");
@@ -217,14 +254,20 @@ var NRS = (function(NRS, $, undefined) {
 		$("#create_poll_ms_currency_group").css("display", "none");
 		$("#shuffling_asset_id_group").css("display", "none");
 		$("#shuffling_ms_currency_group").css("display", "none");
+		$("#standbyshuffler_asset_id_group").css("display", "none");
+		$("#standbyshuffler_ms_currency_group").css("display", "none");
         var pollTypeGroup = $("#create_poll_type_group");
         pollTypeGroup.removeClass("col-xs-6").addClass("col-xs-12");
 		pollTypeGroup.removeClass("col-sm-6").addClass("col-sm-12");
 		pollTypeGroup.removeClass("col-md-6").addClass("col-md-12");
 
 		$(this).find(".tx-modal-approve").empty();
-		NRS.showedFormWarning = false;
-		isFakeWarningDisplayed = false;
+		for (var warning in NRS.displayFormWarning) {
+			if (NRS.displayFormWarning.hasOwnProperty(warning)) {
+				NRS.displayFormWarning[warning] = true;
+			}
+		}
+        isFakeWarningDisplayed = false;
         var isOffline = !!$(this).find(".mobile-offline").val();
         if (isOffline) {
             $("#mobile_settings_modal").modal();
@@ -289,15 +332,15 @@ var NRS = (function(NRS, $, undefined) {
 		$(".show_popover").popover("hide");
 	});
 
-	NRS.isShowFakeWarning = function() {
-		if (NRS.settings.fake_entity_warning != "1") {
-			return false;
-		}
-		return !isFakeWarningDisplayed;
+    NRS.isShowFakeWarning = function() {
+        if (NRS.settings.fake_entity_warning != "1") {
+            return false;
+        }
+        return !isFakeWarningDisplayed;
     };
 
-	NRS.composeFakeWarning = function (entity, id) {
-		isFakeWarningDisplayed = true;
+    NRS.composeFakeWarning = function (entity, id) {
+        isFakeWarningDisplayed = true;
         return {
             "error": $.t("fake_warning", {
                 entity: entity,
@@ -306,5 +349,5 @@ var NRS = (function(NRS, $, undefined) {
         };
     };
 
-	return NRS;
+    return NRS;
 }(NRS || {}, jQuery));

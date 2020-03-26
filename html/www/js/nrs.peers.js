@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -58,7 +58,7 @@ var NRS = (function(NRS, $) {
 				var connected = 0;
 				var upToDate = 0;
 				var activePeers = 0;
-
+				
 				for (var i = 0; i < response.peers.length; i++) {
 					var peer = response.peers[i];
 
@@ -81,9 +81,8 @@ var NRS = (function(NRS, $) {
 
 					rows += "<tr>";
 					rows += "<td>";
-					rows += (peer.state == 1 ? "<i class='fa fa-check-circle' style='color:#5cb85c' title='Connected'></i>" : "<i class='fa fa-times-circle' style='color:#f0ad4e' title='Disconnected'></i>");
+					rows += (peer.state == 1 ? "<i class='far fa-check-circle' style='color:#5cb85c' title='Connected'></i>" : "<i class='far fa-times-circle' style='color:#f0ad4e' title='Disconnected'></i>");
 					rows += "&nbsp;&nbsp;" + (peer.announcedAddress ? NRS.getPeerLink(peer.announcedAddress) : $.t("unknown")) + "</td>";
-					rows += "<td" + (peer.weight > 0 ? " style='font-weight:bold'" : "") + ">" + NRS.formatWeight(peer.weight) + "</td>";
 					rows += "<td>" + NRS.formatVolume(peer.downloadedVolume) + "</td>";
 					rows += "<td>" + NRS.formatVolume(peer.uploadedVolume) + "</td>";
 					rows += "<td><span class='label label-" + (NRS.versionCompare(peer.version, versionToCompare) >= 0 ? "success" : "danger") + "'>";
@@ -120,7 +119,7 @@ var NRS = (function(NRS, $) {
 	NRS.incoming.peers = function() {
 		NRS.loadPage("peers");
 	};
-
+	
 	NRS.forms.addPeerComplete = function(response) {
 		var message = "success_add_peer";
 		var growlType = "success";
@@ -130,13 +129,13 @@ var NRS = (function(NRS, $) {
 			message = "peer_already_added";
 			growlType = "danger";
 		}
-
+		
 		$.growl($.t(message), {
 			"type": growlType
 		});
 		NRS.loadPage("peers");
 	};
-
+	
 	NRS.forms.blacklistPeerComplete = function(response) {
 		var message;
 		var type;
@@ -163,7 +162,7 @@ var NRS = (function(NRS, $) {
 		$("#connect_peer_field_id").val($invoker.data("peer"));
 		showAdminPassword("connect");
 	});
-
+	
 	$("#blacklist_peer_modal").on("show.bs.modal", function(e) {
 		var $invoker = $(e.relatedTarget);
 		$("#blacklist_peer_address").html($invoker.data("peer"));

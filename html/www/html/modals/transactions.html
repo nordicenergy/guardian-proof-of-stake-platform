@@ -1,11 +1,12 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright 2020 Nordic Energy Core Developers                                 ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
   ~                                                                           ~
-  ~ Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
-  ~ no part of the Nxt software, including this file, may be copied, modified,~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
   ~ propagated, or distributed except according to the terms contained in the ~
   ~ LICENSE.txt file.                                                         ~
   ~                                                                           ~
@@ -13,7 +14,7 @@
   ~                                                                           ~
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 
-<div class="modal fade" id="approve_transaction_modal" data-transaction-type="1" data-transaction-subtype="9" tabindex="-1" role="dialog" aria-hidden="true">
+<div aria-hidden="true" class="modal fade" data-transaction-subtype="2" data-transaction-type="9" id="approve_transaction_modal" role="dialog" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -24,16 +25,21 @@
                 <form role="form" autocomplete="off">
                     <div class="callout callout-danger error_message" style="display:none"></div>
                     <div class="form-group">
-                        <p>
-                            <span data-i18n="transaction_id">Transaction ID</span>
-                            <span class="at_transaction_full_hash_display"></span>&nbsp;
-                            (<span class="at_transaction_timestamp"></span>)
-                        </p>
-                        <div id="at_revealed_secret_div" class="form-group">
-                            <label for="at_revealed_secret" data-i18n="reveal_secret">Reveal Secret</label>
-                            <input type="password" tabindex="1" id="at_revealed_secret" name="revealedSecretText" value=""/>
+                        <div class="form-group">
+                            <span data-i18n="approve_transaction">Approve Transaction</span>
+                            <span class="at_phased_transaction_display"></span>
                         </div>
-                        <input type="hidden" id="at_transaction_full_hash" name="transactionFullHash" value="" />
+                        <div id="at_revealed_secret_div" class="form-group">
+                            <div class="form-group">
+                                <label data-i18n="reveal_secret" for="at_revealed_secret">Reveal Secret</label>
+                                <input class="form-control" data-i18n="[placeholder]leave_empty_if_no_secret" id="at_revealed_secret" name="revealedSecret" placeholder="Leave empty if no secret" tabindex="1" type="password" value=""/>
+                            </div>
+                            <div class="form-group">
+                                <input data-default="checked" id="at_revealed_secret_is_text" name="revealedSecretIsText" tabindex="2" type="checkbox" value="true"/>
+                                <label data-i18n="secret_is_text_v2" for="at_revealed_secret_is_text" style="font-weight:normal;" tabindex="3"></label>
+                            </div>
+                        </div>
+                        <input id="at_phased_transaction" name="phasedTransaction" type="hidden" value="" />
                         <div class="alert alert-warning" id="at_min_balance_warning" role="alert" style="margin-left:0;">
                             <span data-i18n="approval_min_balance_needed_warning">
                                 For valid approval the following min balance is needed at finish height:
@@ -41,6 +47,7 @@
                             <span class="at_min_balance_amount"></span>
                         </div>
                     </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
                     <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <div data-replace-with-modal-template="advanced_deadline_template"></div>
@@ -62,14 +69,97 @@
     </div>
 </div>
 
-<div class="modal fade" id="transaction_info_modal" tabindex="-1" role="dialog" aria-hidden="true">
+<div aria-hidden="true" class="modal fade" data-transaction-subtype="2" data-transaction-type="9" id="reveal_secret_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title" data-i18n="reveal_secret">Reveal Secret</h4>
+            </div>
+            <div class="modal-body">
+                <form autocomplete="off" role="form">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="form-group">
+                        <label data-i18n="secret" for="reveal_secret_secret">Secret</label>
+                        <input class="form-control" id="reveal_secret_secret" name="revealedSecret" tabindex="1" type="password">
+                    </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
+                    <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
+                    <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
+                    <div data-replace-with-modal-template="advanced_deadline_template"></div>
+                    <div data-replace-with-modal-template="advanced_approve_template"></div>
+                    <div data-replace-with-modal-template="advanced_rt_hash_template"></div>
+                    <div data-replace-with-modal-template="advanced_broadcast_template"></div>
+                    <div data-replace-with-modal-template="advanced_note_to_self_template"></div>
+
+                    <input name="request_type" type="hidden" value="approveTransaction" />
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <div class="advanced_info"><a data-i18n="advanced" href="#">advanced</a></div>
+
+                <button class="btn btn-default" data-dismiss="modal" data-i18n="cancel" type="button">Cancel</button>
+                <button class="btn btn-primary" data-i18n="submit;[data-loading-text]submitting" data-loading-text="Submitting..." type="button">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div aria-hidden="true" class="modal fade" id="bundle_transaction_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title" data-i18n="bundle_transaction">Bundle Transaction</h4>
+            </div>
+            <div class="modal-body">
+                <form autocomplete="off" role="form">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="form-group">
+                        <div class="form-group">
+                            <label data-i18n="full_hash" for="bundle_transaction_fullHash">Full Hash</label>
+                            <input class="form-control" id="bundle_transaction_fullHash" name="transactionFullHash" readonly/>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="child_chain_fee" for="bundle_transaction_child_fee">Child Chain Fee</label>
+                            <div class="input-group">
+                                <input class="form-control" id="bundle_transaction_child_fee" readonly/>
+                                <span class="input-group-addon" id="bundle_transaction_chain_name"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
+                    <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
+                    <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
+                    <div data-replace-with-modal-template="advanced_broadcast_template"></div>
+
+                    <input name="chain" type="hidden" value="1"/>
+                    <input id="bundle_transaction_chain_id" name="childChain" type="hidden"/>
+                    <input name="isParentChainTransaction" type="hidden"/>
+                    <input name="request_type" type="hidden" value="bundleTransactions"/>
+                    <input name="childDeadline" type="hidden"/>
+                    <input name="childTimestamp" type="hidden"/>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <div class="advanced_info"><a data-i18n="advanced" href="#">advanced</a></div>
+
+                <button class="btn btn-default" data-dismiss="modal" data-i18n="cancel" type="button">Cancel</button>
+                <button class="btn btn-primary" data-i18n="bundle;[data-loading-text]submitting" data-loading-text="Submitting..." type="button">Bundle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div aria-hidden="true" class="modal fade" data-actionclass="show_transaction_modal_action" id="transaction_info_modal" role="dialog" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
                 <h4 class="modal-title">
-                    <a href='#' class="fa fa-arrow-circle-left back-link"></a>
-                    <span data-i18n="transaction">Transaction</span>&nbsp;<strong><span id="transaction_info_modal_transaction"></span></strong>&nbsp;<span data-i18n="info">Info</span>
+                    <a class="far fa-arrow-circle-left back-link" href='#'></a>
+                    <span data-i18n="transaction">Transaction</span>&nbsp;<span data-i18n="info">Info</span>
+                    <span><a class='btn btn-default btn-xs copy_link' data-clipboard-target="#transaction_info_data" href="#"><span class="far fa-copy"></span></a></span>
                 </h4>
             </div>
             <div class="modal-body">
@@ -79,6 +169,7 @@
                         <li id="transaction_info_actions"><a href="#transaction_info_actions_tab" data-toggle="tab" data-i18n="actions">Actions</a></li>
                         <li><a href="#transaction_info_details_tab" data-toggle="tab" data-i18n="transaction_details">Transaction Details</a></li>
                         <li id="phasing_info_details_link"><a href="#phasing_info_details_tab" data-toggle="tab" data-i18n="phasing_details">Phasing Details</a></li>
+                        <li><a data-i18n="raw_data" data-toggle="tab" href="#transaction_info_raw_data_tab">Raw Data</a></li>
                     </ul>
                     <div class="tab-content">
                         <div class="tab-pane active" id="transaction_info_tab">
@@ -103,7 +194,8 @@
                                     <button type="button" id="transaction_info_modal_send_message" class="btn btn-default btn-lg btn-block" data-toggle="modal" data-target="#send_message_modal" data-account="" data-i18n="send_message_to_sender">Send Message to Sender</button>
                                     <button type="button" id="transaction_info_modal_add_as_contact" class="btn btn-default btn-lg btn-block" data-toggle="modal" data-target="#add_contact_modal" data-account="" data-i18n="add_sender_as_contact">Add Sender as Contact</button>
                                     <button type="button" id="transaction_info_modal_approve_transaction" class="btn btn-default btn-lg btn-block approve_transaction_btn" data-toggle="modal" data-target="#approve_transaction_modal" data-i18n="approve_transaction">Approve Transaction</button>
-                                    <button type="button" id="transaction_info_modal_extend_data" class="btn btn-default btn-lg btn-block" data-toggle="modal" data-target="#extend_data_modal" data-i18n="extend_tagged_data">Extend Data Lifetime</button>
+                                    <button class="btn btn-default btn-lg btn-block" data-i18n="reveal_secret" data-target="#reveal_secret_modal" data-toggle="modal" id="transaction_info_modal_reveal_secret" type="button">Reveal Secret</button>
+                                    <button class="btn btn-default btn-lg btn-block bundle_btn" data-i18n="bundle" data-target="#bundle_transaction_modal" data-toggle="modal" id="transaction_info_modal_bundle" type="button">Bundle</button>
                                 </div>
                             </div>
                         </div>
@@ -121,10 +213,17 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div class="tab-pane" id="transaction_info_raw_data_tab" style="overflow:auto;">
+                            <div class="form-group">
+                                <pre><code class="json hljs" id="transaction_raw_data"></code></pre>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer" style="margin-top:0;">
+                <!-- store the transaction id in a hidden place so it can be copied -->
+                <span id="transaction_info_data" style="font-size: x-small; color: white"></span>
                 <button type="button" class="btn btn-primary" data-dismiss="modal" data-i18n="close">Close</button>
             </div>
         </div>
@@ -155,7 +254,7 @@
                     </div>
                     <label for="raw_transaction_modal_transaction_json" id="raw_transaction_modal_transaction_json_label"></label>
                     <a href="#" id="raw_transaction_modal_transaction_json_download">
-                        <i class="fa fa-download"></i>
+                        <i class="far fa-download"></i>
                     </a>
                     <div class="form-group">
                         <textarea name="transactionJSON" class="form-control" id="raw_transaction_modal_transaction_json" rows="9" readonly></textarea>
@@ -163,10 +262,10 @@
                     <div id="raw_transaction_modal_signature_container" class="form-group">
                         <label for="raw_transaction_modal_signature" data-i18n="signature">SIGNATURE</label>
                         <a href="#" class="qr_code_reader_link" id="raw_transaction_modal_signature_reader_link">
-                            <i class="fa fa-qrcode"></i>
+                            <i class="far fa-qrcode"></i>
                         </a>
                         <textarea name="signature" class="form-control" tabindex="1" id="raw_transaction_modal_signature" rows="2"></textarea>
-                        <div id="raw_transaction_modal_signature_reader" style="width:384px;height:384px;"></div>
+                        <div id="raw_transaction_modal_signature_reader"></div>
                     </div>
                     <div id="raw_transaction_modal_transaction_bytes_container">
                         <label for="raw_transaction_modal_transaction_bytes" data-i18n="signed_transaction_bytes">SIGNED TRANSACTION BYTES</label>
@@ -186,12 +285,120 @@
                             <textarea class="form-control" id="raw_transaction_modal_signature_hash" rows="1" readonly></textarea>
                         </div>
                     </div>
+
                     <input type="hidden" name="request_type" value="broadcastTransaction"/>
                 </form>
             </div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn" data-dismiss="modal" data-i18n="close">Close</button>
                 <button type="button" id="raw_transaction_broadcast" class="btn btn-primary" data-i18n="broadcast">Broadcast</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div aria-hidden="true" class="modal fade" id="generate_voucher_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title" data-i18n="generate_voucher">GENERATE VOUCHER</h4>
+            </div>
+            <div class="modal-body">
+                <form autocomplete="off" id="generate_voucher_form" role="form">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <label data-i18n="voucher_data" for="voucher_json">Voucher Data</label>
+                    <a href="#" id="voucher_json_download">
+                        <i class="far fa-download"></i>
+                    </a>
+                    <div class="form-group">
+                        <pre><code class="json hljs" id="generated_voucher_json"></code></pre>
+                    </div>
+                    <div id="voucher_qr_code_container">
+                        <label data-i18n="voucher_qr_code">VOUCHER QR CODE</label>
+                        <div class="form-group">
+                            <div id="voucher_qr_code"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button class="btn" data-dismiss="modal" data-i18n="close" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div aria-hidden="true" class="modal fade" id="load_voucher_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog modal-dialog-700">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title">
+                    <span data-i18n="submit_voucher">SUBMIT VOUCHER</span>
+                </h4>
+            </div>
+            <div class="modal-body">
+                <form autocomplete="off" role="form">
+                    <div class="callout callout-danger remote_warning" style="display:none">
+                        <strong><span data-i18n="warning">Warning</span>:</strong>
+                        <span data-i18n="passphrase_remote_warning">Your passphrase will be sent to the server!</span>
+                    </div>
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="callout callout-info info_message"></div>
+                    <div class="form-group file-reader-support">
+                        <div class="form-group">
+                            <label data-i18n="voucher_json" for="voucher_json">VOUCHER JSON</label>
+                            <label for="voucher_json_file">
+                                <i class="far fa-upload"></i>
+                            </label>
+                            <div class="upload_container">
+                                <input id="voucher_json_file" type="file">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group video-support" id="voucher_reader_container">
+                        <label data-i18n="voucher_reader" for="voucher_reader_link">Voucher Reader</label>
+                        <a href="#" id="voucher_reader_link">
+                            <i class="far fa-qrcode"></i>
+                        </a>
+                        <div id="voucher_reader"></div>
+                    </div>
+                    <div class="form-group">
+                        <textarea class="form-control" data-i18n="[placeholder]voucher_json" id="voucher_json" name="voucher" placeholder="VOUCHER JSON" rows="10"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="creator_account" for="voucher_creator_account">Creator Account</label>
+                        <input class="form-control" id="voucher_creator_account" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="request_type" for="voucher_request_type">Request Type</label>
+                        <input class="form-control" id="voucher_request_type" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="voucher_data" for="parse_voucher_output">Voucher Data</label>
+                        <div class="output" id="parse_voucher_output" style="max-height:200px;overflow:auto">
+                            <table class="table table-striped output_table" id="parse_voucher_output_table" style="margin-bottom:0;table-layout:fixed">
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
+                    <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
+                    <div data-replace-with-modal-template="advanced_deadline_template"></div>
+                    <div data-replace-with-modal-template="advanced_approve_template"></div>
+                    <div data-replace-with-modal-template="advanced_rt_hash_template"></div>
+                    <div data-replace-with-modal-template="advanced_broadcast_template"></div>
+                    <div data-replace-with-modal-template="advanced_note_to_self_template"></div>
+
+                    <div class="callout account_info" style="display:none;margin-bottom: 0;"></div>
+                    <input name="request_type" type="hidden" value="loadVoucher"/>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <div class="advanced_info"><a data-i18n="advanced" href="#">advanced</a></div>
+                <button class="btn btn-default" data-dismiss="modal" data-i18n="cancel" type="button">Cancel</button>
+                <button class="btn btn-primary" data-i18n="submit;[data-loading-text]submitting" data-loading-text="Submitting..." id="voucher_submit_btn" type="button">Submit</button>
             </div>
         </div>
     </div>
@@ -214,20 +421,24 @@
 
                 <div id="transaction_json_modal_sign_transaction" class="tab_content" style="display:none">
                     <form role="form" id="sign_transaction_form" autocomplete="off">
+                        <div class="callout callout-danger remote_warning" style="display:none">
+                            <strong><span data-i18n="warning">Warning</span>:</strong>
+                            <span data-i18n="passphrase_remote_warning">Your passphrase will be sent to the server!</span>
+                        </div>
                         <div class="callout callout-danger error_message" style="display:none"></div>
                         <div class="form-group">
                             <label for="unsigned_transaction_bytes" data-i18n="unsigned_transaction_bytes">UNSIGNED TRANSACTION BYTES</label>
                             <a href="#" class="qr_code_reader_link" id="unsigned_transaction_bytes_reader_link">
-                                <i class="fa fa-qrcode"></i>
+                                <i class="far fa-qrcode"></i>
                             </a>
                             <textarea class="form-control" name="unsignedTransactionBytes" id="unsigned_transaction_bytes" tabindex="1" rows="6" placeholder="Unsigned Transaction Bytes" data-i18n="[placeholder]unsigned_transaction_bytes"></textarea>
-                            <div id="unsigned_transaction_bytes_reader" style="width:384px;height:384px;"></div>
+                            <div id="unsigned_transaction_bytes_reader"></div>
                         </div>
                         <div class="form-group">
                             <div class="form-group">
                                 <label for="unsigned_transaction_json" data-i18n="unsigned_transaction_json">UNSIGNED TRANSACTION JSON</label>
                                 <label for="unsigned_transaction_json_file">
-                                    <i class="fa fa-upload"></i>
+                                    <i class="far fa-upload"></i>
                                 </label>
                                 <div class="upload_container">
                                     <input type="file" id="unsigned_transaction_json_file">
@@ -251,7 +462,7 @@
                         <div id="signed_json_output" class="output">
                             <label for="signed_transaction_json" data-i18n="signed_transaction_json">SIGNED TRANSACTION JSON</label>
                             <a href="#" id="signed_transaction_json_download">
-                                <i class="fa fa-download"></i>
+                                <i class="far fa-download"></i>
                             </a>
                             <div class="form-group">
                                 <textarea class="form-control" id="signed_transaction_json" readonly rows="10"></textarea>
@@ -273,7 +484,7 @@
                             <div class="form-group">
                                 <label for="broadcast_transaction_json" data-i18n="signed_transaction_json">SIGNED TRANSACTION JSON</label>
                                 <label for="broadcast_transaction_json_file">
-                                    <i class="fa fa-upload"></i>
+                                    <i class="far fa-upload"></i>
                                 </label>
                                 <div class="upload_container">
                                     <input type="file" id="broadcast_transaction_json_file">
@@ -332,31 +543,6 @@
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
                 <button type="button" class="btn btn-primary" id="transaction_json_modal_button" data-loading-text="Submitting..." data-i18n="submit;[data-loading-text]submitting">Submit</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="delete_scheduled_transaction_modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title" data-i18n="delete_scheduled_transaction">DELETE SCHEDULED TRANSACTION</h4>
-            </div>
-            <div class="modal-body">
-                <form autocomplete="off">
-                    <div class="callout callout-danger error_message" style="display:none"></div>
-                    <div class="form-group">
-                        <label for="delete_scheduled_transaction_id" data-i18n="transaction">TRANSACTION</label>
-                        <input class="form-control" name="transaction" id="delete_scheduled_transaction_id" readonly/>
-                    </div>
-                    <input type="hidden" name="request_type" value="deleteScheduledTransaction" />
-                </form>
-            </div>
-            <div class="modal-footer" style="margin-top:0;">
-                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
-                <button type="button" class="btn btn-primary" data-loading-text="Submitting..." data-i18n="delete;[placeholder]submitting">DELETE</button>
             </div>
         </div>
     </div>

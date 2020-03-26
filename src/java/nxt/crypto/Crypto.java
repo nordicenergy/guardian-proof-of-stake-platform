@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -33,7 +34,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Locale;
 
 public final class Crypto {
 
@@ -276,25 +276,6 @@ public final class Crypto {
             return result;
         } catch (InvalidCipherTextException e) {
             throw new RuntimeException(e.getMessage(), e);
-        }
-    }
-
-    public static String rsEncode(long id) {
-        return ReedSolomon.encode(id);
-    }
-
-    public static long rsDecode(String rsString) {
-        rsString = rsString.toUpperCase(Locale.ROOT);
-        try {
-            long id = ReedSolomon.decode(rsString);
-            if (! rsString.equals(ReedSolomon.encode(id))) {
-                throw new RuntimeException("ERROR: Reed-Solomon decoding of " + rsString
-                        + " not reversible, decoded to " + id);
-            }
-            return id;
-        } catch (ReedSolomon.DecodeException e) {
-            Logger.logDebugMessage("Reed-Solomon decoding failed for " + rsString + ": " + e.toString());
-            throw new RuntimeException(e.toString(), e);
         }
     }
 

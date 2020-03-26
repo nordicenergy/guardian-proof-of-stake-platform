@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -61,6 +61,7 @@ var NRS = (function(NRS, $) {
         }
         $("#mobile_validators_count").val(NRS.mobileSettings.validators_count);
         $("#mobile_bootstrap_nodes_count").val(NRS.mobileSettings.bootstrap_nodes_count);
+        $("#mobile_camera_id").val(NRS.mobileSettings.camera_id);
     });
 
     NRS.forms.setMobileSettings = function() {
@@ -95,7 +96,11 @@ var NRS = (function(NRS, $) {
         if (count < 0 || count > 5) {
             return { error: $.t("bootstrap_nodes_count") + " " + $.t("is_not_in_the_range", { from: 0, to: 5 }) };
         }
-        NRS.mobileSettings.bootstrap_nodes_count = count;
+        var cameraId = $("#mobile_camera_id").val();
+        if (!$.isNumeric(cameraId)) {
+            return { error: $.t("camera_id") + " " + $.t("is_not_numeric") };
+        }
+        NRS.mobileSettings.camera_id = parseInt(cameraId);
         NRS.setJSONItem("mobile_settings", NRS.mobileSettings);
         return { reload: true, forceGet: false };
     };

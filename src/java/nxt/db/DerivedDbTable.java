@@ -1,12 +1,12 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2018 Jelurida IP B.V.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,47 +16,56 @@
 
 package nxt.db;
 
-import nxt.Db;
+import nxt.Constants;
 import nxt.Nxt;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
-public abstract class DerivedDbTable {
+public abstract class DerivedDbTable extends Table {
 
-    protected static final TransactionalDb db = Db.db;
-
-    protected final String table;
-
-    protected DerivedDbTable(String table) {
-        this.table = table;
+    protected DerivedDbTable(String schemaTable) {
+        super(schemaTable);
         Nxt.getBlockchainProcessor().registerDerivedTable(this);
     }
 
-    public void rollback(int height) {
+    public void popOffTo(int height) {
         if (!db.isInTransaction()) {
             throw new IllegalStateException("Not in transaction");
         }
-        try (Connection con = db.getConnection();
-             PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + table + " WHERE height > ?")) {
+        try (Connection con = getConnection();
+             PreparedStatement pstmtDelete = con.prepareStatement("DELETE FROM " + schemaTable + " WHERE height > ? LIMIT " + Constants.BATCH_COMMIT_SIZE)) {
             pstmtDelete.setInt(1, height);
-            pstmtDelete.executeUpdate();
+            int deleted;
+            do {
+                deleted = pstmtDelete.executeUpdate();
+                db.commitTransaction();
+            } while (deleted >= Constants.BATCH_COMMIT_SIZE);
         } catch (SQLException e) {
             throw new RuntimeException(e.toString(), e);
         }
     }
 
+    public void rollback(int height) {
+        popOffTo(height);
+    }
+
+    @Override
     public void truncate() {
         if (!db.isInTransaction()) {
             throw new IllegalStateException("Not in transaction");
         }
-        try (Connection con = db.getConnection();
-             Statement stmt = con.createStatement()) {
-            stmt.executeUpdate("TRUNCATE TABLE " + table);
+        boolean hasPermanentRecords;
+        try (Connection con = getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM " + schemaTable + " WHERE height < 0 LIMIT 1")) {
+            hasPermanentRecords = rs.next();
         } catch (SQLException e) {
             throw new RuntimeException(e.toString(), e);
+        }
+        if (hasPermanentRecords) {
+            popOffTo(-1);
+        } else {
+            super.truncate();
         }
     }
 
@@ -70,11 +79,6 @@ public abstract class DerivedDbTable {
 
     public boolean isPersistent() {
         return false;
-    }
-
-    @Override
-    public final String toString() {
-        return table;
     }
 
 }

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,8 +17,9 @@
 package nxt.http;
 
 import nxt.NxtException;
-import nxt.TaggedData;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
+import nxt.taggeddata.TaggedDataHome;
 import nxt.util.Convert;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -41,11 +43,12 @@ public final class SearchTaggedData extends APIServlet.APIRequestHandler {
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
         boolean includeData = "true".equalsIgnoreCase(req.getParameter("includeData"));
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONObject response = new JSONObject();
         JSONArray jsonArray = new JSONArray();
         response.put("data", jsonArray);
-        try (DbIterator<TaggedData> data = TaggedData.searchData(query, channel, accountId, firstIndex, lastIndex)) {
+        try (DbIterator<TaggedDataHome.TaggedData> data = childChain.getTaggedDataHome().searchData(query, channel, accountId, firstIndex, lastIndex)) {
             while (data.hasNext()) {
                 jsonArray.add(JSONData.taggedData(data.next(), includeData));
             }

@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,10 +16,12 @@
 
 package nxt.http;
 
-import nxt.Account;
-import nxt.Attachment;
 import nxt.NxtException;
-import nxt.Order;
+import nxt.account.Account;
+import nxt.ae.AskOrderCancellationAttachment;
+import nxt.ae.OrderHome;
+import nxt.blockchain.Attachment;
+import nxt.blockchain.ChildChain;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
@@ -37,11 +40,12 @@ public final class CancelAskOrder extends CreateTransaction {
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
         long orderId = ParameterParser.getUnsignedLong(req, "order", true);
         Account account = ParameterParser.getSenderAccount(req);
-        Order.Ask orderData = Order.Ask.getAskOrder(orderId);
+        ChildChain childChain = ParameterParser.getChildChain(req);
+        OrderHome.Ask orderData = childChain.getOrderHome().getAskOrder(orderId);
         if (orderData == null || orderData.getAccountId() != account.getId()) {
             return UNKNOWN_ORDER;
         }
-        Attachment attachment = new Attachment.ColoredCoinsAskOrderCancellation(orderId);
+        Attachment attachment = new AskOrderCancellationAttachment(orderData.getFullHash());
         return createTransaction(req, account, attachment);
     }
 

@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -26,9 +26,51 @@ var ATS = (function(ATS, $, undefined) {
     ATS.apiCalls = [];
     ATS.selectedApiCalls = [];
 
+    var passwords = ["secretPhrase", "adminPassword"];
+    var postmanTemplate = {
+        "info": {
+            "name": "",
+            "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+        },
+        "item": [
+            {
+                "name": "",
+                "request": {
+                    "url": {
+                        "raw": "",
+                        "protocol": "",
+                        "host": [
+                            ""
+                        ],
+                        "port": "",
+                        "path": [
+                            "nxt"
+                        ],
+                        "query": [
+                            {
+                                "key": "requestType",
+                                "value": "",
+                                "equals": true,
+                                "description": ""
+                            }
+                        ],
+                        "variable": []
+                    },
+                    "method": "POST",
+                    "body": {
+                        "mode": "urlencoded",
+                        "urlencoded": []
+                    },
+                    "description": ""
+                },
+                "response": []
+            }
+        ]
+    };
+
     ATS.init = function() {
         hljs.initHighlightingOnLoad();
-
+        
         ATS.selectedApiCalls = ATS.setSelectedApiCalls();
         ATS.selectedApiCallsChange();
 
@@ -39,9 +81,9 @@ var ATS = (function(ATS, $, undefined) {
         });
 
         $(".collapse-link").click(function(event) {
-            event.preventDefault();
+            event.preventDefault();    
         });
-
+        
         $("#navi-show-fields").click(function(e) {
             if ($(this).attr("data-navi-val") == "ALL") {
                 $('.api-call-input-tr').each(function() {
@@ -138,9 +180,10 @@ var ATS = (function(ATS, $, undefined) {
         var url = $('#formAction').val();
         var params = {};
         for (var i = 0; i < form.elements.length; i++) {
-            if (form.elements[i].type != 'button' && form.elements[i].value && form.elements[i].value != 'submit') {
-                var key = form.elements[i].name;
-                var value = form.elements[i].value;
+            var element = form.elements[i];
+            if (element.type != 'button' && element.value && element.value != 'submit' && element.name && element.name != "") {
+                var key = element.name;
+                var value = element.value;
                 if (key in params) {
                     var index = params[key].length;
                     params[key][index] = value;
@@ -149,7 +192,8 @@ var ATS = (function(ATS, $, undefined) {
                 }
             }
         }
-        if (params["requestType"] == "downloadPrunableMessage" || params["requestType"] == "downloadTaggedData") {
+        var requestType = params["requestType"][0];
+        if (requestType == "downloadJPLSnapshot" || requestType == "downloadPrunableMessage" || requestType == "downloadTaggedData") {
             return true;
         }
         var contentType;
@@ -157,7 +201,7 @@ var ATS = (function(ATS, $, undefined) {
         var formData = null;
         var uploadField;
         if (form.encoding == "multipart/form-data") {
-            uploadField = $('#' + fileParameter + params["requestType"]);
+            uploadField = $('#' + fileParameter + requestType);
         }
         /*
         if (params["requestType"] == "downloadPrunableMessage" || params["requestType"] == "downloadTaggedData") {
@@ -199,8 +243,8 @@ var ATS = (function(ATS, $, undefined) {
             contentType = "application/x-www-form-urlencoded; charset=UTF-8";
             processData = true;
         }
-        url += "?requestType=" + params["requestType"];
-
+        url += "?requestType=" + requestType;
+        
         $.ajax({
             url: url,
             type: 'POST',
@@ -210,7 +254,8 @@ var ATS = (function(ATS, $, undefined) {
             processData: processData
         })
         .done(function(result) {
-            var resultStr = JSON.stringify(JSON.parse(result), null, 4);
+            var json = $.type(result) === 'string' ? JSON.parse(result) : result;
+            var resultStr = JSON.stringify(json, null, 4);
             var code_elem = form.getElementsByClassName("result")[0];
             code_elem.textContent = resultStr;
             hljs.highlightBlock(code_elem);
@@ -218,9 +263,36 @@ var ATS = (function(ATS, $, undefined) {
         .error(function() {
             alert('API not available, check if Nxt Server is running!');
         });
-        if ($(form).has('.uri-link').length > 0) {
+        if ($(form).has('.uri-link').length > 0) { 
             var uri = '/nxt?' + jQuery.param(params, true);
             form.getElementsByClassName("uri-link")[0].innerHTML = '<a href="' + uri + '" target="_blank" style="font-size:12px;font-weight:normal;">Open GET URL</a>';
+        } else if ($(form).has('.postman-link').length > 0 && form.encoding == "application/x-www-form-urlencoded") {
+            var postmanJson = $.extend(true, {}, postmanTemplate);
+            var requestId = requestType + '.' + Date.now();
+            postmanJson.info.name = requestId;
+            var item = postmanJson.item[0];
+            item.name = requestType;
+            var request = item.request;
+            request.url.raw = window.location.origin + url;
+            request.url.protocol = window.location.protocol.substring(0, window.location.protocol.length - 1);
+            request.url.host[0] = window.location.hostname;
+            request.url.port = window.location.port;
+            request.url.query[0].value = requestType;
+            var postParams = request.body.urlencoded;
+            for (key in params) {
+                if (!params.hasOwnProperty(key)) {
+                    continue;
+                }
+                if (passwords.indexOf(key) == -1) {
+                    for (i=0; i<params[key].length; i++) {
+                        postParams.push({ key: key, value: params[key][i]});
+                    }
+                } else {
+                    postParams.push({ key: key, value: ""});
+                }
+            }
+            var jsonAsBlob = new Blob([JSON.stringify(postmanJson, null, 4)], {type: 'text/plain'});
+            form.getElementsByClassName("postman-link")[0].innerHTML = '<a href="' + window.URL.createObjectURL(jsonAsBlob) + '" download="' + requestId + '.json'+ '" target="_blank" style="font-size:12px;font-weight:normal;">Download Postman Request</a>';
         }
         return false;
     };
@@ -247,7 +319,7 @@ var ATS = (function(ATS, $, undefined) {
         }
         return calls;
     };
-
+    
     ATS.addToSelected = function(elem) {
         var type=elem.attr('id').substr(13);
         elem.prop('checked', true);
@@ -256,7 +328,7 @@ var ATS = (function(ATS, $, undefined) {
             ATS.selectedApiCallsChange();
         }
     };
-
+    
     ATS.removeFromSelected = function(elem) {
         var type=elem.attr('id').substr(13);
         elem.prop('checked', false);

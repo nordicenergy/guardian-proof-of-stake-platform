@@ -1,11 +1,12 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright 2020 Nordic Energy Core Developers                                 ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
   ~                                                                           ~
-  ~ Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
-  ~ no part of the Nxt software, including this file, may be copied, modified,~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
   ~ propagated, or distributed except according to the terms contained in the ~
   ~ LICENSE.txt file.                                                         ~
   ~                                                                           ~
@@ -13,7 +14,7 @@
   ~                                                                           ~
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 
-<div class="modal fade" id="send_money_modal" data-transaction-type="0" data-transaction-subtype="0" tabindex="-1" role="dialog" aria-hidden="true">
+<div aria-hidden="true" class="modal fade has-recipient" data-transaction-subtype="0" data-transaction-type="0" id="send_money_modal" role="dialog" tabindex="-1">
     <div class="modal-dialog modal-dialog-700">
         <div class="modal-content">
             <div class="modal-header">
@@ -67,12 +68,12 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title modal-title-info"></h4>
+                <h4 class="modal-title" data-i18n="info">Info</h4>
             </div>
             <div class="modal-body">
                 <ul class="nav nav-pills nav-justified" style="margin-bottom:10px">
-                    <li class="active" id="nrs_modal_state_nav" data-tab="state"><a href="#" data-i18n="nrs_state">State</a></li>
-                    <li data-tab="update"><a href="#" data-i18n="nrs_update">Update</a></li>
+                    <li class="active" data-tab="state" id="nrs_modal_state_nav"><a data-i18n="state" href="#">State</a></li>
+                    <li data-tab="update"><a data-i18n="update" href="#">Update</a></li>
                 </ul>
 
                 <div id="nrs_modal_update" class="nrs_modal_content" style="display:none">
@@ -272,7 +273,7 @@
     </div>
 </div>
 
-<div class="modal fade" id="account_info_modal" data-transaction-type="1" data-transaction-subtype="5" tabindex="-1" role="dialog" aria-hidden="true">
+<div aria-hidden="true" class="modal fade" data-transaction-subtype="0" data-transaction-type="10" id="account_info_modal" role="dialog" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -290,6 +291,7 @@
                         <label for="account_info_description" data-i18n="description">DESCRIPTION</label>
                         <textarea class="form-control" id="account_info_description" name="description" rows="4" tabindex="2"></textarea>
                     </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
                     <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <div data-replace-with-modal-template="advanced_deadline_template"></div>
@@ -298,6 +300,7 @@
                     <div data-replace-with-modal-template="advanced_broadcast_template"></div>
                     <div data-replace-with-modal-template="advanced_note_to_self_template"></div>
 
+                    <input name="chain" type="hidden" value="2" />
                     <input type="hidden" name="request_type" value="setAccountInfo" />
                 </form>
             </div>
@@ -375,7 +378,10 @@
                             <tr>
                                 <td style="font-weight: bold"><span data-i18n="paper_wallet">Paper Wallet</span>:</td>
                                 <td>
-                                    <button class="btn btn-default" id="account_details_modal_paper_wallet_link" disabled data-i18n="print">Print</button>
+                                    <div id="account_details_modal_paperwallet_create">
+                                        <a class="btn btn-default" data-dismiss="modal" data-i18n="create" data-target="#create_paper_wallet_modal" data-toggle="modal" href="#">Create</a>
+                                    </div>
+                                    <div id="account_details_modal_paperwallet_na"></div>
                                 </td>
                             </tr>
                         </tbody>
@@ -391,6 +397,7 @@
                                 <th data-i18n="lessor">Lessor</th>
                                 <th data-i18n="balance">Balance</th>
                                 <th data-i18n="blocks_left_no_param">Blocks Left</th>
+                                <th data-i18n="estimated_expiration_time">Estimated Expiration Time</th>
                                 <th data-i18n="next_lessee">Next Lessee</th>
                             </tr>
                             </thead>
@@ -399,23 +406,74 @@
                             </tbody>
                         </table>
                     </div>
-                    <div style="padding-top:10px"><a href="#" data-toggle="modal" data-target="#lease_balance_modal" data-i18n="lease_balance_to_account">Lease your balance to another account.</a></div>
+                    <div style="padding-top:10px"><a data-dismiss="modal" data-i18n="lease_balance_to_account" data-target="#lease_balance_modal" data-toggle="modal" href="#" id="lease_balance_link">Lease your balance to another account.</a></div>
                 </div>
                 <div id="account_details_modal_account_control" class="account_details_modal_content" style="display:none">
                     <div id="setup_mandatory_approval" style="display:none">
-                        <a href="#" data-toggle="modal" data-target="#set_mandatory_approval_modal" data-i18n="setup_mandatory_approval">Setup Mandatory Approval</a>
+                        <a data-dismiss="modal" data-i18n="setup_mandatory_approval" data-target="#set_mandatory_approval_modal" data-toggle="modal" href="#">Setup Mandatory Approval</a>
                     </div>
                     <div id="mandatory_approval_details" style="display:none">
-                        <div data-i18n="mandatory_approval_enabled" style="padding-bottom:10px">Mandatory Approval:</div>
+                        <div class="form-group" data-i18n="mandatory_approval_enabled">Mandatory Approval:</div>
                         <table class="table table-striped" id="mandatory_approval_info_table" style="display:none;margin-bottom: 0;">
                             <tbody>
 
                             </tbody>
                         </table>
-                        <div style="padding-top:10px"><a href="#" data-toggle="modal" data-target="#set_mandatory_approval_modal" data-i18n="change">Change</a></div>
+                        <div class="form-group">
+                            <a data-dismiss="modal" data-i18n="change" data-target="#set_mandatory_approval_modal" data-toggle="modal" href="#">Change</a>
+                        </div>
                     </div>
                 </div>
             </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button class="btn btn-primary" data-dismiss="modal" data-i18n="close" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div aria-hidden="true" class="modal fade" id="chain_details_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title">
+                    <a class="far fa-arrow-circle-left back-link" href='#'></a>
+                    <span class="modal-title" data-i18n="chain_details">Chain Details</span>
+                </h4>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped" id="chain_details_table" style="margin-bottom:0">
+                    <tbody>
+
+                    </tbody>
+                </table>
+             </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button class="btn btn-primary" data-dismiss="modal" data-i18n="close" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div aria-hidden="true" class="modal fade" id="entity_details_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title">
+                    <a class="far fa-arrow-circle-left back-link" href='#'></a>
+                    <span id="entity_details_type"></span> <strong><span id="entity_details_id"></span></strong>&nbsp;<span data-i18n="info">Info</span>
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div class="callout callout-info" id="entity_info_callout" style="display:none;"></div>
+                <table class="table table-striped" id="entity_details_table" style="margin-bottom:0">
+                    <tbody>
+
+                    </tbody>
+                </table>
+             </div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-primary" data-dismiss="modal" data-i18n="close">Close</button>
             </div>
@@ -428,7 +486,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title" data-i18n="token_generation_validation">Token Generation / Validation</h4>
+                <h4 class="modal-title" data-i18n="nxt_token_generation_validation">Token Generation / Validation</h4>
             </div>
             <div class="modal-body">
                 <ul class="nav nav-pills nav-justified" style="margin-bottom:10px">
@@ -470,91 +528,6 @@
                 <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
                 <button type="button" class="btn btn-primary" data-ignore="true" data-form="generate_token_form" id="generate_token_button" data-i18n="generate">Generate</button>
                 <button type="button" class="btn btn-primary" data-form="validate_token_form" id="validate_token_button" data-i18n="validate">Validate</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade modal-no-hide" id="hallmark_modal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title" data-i18n="hallmark_generation_parsing">Hallmark Generation / Parsing</h4>
-            </div>
-            <div class="modal-body">
-                <ul class="nav nav-pills nav-justified" style="margin-bottom:10px">
-                    <li class="active" id="generate_hallmark_nav" data-tab="generate_hallmark"><a href="#" data-i18n="generate_hallmark">Generate Hallmark</a></li>
-                    <li data-tab="parse_hallmark"><a href="#" data-i18n="parse_hallmark">Parse Hallmark</a></li>
-                </ul>
-
-                <div id="hallmark_modal_generate_hallmark" class="hallmark_modal_content" style="display:none">
-                    <form role="form" id="generate_hallmark_form" autocomplete="off">
-                        <div class="callout callout-danger remote_warning" style="display:none">
-                            <strong><span data-i18n="warning">Warning</span>:</strong>
-                            <span data-i18n="passphrase_remote_warning">Your passphrase will be sent to the server!</span>
-                        </div>
-                        <div class="callout callout-danger error_message" style="display:none"></div>
-                        <div class="callout callout-info" id="generate_hallmark_output" style="display:none;"></div>
-                        <div class="form-group">
-                            <label for="generate_hallmark_host" data-i18n="host">HOST</label>
-                            <input type="text" class="form-control" name="host" id="generate_hallmark_host" placeholder="Public Host Address" data-i18n="[placeholder]public_host_address" autofocus tabindex="1" />
-                        </div>
-                        <div class="form-group">
-                            <label for="generate_hallmark_weight" data-i18n="weight">WEIGHT</label>
-                            <input type="text" class="form-control" name="weight" id="generate_hallmark_weight" placeholder="Proportional Weight [0-1000000000]" data-i18n="[placeholder]weight_placeholder" tabindex="2" />
-                        </div>
-                        <div class="form-group">
-                            <label for="generate_hallmark_date" data-i18n="date">DATE</label>
-                            <input type="text" class="form-control" name="date" id="generate_hallmark_date" placeholder="YYYY/MM/DD" data-i18n="[placeholder]hallmark_date_placeholder" tabindex="3" />
-                        </div>
-                        <input type="hidden" name="request_type" value="markHost" />
-                        <div class="form-group secret_phrase">
-                            <label for="generate_hallmark_password" data-i18n="passphrase">PASSPHRASE</label>
-                            <input type="password" name="secretPhrase" id="generate_hallmark_password" class="form-control" placeholder="" tabindex="4">
-                        </div>
-                    </form>
-                </div>
-
-                <div id="hallmark_modal_parse_hallmark" class="hallmark_modal_content" style="display:none">
-                    <form role="form" id="parse_hallmark_form" autocomplete="off">
-                        <div class="callout callout-danger error_message" style="display:none"></div>
-                        <div class="callout callout-info" id="parse_hallmark_output" style="display:none;"></div>
-                        <div class="form-group">
-                            <label for="parse_hallmark_data" data-i18n="hallmark">HALLMARK</label>
-                            <textarea class="form-control" name="hallmark" id="parse_hallmark_data" placeholder="Hallmark" data-i18n="[placeholder]hallmark" tabindex="1" rows="4"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="parse_hallmark_host" data-i18n="account">ACCOUNT</label>
-                            <input type="text" class="form-control" name="account" id="parse_hallmark_account" placeholder="Account" data-i18n="[placeholder]account" readonly value="" />
-                        </div>
-                        <div class="form-group">
-                            <label for="parse_hallmark_host" data-i18n="host">HOST</label>
-                            <input type="text" class="form-control" name="host" id="parse_hallmark_host" placeholder="Host" data-i18n="[placeholder]host" readonly value="" />
-                        </div>
-                        <div class="form-group">
-                            <label for="parse_hallmark_port" data-i18n="port">PORT</label>
-                            <input type="text" class="form-control" name="port" id="parse_hallmark_port" placeholder="Port" data-i18n="[placeholder]port" readonly value="" />
-                        </div>
-                        <div class="form-group">
-                            <label for="parse_hallmark_weight" data-i18n="weight">WEIGHT</label>
-                            <input type="text" class="form-control" name="host" id="parse_hallmark_weight" placeholder="Weight" data-i18n="[placeholder]weight" readonly value="" />
-                        </div>
-                        <div class="form-group">
-                            <label for="parse_hallmark_date" data-i18n="date">DATE</label>
-                            <input type="text" class="form-control" name="date" id="parse_hallmark_date" placeholder="date" data-i18n="[placeholder]date" readonly value="" />
-                        </div>
-                        <div class="form-group">
-                            <label for="parse_hallmark_valid" data-i18n="valid">VALID</label>
-                            <input type="text" class="form-control" name="valid" id="parse_hallmark_valid" placeholder="valid" data-i18n="[placeholder]valid" readonly value="" />
-                        </div>
-                        <input type="hidden" name="request_type" value="decodeHallmark" />
-                    </form>
-                </div>
-            </div>
-            <div class="modal-footer" style="margin-top:0;">
-                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
-                <button type="button" class="btn btn-primary" id="hallmark_modal_button" data-i18n="generate">Generate</button>
             </div>
         </div>
     </div>
@@ -616,7 +589,7 @@
                 </form>
             </div>
             <div class="modal-footer" style="margin-top:0;">
-                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
+                <button class="btn btn-default" data-dismiss="modal" data-i18n="close" type="button">Close</button>
                 <button type="button" class="btn btn-primary" data-i18n="validate">Validate</button>
             </div>
         </div>
@@ -628,19 +601,18 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title help-about"></h4>
+                <h4 class="modal-title" data-i18n="about_ardor">About Ardor</h4>
             </div>
             <div class="modal-body">
                 <div>
-                    <img height="128px" width="128px" src="img/brand/logo.png" align="left" hspace="10" vspace="10">
+                    <img align="left" height="128px" hspace="10" src="img/nxt_logo.png" vspace="10" width="128px">
                     <p>
-                        <span class="branding-message"></span>
                         Copyright © 2013-2016 The Nxt Core Developers.<br />
                         Copyright © 2016-2019 Jelurida IP B.V.<br />
-                        Distributed under the <a href="https://www.jelurida.com/jpl" target="_new">Jelurida Public License (JPL)</a> version 1.1 for the Nxt Public Blockchain Platform, with ABSOLUTELY NO WARRANTY.<br />
+                        Distributed under the <a href="https://www.jelurida.com/jpl" target="_blank">Jelurida Public License (JPL)</a> version 1.2 for the Ardor Public Blockchain Platform, with ABSOLUTELY NO WARRANTY.<br />
                     </p>
                     <p>
-                        The Nxt Reference Software (NRS) is developed by <a href="https://www.jelurida.com" target="_new"><img src="img/jelurida_logo.png" height="24px" alt="Jelurida" align="center" hspace="2">Jelurida</a>,<br />
+                        Ardor is developed by <a href="https://www.jelurida.com" target="_blank"><img align="center" alt="Jelurida" height="24px" hspace="2" src="img/jelurida_logo.png">Jelurida</a>,
                         the creators of open source blockchain solutions.<br />
                     </p>
                     <p align="center">
@@ -648,7 +620,7 @@
                         Support: <a href="mailto:support@jelurida.com">support@jelurida.com</a> |
                         Business enquiries: <a href="mailto:info@jelurida.com">info@jelurida.com</a>
                     </p>
-                </div>
+                 </div>
             </div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="close">Close</button>
@@ -663,7 +635,7 @@
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
                 <h4 class="modal-title">
-                    <a href='#' class="fa fa-arrow-circle-left back-link"></a>
+                    <a class="far fa-arrow-circle-left back-link" href='#'></a>
                     <span data-i18n="block">Block</span>&nbsp;<strong><span id="block_info_modal_block"></span></strong>&nbsp;<span data-i18n="info">Info</span>
                 </h4>
             </div>
@@ -673,6 +645,7 @@
                         <li class="active"><a href="#block_info_transactions_tab" data-toggle="tab" id="block_info_transactions_tab_link" data-i18n="transactions">Transactions</a></li>
                         <li><a href="#block_info_executed_phased_tab" data-toggle="tab" data-i18n="executed_phased_transactions">Executed Phased Transactions</a></li>
                         <li><a href="#block_info_details_tab" data-toggle="tab" data-i18n="block_details">Block Details</a></li>
+                        <li><a data-i18n="raw_data" data-toggle="tab" href="#block_info_raw_data_tab">Raw Data</a></li>
                     </ul>
                     <div class="tab-content">
                         <div class="tab-pane active" id="block_info_transactions_tab" style="max-height:350px;overflow:auto;">
@@ -717,6 +690,11 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div class="tab-pane" id="block_info_raw_data_tab" style="max-height:350px;overflow:auto;">
+                            <div class="form-group">
+                                <pre><code class="json hljs" id="block_raw_data"></code></pre>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -733,7 +711,7 @@
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
                 <h4 class="modal-title">
-                    <a href='#' class="fa fa-arrow-circle-left back-link"></a>
+                    <a class="far fa-arrow-circle-left back-link" href='#'></a>
                     <span data-i18n="ledger_entry">Ledger Entry</span>&nbsp;<strong><span id="ledger_info_modal_entry"></span></strong>&nbsp;<span data-i18n="info">Info</span>
                 </h4>
             </div>
@@ -757,7 +735,7 @@
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
                 <h4 class="modal-title">
-                    <a href='#' class="fa fa-arrow-circle-left back-link"></a>
+                    <a class="far fa-arrow-circle-left back-link" href='#'></a>
                     <span data-i18n="account">Account</span>&nbsp;<strong><span id="user_info_modal_account"></span></strong>&nbsp;<span data-i18n="info">Info</span>
                 </h4>
             </div>
@@ -783,6 +761,7 @@
                     <li id="user_info_aliases" data-tab="aliases"><a href="#" data-i18n="aliases">Aliases</a></li>
                     <li id="user_info_description" data-tab="description"><a href="#" data-i18n="description">Description</a></li>
                     <li id="user_info_actions" data-tab="actions"><a href="#" data-i18n="actions">Actions</a></li>
+                    <li data-tab="account_properties" id="user_info_account_properties"><a data-i18n="account_properties" href="#">Account Properties</a></li>
                 </ul>
 
                 <div class="data-container data-loading user_info_modal_content" id="user_info_modal_transactions" style="display:none;max-height:350px;overflow:auto;">
@@ -810,6 +789,7 @@
                         <tr>
                             <th data-i18n="entry">ENTRY</th>
                             <th data-i18n="type">TYPE</th>
+                            <th data-i18n="chain">CHAIN</th>
                             <th data-i18n="change" class="numeric">CHANGE</th>
                             <th data-i18n="balance" class="numeric">BALANCE</th>
                             <th data-i18n="holding">HOLDING</th>
@@ -928,6 +908,35 @@
                     </div>
                 </div>
 
+                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_account_properties" style="position: relative; display:none;max-height:350px;">
+                    <div style="position:absolute; right:9px;">
+                        <div class="btn-group" data-toggle="buttons" id="user_modal_account_properties_page_type">
+                            <label class="btn btn-default active" data-type="incoming">
+                                <input name="account_properties_page_type" onchange="NRS.userInfoModal.account_properties()" type="radio"> <span data-i18n="incoming">INCOMING</span>
+                            </label>
+                            <label class="btn btn-default" data-type="outgoing">
+                                <input name="account_properties_page_type" onchange="NRS.userInfoModal.account_properties()" type="radio"> <span data-i18n="outgoing">OUTGOING</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div style="overflow:auto; position:relative; top:40px; margin-bottom:90px; max-height: 400px;" >
+                        <table class="table table-striped" id="user_info_modal_account_properties_table">
+                            <thead>
+                            <tr>
+                                <th data-i18n="setter" style="min-width: 250px;">SETTER</th>
+                                <th data-i18n="property">PROPERTY</th>
+                                <th data-i18n="value">VALUE</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="data-loading-container"><img alt="Loading..." height="32" src="img/loading_indicator.gif" width="32" /></div>
+                    <div class="data-empty-container" data-i18n="no_properties" style="padding-top:10px">This account has no properties.</div>
+                </div>
+
             </div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-primary" data-dismiss="modal" data-i18n="close">Close</button>
@@ -996,3 +1005,40 @@
         </div>
     </div>
 </div>
+
+<div aria-hidden="true" class="modal fade" id="create_paper_wallet_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" class="close" data-dismiss="modal" type="button">&times;</button>
+                <h4 class="modal-title">
+                    <span data-i18n="paper_wallet">Paper Wallet</span>
+                </h4>
+            </div>
+            <div class="modal-body">
+                <form autocomplete="off" role="form">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="callout callout-info info_message" style="display:none"></div>
+                    <div class="input-group">
+                        <input name="enableSecretSharing" tabindex="1" type="checkbox"/>
+                        <label data-i18n="enable_secret_sharing" style="font-weight:normal;" tabindex="1">Enable Secret Sharing</label>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="total_pieces">Total Pieces</label>
+                        <input class="form-control" max="9" min="0" name="totalPieces" tabindex="2" type="number"/>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="required_pieces">Required Pieces</label>
+                        <input class="form-control" max="9" min="0" name="requiredPieces" tabindex="3" type="number"/>
+                    </div>
+                    <input name="request_type" type="hidden" value="createPaperWallet"/>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button class="btn btn-default" data-dismiss="modal" data-i18n="close" type="button">Close</button>
+                <button class="btn btn-primary" data-i18n="submit;[data-loading-text]submitting" data-loading-text="Submitting..." type="button">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+

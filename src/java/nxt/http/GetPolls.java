@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -18,9 +19,10 @@ package nxt.http;
 
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.Poll;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
 import nxt.db.DbUtils;
+import nxt.voting.PollHome;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -43,23 +45,24 @@ public class GetPolls extends APIServlet.APIRequestHandler {
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
         final int timestamp = ParameterParser.getTimestamp(req);
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONArray pollsJson = new JSONArray();
-        DbIterator<Poll> polls = null;
+        DbIterator<PollHome.Poll> polls = null;
         try {
             if (accountId == 0) {
                 if (finishedOnly) {
-                    polls = Poll.getPollsFinishingAtOrBefore(Nxt.getBlockchain().getHeight(), firstIndex, lastIndex);
+                    polls = childChain.getPollHome().getPollsFinishingAtOrBefore(Nxt.getBlockchain().getHeight(), firstIndex, lastIndex);
                 } else if (includeFinished) {
-                    polls = Poll.getAllPolls(firstIndex, lastIndex);
+                    polls = childChain.getPollHome().getAllPolls(firstIndex, lastIndex);
                 } else {
-                    polls = Poll.getActivePolls(firstIndex, lastIndex);
+                    polls = childChain.getPollHome().getActivePolls(firstIndex, lastIndex);
                 }
             } else {
-                polls = Poll.getPollsByAccount(accountId, includeFinished, finishedOnly, firstIndex, lastIndex);
+                polls = childChain.getPollHome().getPollsByAccount(accountId, includeFinished, finishedOnly, firstIndex, lastIndex);
             }
             while (polls.hasNext()) {
-                Poll poll = polls.next();
+                PollHome.Poll poll = polls.next();
                 if (poll.getTimestamp() < timestamp) {
                     break;
                 }

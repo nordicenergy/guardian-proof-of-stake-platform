@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -17,7 +18,8 @@ package nxt.http;
 
 import nxt.Nxt;
 import nxt.NxtException;
-import nxt.PrunableMessage;
+import nxt.blockchain.Chain;
+import nxt.messaging.PrunableMessageHome;
 import nxt.util.Convert;
 import nxt.util.Logger;
 import org.json.simple.JSONStreamAware;
@@ -34,19 +36,21 @@ public final class DownloadPrunableMessage extends APIServlet.APIRequestHandler 
     static final DownloadPrunableMessage instance = new DownloadPrunableMessage();
 
     private DownloadPrunableMessage() {
-        super(new APITag[] {APITag.MESSAGES}, "transaction", "secretPhrase", "sharedKey", "retrieve", "save");
+        super(new APITag[] {APITag.MESSAGES}, "transactionFullHash", "secretPhrase", "sharedKey", "retrieve", "save");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest request, HttpServletResponse response) throws NxtException {
-        long transactionId = ParameterParser.getUnsignedLong(request, "transaction", true);
+        byte[] transactionFullHash = ParameterParser.getBytes(request, "transactionFullHash", true);
         boolean retrieve = "true".equalsIgnoreCase(request.getParameter("retrieve"));
-        PrunableMessage prunableMessage = PrunableMessage.getPrunableMessage(transactionId);
+        Chain chain = ParameterParser.getChain(request);
+        PrunableMessageHome prunableMessageHome = chain.getPrunableMessageHome();
+        PrunableMessageHome.PrunableMessage prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         if (prunableMessage == null && retrieve) {
-            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(transactionId) == null) {
+            if (Nxt.getBlockchainProcessor().restorePrunedTransaction(chain, transactionFullHash) == null) {
                 return PRUNED_TRANSACTION;
             }
-            prunableMessage = PrunableMessage.getPrunableMessage(transactionId);
+            prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         }
         String secretPhrase = ParameterParser.getSecretPhrase(request, false);
         byte[] sharedKey = ParameterParser.getBytes(request, "sharedKey", false);
@@ -72,7 +76,7 @@ public final class DownloadPrunableMessage extends APIServlet.APIRequestHandler 
             data = Convert.EMPTY_BYTE;
         }
         String contentDisposition = "true".equalsIgnoreCase(request.getParameter("save")) ? "attachment" : "inline";
-        response.setHeader("Content-Disposition", contentDisposition + "; filename=" + Long.toUnsignedString(transactionId));
+        response.setHeader("Content-Disposition", contentDisposition + "; filename=" + Long.toUnsignedString(Convert.fullHashToId(transactionFullHash)));
         response.setContentLength(data.length);
         try (OutputStream out = response.getOutputStream()) {
             try {

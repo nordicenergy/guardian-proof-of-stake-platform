@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -47,7 +48,6 @@ public enum APIEnum {
     DGS_PURCHASE("dgsPurchase", DGSPurchase.instance),
     DGS_QUANTITY_CHANGE("dgsQuantityChange", DGSQuantityChange.instance),
     DGS_REFUND("dgsRefund", DGSRefund.instance),
-    DECODE_HALLMARK("decodeHallmark", DecodeHallmark.instance),
     DECODE_TOKEN("decodeToken", DecodeToken.instance),
     DECODE_FILE_TOKEN("decodeFileToken", DecodeFileToken.instance),
     DECODE_Q_R_CODE("decodeQRCode", DecodeQRCode.instance),
@@ -122,13 +122,11 @@ public enum APIEnum {
     GET_DGS_TAGS_LIKE("getDGSTagsLike", GetDGSTagsLike.instance),
     GET_GUARANTEED_BALANCE("getGuaranteedBalance", GetGuaranteedBalance.instance),
     GET_E_C_BLOCK("getECBlock", GetECBlock.instance),
-    GET_INBOUND_PEERS("getInboundPeers", GetInboundPeers.instance),
     GET_PLUGINS("getPlugins", GetPlugins.instance),
     GET_MY_INFO("getMyInfo", GetMyInfo.instance),
     GET_PEER("getPeer", GetPeer.instance),
     GET_PEERS("getPeers", GetPeers.instance),
     GET_PHASING_POLL("getPhasingPoll", GetPhasingPoll.instance),
-    GET_PHASING_POLLS("getPhasingPolls", GetPhasingPolls.instance),
     GET_PHASING_POLL_VOTES("getPhasingPollVotes", GetPhasingPollVotes.instance),
     GET_PHASING_POLL_VOTE("getPhasingPollVote", GetPhasingPollVote.instance),
     GET_POLL("getPoll", GetPoll.instance),
@@ -146,7 +144,7 @@ public enum APIEnum {
     GET_ALL_TRADES("getAllTrades", GetAllTrades.instance),
     GET_ALL_EXCHANGES("getAllExchanges", GetAllExchanges.instance),
     GET_ASSET_TRANSFERS("getAssetTransfers", GetAssetTransfers.instance),
-    GET_ASSET_DELETES("getAssetDeletes", GetAssetDeletes.instance),
+    GET_ASSET_HISTORY("getAssetHistory", GetAssetHistory.instance),
     GET_EXPECTED_ASSET_TRANSFERS("getExpectedAssetTransfers", GetExpectedAssetTransfers.instance),
     GET_EXPECTED_ASSET_DELETES("getExpectedAssetDeletes", GetExpectedAssetDeletes.instance),
     GET_CURRENCY_TRANSFERS("getCurrencyTransfers", GetCurrencyTransfers.instance),
@@ -197,7 +195,6 @@ public enum APIEnum {
     LEASE_BALANCE("leaseBalance", LeaseBalance.instance),
     LONG_CONVERT("longConvert", LongConvert.instance),
     HEX_CONVERT("hexConvert", HexConvert.instance),
-    MARK_HOST("markHost", MarkHost.instance),
     PARSE_TRANSACTION("parseTransaction", ParseTransaction.instance),
     PLACE_ASK_ORDER("placeAskOrder", PlaceAskOrder.instance),
     PLACE_BID_ORDER("placeBidOrder", PlaceBidOrder.instance),
@@ -235,7 +232,6 @@ public enum APIEnum {
     SEARCH_ACCOUNTS("searchAccounts", SearchAccounts.instance),
     SEARCH_TAGGED_DATA("searchTaggedData", SearchTaggedData.instance),
     UPLOAD_TAGGED_DATA("uploadTaggedData", UploadTaggedData.instance),
-    EXTEND_TAGGED_DATA("extendTaggedData", ExtendTaggedData.instance),
     GET_ACCOUNT_TAGGED_DATA("getAccountTaggedData", GetAccountTaggedData.instance),
     GET_ALL_TAGGED_DATA("getAllTaggedData", GetAllTaggedData.instance),
     GET_CHANNEL_TAGGED_DATA("getChannelTaggedData", GetChannelTaggedData.instance),
@@ -245,7 +241,6 @@ public enum APIEnum {
     GET_DATA_TAG_COUNT("getDataTagCount", GetDataTagCount.instance),
     GET_DATA_TAGS_LIKE("getDataTagsLike", GetDataTagsLike.instance),
     VERIFY_TAGGED_DATA("verifyTaggedData", VerifyTaggedData.instance),
-    GET_TAGGED_DATA_EXTEND_TRANSACTIONS("getTaggedDataExtendTransactions", GetTaggedDataExtendTransactions.instance),
     CLEAR_UNCONFIRMED_TRANSACTIONS("clearUnconfirmedTransactions", ClearUnconfirmedTransactions.instance),
     REQUEUE_UNCONFIRMED_TRANSACTIONS("requeueUnconfirmedTransactions", RequeueUnconfirmedTransactions.instance),
     REBROADCAST_UNCONFIRMED_TRANSACTIONS("rebroadcastUnconfirmedTransactions", RebroadcastUnconfirmedTransactions.instance),
@@ -280,10 +275,47 @@ public enum APIEnum {
     SEND_TRANSACTION("sendTransaction", SendTransaction.instance),
     GET_ASSET_DIVIDENDS("getAssetDividends", GetAssetDividends.instance),
     BLACKLIST_API_PROXY_PEER("blacklistAPIProxyPeer", BlacklistAPIProxyPeer.instance),
-    GET_NEXT_BLOCK_GENERATORS("getNextBlockGenerators", GetNextBlockGeneratorsTemp.instance),
-    GET_SCHEDULED_TRANSACTIONS("getScheduledTransactions", GetScheduledTransactions.instance),
-    SCHEDULE_CURRENCY_BUY("scheduleCurrencyBuy", ScheduleCurrencyBuy.instance),
-    DELETE_SCHEDULED_TRANSACTION("deleteScheduledTransaction", DeleteScheduledTransaction.instance);
+    GET_NEXT_BLOCK_GENERATORS("getNextBlockGenerators", GetNextBlockGenerators.instance),
+    START_BUNDLER("startBundler", StartBundler.instance),
+    STOP_BUNDLER("stopBundler", StopBundler.instance),
+    GET_BUNDLERS("getBundlers", GetBundlers.instance),
+    BUNDLE_TRANSACTIONS("bundleTransactions", BundleTransactions.instance),
+    EXCHANGE_COINS("exchangeCoins", ExchangeCoins.instance),
+    CANCEL_COIN_EXCHANGE("cancelCoinExchange", CancelCoinExchange.instance),
+    GET_COIN_EXCHANGE_ORDER("getCoinExchangeOrder", GetCoinExchangeOrder.instance),
+    GET_COIN_EXCHANGE_ORDER_IDS("getCoinExchangeOrderIds", GetCoinExchangeOrderIds.instance),
+    GET_COIN_EXCHANGE_ORDERS("getCoinExchangeOrders", GetCoinExchangeOrders.instance),
+    GET_COIN_EXCHANGE_TRADES("getCoinExchangeTrades", GetCoinExchangeTrades.instance),
+    GET_COIN_EXCHANGE_TRADE("getCoinExchangeTrade", GetCoinExchangeTrade.instance),
+    GET_EXPECTED_COIN_EXCHANGE_ORDERS("getExpectedCoinExchangeOrders", GetExpectedCoinExchangeOrders.instance),
+    GET_EXPECTED_COIN_EXCHANGE_ORDER_CANCELLATIONS("getExpectedCoinExchangeOrderCancellations", GetExpectedCoinExchangeOrderCancellations.instance),
+    GET_BUNDLER_RATES("getBundlerRates", GetBundlerRates.instance),
+    GET_FXT_TRANSACTION("getFxtTransaction", GetFxtTransaction.instance),
+    GET_BALANCES("getBalances", GetBalances.instance),
+    SIMULATE_COIN_EXCHANGE("simulateCoinExchange", SimulateCoinExchange.instance),
+    GET_EFFECTIVE_BALANCE("getEffectiveBalance", GetEffectiveBalance.instance),
+    BLACKLIST_BUNDLER("blacklistBundler", BlacklistBundler.instance),
+    GET_ALL_BUNDLER_RATES("getAllBundlerRates", GetAllBundlerRates.instance),
+    EVALUATE_EXPRESSION("evaluateExpression", EvaluateExpression.instance),
+    PARSE_PHASING_PARAMS("parsePhasingParams", ParsePhasingParams.instance),
+    SET_PHASING_ASSET_CONTROL("setPhasingAssetControl", SetPhasingAssetControl.instance),
+    GET_PHASING_ASSET_CONTROL("getPhasingAssetControl", GetPhasingAssetControl.instance),
+    INCREASE_ASSET_SHARES("increaseAssetShares", IncreaseAssetShares.instance),
+    GET_EXECUTED_TRANSACTIONS("getExecutedTransactions", GetExecutedTransactions.instance),
+    ADD_BUNDLING_RULE("addBundlingRule", AddBundlingRule.instance),
+    GET_BUNDLING_OPTIONS("getBundlingOptions", GetBundlingOptions.instance),
+    PROCESS_VOUCHER("processVoucher", ProcessVoucher.instance),
+    SET_CONTRACT_REFERENCE("setContractReference", SetContractReference.instance),
+    DELETE_CONTRACT_REFERENCE("deleteContractReference", DeleteContractReference.instance),
+    GET_CONTRACT_REFERENCES("getContractReferences", GetContractReferences.instance),
+    CALCULATE_FEE("calculateFee", CalculateFee.instance),
+    GET_ASSET_PROPERTIES("getAssetProperties", GetAssetProperties.instance),
+    SET_ASSET_PROPERTY("setAssetProperty", SetAssetProperty.instance),
+    DELETE_ASSET_PROPERTY("deleteAssetProperty", DeleteAssetProperty.instance),
+    GET_HASHED_SECRET_PHASED_TRANSACTIONS("getHashedSecretPhasedTransactions", GetHashedSecretPhasedTransactions.instance),
+    SPLIT_SECRET("splitSecret", SplitSecret.instance),
+    COMBINE_SECRET("combineSecret", CombineSecret.instance),
+    MANAGE_PEERS_NETWORKING("managePeersNetworking", ManagePeersNetworking.instance);
 
     private static final Map<String, APIEnum> apiByName = new HashMap<>();
 
@@ -328,10 +360,13 @@ public enum APIEnum {
     }
 
     public static EnumSet<APIEnum> base64StringToEnumSet(String apiSetBase64) {
+        EnumSet<APIEnum> result = EnumSet.noneOf(APIEnum.class);
+        if (apiSetBase64 == null) {
+            return result;
+        }
         byte[] decoded = Base64.getDecoder().decode(apiSetBase64);
         BitSet bs = BitSet.valueOf(decoded);
-        EnumSet<APIEnum> result = EnumSet.noneOf(APIEnum.class);
-        for (int i = bs.nextSetBit(0); i >= 0; i = bs.nextSetBit(i+1)) {
+        for (int i = bs.nextSetBit(0); i >= 0 && i < APIEnum.values().length; i = bs.nextSetBit(i+1)) {
             result.add(APIEnum.values()[i]);
             if (i == Integer.MAX_VALUE) {
                 break; // or (i+1) would overflow

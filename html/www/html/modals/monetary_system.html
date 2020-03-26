@@ -1,11 +1,12 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright 2020 Nordic Energy Core Developers                                 ~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
   ~                                                                           ~
-  ~ Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
-  ~ no part of the Nxt software, including this file, may be copied, modified,~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
   ~ propagated, or distributed except according to the terms contained in the ~
   ~ LICENSE.txt file.                                                         ~
   ~                                                                           ~
@@ -13,7 +14,7 @@
   ~                                                                           ~
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 
-<div class="modal fade" id="transfer_currency_modal" data-transaction-type="5" data-transaction-subtype="3" tabindex="-1" role="dialog" aria-hidden="true">
+<div aria-hidden="true" class="modal fade has-recipient" data-transaction-subtype="3" data-transaction-type="5" id="transfer_currency_modal" role="dialog" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -36,7 +37,7 @@
                     <div class="form-group">
                         <label for="transfer_currency_units" data-i18n="units">UNITS</label>
                         <div class="input-group">
-                            <input type="number" name="units" id="transfer_currency_units" class="form-control" step="any" min="0" placeholder="Units" data-i18n="[placeholder]units" tabindex="3">
+                            <input class="form-control" data-i18n="[placeholder]units" id="transfer_currency_units" min="0" name="unitsQNT" placeholder="Units" step="any" tabindex="3" type="number">
                             <span class="input-group-addon" id="transfer_currency_units_code"></span>
                         </div>
                     </div>
@@ -80,15 +81,15 @@
                         <label data-i18n="exchange_description">EXCHANGE DESCRIPTION</label>
                         <p id="currency_order_description"></p>
                         <input type="hidden" name="currency" id="currency_order_currency" value="" />
+                        <input id="currency_order_units" name="unitsQNT" type="hidden" value="" />
+                        <input id="currency_order_rate" name="rateNQTPerUnit" type="hidden" value="" />
                         <input type="hidden" id="currency_order_currency_code" value="" />
-                        <input type="hidden" name="units" id="currency_order_units" value="" />
-                        <input type="hidden" name="rateNQT" id="currency_order_rate" value="" />
-                        <input type="hidden" name="deadline" id="currency_order_deadline" data-default="24" value="24" />
                     </div>
                     <div class="form-group">
-                        <label><span data-i18n="total">TOTAL</span> <i id="currency_order_total_tooltip" class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="right" data-content=""></i></label>
+                        <label><span data-i18n="total">TOTAL</span> <i class="far fa-question-circle" data-content="" data-placement="right" data-toggle="popover" id="currency_order_total_tooltip" style="color:#4CAA6E"></i></label>
                         <p id="currency_order_total"></p>
                     </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
                     <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <div data-replace-with-modal-template="advanced_deadline_template"></div>
@@ -97,8 +98,6 @@
                     <div data-replace-with-modal-template="advanced_broadcast_template"></div>
                     <div data-replace-with-modal-template="advanced_note_to_self_template"></div>
                     <input type="hidden" name="currency_order_type" id="currency_order_type" />
-                    <input type="hidden" id="currency_order_no_broadcast" name="doNotBroadcast" value=""/>
-                    <input type="hidden" id="currency_order_currency_issuer" name="offerIssuer" value=""/>
                     <input type="hidden" name="request_type" value="orderCurrency" />
                 </form>
             </div>
@@ -123,11 +122,11 @@
                 <form role="form" autocomplete="off">
                     <div class="callout callout-danger error_message" style="display:none"></div>
                     <div class="form-group">
-                        <label for="issue_currency_name"><span data-i18n="currency_name">CURRENCY NAME</span> <i class="fa fa-question-circle show_popover" data-content="The currency name is unique. Should be between 3-10 characters and longer than the currency code." data-i18n="[data-content]currency_name_help" data-container="body" style="color:#4CAA6E" ></i></label>
+                        <label for="issue_currency_name"><span data-i18n="currency_name">CURRENCY NAME</span> <i class="far fa-question-circle show_popover" data-container="body" data-content="The currency name is unique. Should be between 3-10 characters and longer than the currency code." data-i18n="[data-content]currency_name_help" style="color:#4CAA6E" ></i></label>
                         <input type="text" maxlength="10" class="form-control" name="name" id="issue_currency_name" placeholder="Currency Name" data-i18n="[placeholder]currency_name" autofocus tabindex="1" />
                     </div>
                     <div class="form-group">
-                        <label for="issue_currency_code"><span data-i18n="currency_code">CURRENCY CODE</span> <i class="fa fa-question-circle show_popover" data-content="The currency code is unique. Its composed of 3-5 upper case letters." data-i18n="[data-content]currency_code_help" data-container="body" style="color:#4CAA6E" ></i></label>
+                        <label for="issue_currency_code"><span data-i18n="currency_code">CURRENCY CODE</span> <i class="far fa-question-circle show_popover" data-container="body" data-content="The currency code is unique. Its composed of 3-5 upper case letters." data-i18n="[data-content]currency_code_help" style="color:#4CAA6E" ></i></label>
                         <input type="text" maxlength="5" class="form-control" name="code" id="issue_currency_code" placeholder="Currency Code" data-i18n="[placeholder]currency_code" autofocus tabindex="2" />
                     </div>
                     <div class="form-group">
@@ -154,7 +153,7 @@
                         </div>
                         <div class="form-group advanced optional_reserve">
                             <label for="issue_currency_min_reserve" data-i18n="reserve_supply">UNITS TO RESERVE</label>
-                            <input type="number" name="reserveSupply" id="issue_currency_min_reserve_supply" class="form-control" min="1" placeholder="Number of Units" data-i18n="reserve_supply" tabindex="8" disabled>
+                            <input class="form-control" data-i18n="reserve_supply" disabled id="issue_currency_min_reserve_supply" min="1" name="reserveSupplyQNT" placeholder="Number of Units" tabindex="8" type="number">
                         </div>
                         <div class="input-group">
                             <input type="checkbox" name="type" id="issue_currency_claimable" value="8" />
@@ -165,11 +164,11 @@
                             <label for="issue_currency_mintable" style="font-weight:normal;" tabindex="10" data-i18n="mintable">Mintable</label>
                         </div>
                         <div class="form-group advanced optional_mint">
-                            <label for="issue_currency_min_difficulty"><span data-i18n="min_difficulty">MINIMUM DIFFICULTY</span> <i class="fa fa-question-circle show_popover" data-content="The exponent of the initial difficulty." data-i18n="[data-content]currency_mint_initial_difficulty_help" data-container="body" style="color:#4CAA6E" ></i></label>
+                            <label for="issue_currency_min_difficulty"><span data-i18n="min_difficulty">MINIMUM DIFFICULTY</span> <i class="far fa-question-circle show_popover" data-container="body" data-content="The exponent of the initial difficulty." data-i18n="[data-content]currency_mint_initial_difficulty_help" style="color:#4CAA6E" ></i></label>
                             <input type="number" name="minDifficulty" id="issue_currency_min_difficulty" class="form-control" min="1" max="255" placeholder="Minimum Difficulty" data-i18n="minimum_difficulty" tabindex="11">
                         </div>
                         <div class="form-group advanced optional_mint">
-                            <label for="issue_currency_max_difficulty"><span data-i18n="max_difficulty">MAXIMUM DIFFICULTY</span> <i class="fa fa-question-circle show_popover" data-content="The exponent of the final difficulty." data-i18n="[data-content]currency_mint_final_difficulty_help" data-container="body" style="color:#4CAA6E" ></i></label>
+                            <label for="issue_currency_max_difficulty"><span data-i18n="max_difficulty">MAXIMUM DIFFICULTY</span> <i class="far fa-question-circle show_popover" data-container="body" data-content="The exponent of the final difficulty." data-i18n="[data-content]currency_mint_final_difficulty_help" style="color:#4CAA6E" ></i></label>
                             <input type="number" name="maxDifficulty" id="issue_currency_max_difficulty" class="form-control" min="1" max="255" placeholder="Maximum Difficulty" data-i18n="maximum_difficulty" tabindex="12">
                         </div>
                         <div class="form-group advanced optional_mint">
@@ -190,17 +189,17 @@
                     <div class="row">
                         <div class="col-xs-4 col-sm-4 col-md-4">
                             <label for="issue_currency_initial_supply" data-i18n="initial_supply">INITIAL SUPPLY</label>
-                            <input type="number" name="initialSupply" id="issue_currency_initial_supply" class="form-control" min="0" placeholder="Initial Supply" data-i18n="Initial_supply" tabindex="15">
+                            <input class="form-control" data-i18n="Initial_supply" id="issue_currency_initial_supply" min="0" name="initialSupplyQNT" placeholder="Initial Supply" tabindex="15" type="number">
                         </div>
                         <div class="col-xs-4 col-sm-4 col-md-4">
                             <div class="form-group">
                             <label for="issue_currency_max_supply" data-i18n="total_supply">TOTAL SUPPLY</label>
-                            <input type="number" name="maxSupply" id="issue_currency_max_supply" class="form-control" min="1" placeholder="Total Supply" data-i18n="total_supply" tabindex="16">
+                            <input class="form-control" data-i18n="total_supply" id="issue_currency_max_supply" min="1" name="maxSupplyQNT" placeholder="Total Supply" tabindex="16" type="number">
                         </div>
                         </div>
                         <div class="col-xs-4 col-sm-4 col-md-4">
                             <div class="form-group">
-                                <label for="issue_currency_decimals"><span data-i18n="decimals">DECIMALS</span> <i class="fa fa-question-circle show_popover" data-content="The maximum allowed number of digits after the currency quantity decimal point." data-i18n="[data-content]currency_decimals_help" data-container="body" style="color:#4CAA6E" ></i></label>
+                                <label for="issue_currency_decimals"><span data-i18n="decimals">DECIMALS</span> <i class="far fa-question-circle show_popover" data-container="body" data-content="The maximum allowed number of digits after the currency quantity decimal point." data-i18n="[data-content]currency_decimals_help" style="color:#4CAA6E" ></i></label>
                                 <input type="number" name="decimals" id="issue_currency_decimals" class="form-control" min="0" max="8" placeholder="Decimals" data-i18n="decimals" data-default="0" value="0" tabindex="17">
                             </div>
                         </div>
@@ -209,6 +208,7 @@
                         <label for="issue_currency_issuance_height" data-i18n="issuance_height">ISSUANCE HEIGHT</label> <i>Current Height: <span class="nrs_current_block"></span></i>
                         <input type="number" name="issuanceHeight" id="issue_currency_issuance_height" class="form-control" min="0" placeholder="Issuance Height" data-i18n="issuance_height" tabindex="18" value="0" disabled>
                     </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
                     <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <div data-replace-with-modal-template="advanced_deadline_template"></div>
@@ -274,75 +274,75 @@
                     <div style="margin-left:-20px">
                         <div class="form-group">
                             <label class="col-sm-10 control-label">
-                                <i class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="bottom" data-content="" data-i18n="[data-content]publish_offer_help" data-trigger="hover"></i>
+                                <i class="far fa-question-circle" data-content="" data-i18n="[data-content]publish_offer_help" data-placement="bottom" data-toggle="popover" data-trigger="hover" style="color:#4CAA6E"></i>
                                 <span data-i18n="currency">CURRENCY</span>
                                 <span class="currency_code"></span><span id="publish_exchange_available" style="font-style:italic; font-weight:normal"></span>
                             </label>
                         </div>
                         <div class="form-group">
                             <label for="buy_currency_units_initial" class="col-sm-4 control-label">
-                                <span data-i18n="buy_units_initial">Buy units (Initial)</span> <i class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="right" data-content="" data-i18n="[data-content]buy_units_initial_help" data-trigger="hover"></i>
+                                <span data-i18n="buy_units_initial">Buy units (Initial)</span> <i class="far fa-question-circle" data-content="" data-i18n="[data-content]buy_units_initial_help" data-placement="right" data-toggle="popover" data-trigger="hover" style="color:#4CAA6E"></i>
                             </label>
                             <div class="col-sm-8">
                                 <div class="input-group">
-                                    <input id="buy_currency_units_initial" type="text" name="initialBuySupply" value="0" class="form-control" data-type="buy" tabindex="2" />
+                                    <input class="form-control" data-type="buy" id="buy_currency_units_initial" name="initialBuySupplyQNT" tabindex="2" type="text" value="0" />
                                     <span class="input-group-addon"><span class="currency_code"></span></span>
                                 </div>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="buy_currency_units_total" class="col-sm-4 control-label">
-                                <span data-i18n="buy_units_limit">Buy units (Limit)</span> <i class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="right" data-content="" data-i18n="[data-content]buy_units_limit_help" data-trigger="hover"></i>
+                                <span data-i18n="buy_units_limit">Buy units (Limit)</span> <i class="far fa-question-circle" data-content="" data-i18n="[data-content]buy_units_limit_help" data-placement="right" data-toggle="popover" data-trigger="hover" style="color:#4CAA6E"></i>
                             </label>
                             <div class="col-sm-8">
                                 <div class="input-group">
-                                    <input id="buy_currency_units_total" type="text" name="totalBuyLimit" value="0" class="form-control" data-type="buy" tabindex="3" />
+                                    <input class="form-control" data-type="buy" id="buy_currency_units_total" name="totalBuyLimitQNT" tabindex="3" type="text" value="0" />
                                     <span class="input-group-addon"><span class="currency_code"></span></span>
                                 </div>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="buy_currency_offer_rate" class="col-sm-4 control-label">
-                                <span data-i18n="buy_rate_per_unit">Buy Rate per unit</span> <i class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="right" data-content="" data-i18n="[data-content]buy_rate_help" data-trigger="hover"></i>
+                                <span data-i18n="buy_rate_per_unit">Buy Rate per unit</span> <i class="far fa-question-circle" data-content="" data-i18n="[data-content]buy_rate_help" data-placement="right" data-toggle="popover" data-trigger="hover" style="color:#4CAA6E"></i>
                             </label>
                             <div class="col-sm-8">
                                 <div class="input-group">
-                                    <input id="buy_currency_offer_rate" type="text" value="0" name="buyRateNQT" class="form-control" data-type="buy" tabindex="4" />
-                                    <span class="input-group-addon"><span class="coin-symbol"><span class="coin-symbol-separator"></span><span class="currency_code"></span></span>
+                                    <input class="form-control" data-type="buy" id="buy_currency_offer_rate" name="buyRateNQTPerUnit" tabindex="4" type="text" value="0" />
+                                    <span class="input-group-addon"><span class="coin-symbol"></span><span class="coin-symbol-separator"></span><span class="currency_code"></span></span>
                                 </div>
                             </div>
                         </div>
                         <p></p>
                         <div class="form-group">
                             <label for="sell_currency_units_initial" class="col-sm-4 control-label">
-                                <span data-i18n="sell_units_initial">Sell units (Initial)</span> <i class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="right" data-content="" data-i18n="[data-content]sell_units_initial_help" data-trigger="hover"></i>
+                                <span data-i18n="sell_units_initial">Sell units (Initial)</span> <i class="far fa-question-circle" data-content="" data-i18n="[data-content]sell_units_initial_help" data-placement="right" data-toggle="popover" data-trigger="hover" style="color:#4CAA6E"></i>
                             </label>
                             <div class="col-sm-8">
                                 <div class="input-group">
-                                    <input id="sell_currency_units_initial" type="text" name="initialSellSupply" value="0" class="form-control" data-type="sell" tabindex="5" />
+                                    <input class="form-control" data-type="sell" id="sell_currency_units_initial" name="initialSellSupplyQNT" tabindex="5" type="text" value="0" />
                                     <span class="input-group-addon"><span class="currency_code"></span></span>
                                 </div>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="sell_currency_units_total" class="col-sm-4 control-label">
-                                <span data-i18n="sell_units_limit">Sell units (Limit)</span> <i class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="right" data-content="" data-i18n="[data-content]sell_units_limit_help" data-trigger="hover"></i>
+                                <span data-i18n="sell_units_limit">Sell units (Limit)</span> <i class="far fa-question-circle" data-content="" data-i18n="[data-content]sell_units_limit_help" data-placement="right" data-toggle="popover" data-trigger="hover" style="color:#4CAA6E"></i>
                             </label>
                             <div class="col-sm-8">
                                 <div class="input-group">
-                                    <input id="sell_currency_units_total" type="text" name="totalSellLimit" value="0" class="form-control" data-type="sell" tabindex="6" />
+                                    <input class="form-control" data-type="sell" id="sell_currency_units_total" name="totalSellLimitQNT" tabindex="6" type="text" value="0" />
                                     <span class="input-group-addon"><span class="currency_code"></span></span>
                                 </div>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="sell_currency_offer_rate" class="col-sm-4 control-label">
-                                <span data-i18n="sell_rate_per_unit">Sell Rate per unit</span> <i class="fa fa-question-circle" style="color:#4CAA6E" data-toggle="popover" data-placement="right" data-content="" data-i18n="[data-content]sell_rate_help" data-trigger="hover"></i>
+                                <span data-i18n="sell_rate_per_unit">Sell Rate per unit</span> <i class="far fa-question-circle" data-content="" data-i18n="[data-content]sell_rate_help" data-placement="right" data-toggle="popover" data-trigger="hover" style="color:#4CAA6E"></i>
                             </label>
                             <div class="col-sm-8">
                                 <div class="input-group">
-                                    <input id="sell_currency_offer_rate" type="text" value="0" name="sellRateNQT" class="form-control" data-type="sell" tabindex="7" />
-                                    <span class="input-group-addon"><span class="coin-symbol"><span class="coin-symbol-separator"></span><span class="currency_code"></span></span>
+                                    <input class="form-control" data-type="sell" id="sell_currency_offer_rate" name="sellRateNQTPerUnit" tabindex="7" type="text" value="0" />
+                                    <span class="input-group-addon"><span class="coin-symbol"></span><span class="coin-symbol-separator"></span><span class="currency_code"></span></span>
                                 </div>
                             </div>
                         </div>
@@ -353,6 +353,7 @@
                             </div>
                         </div>
                     </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
                     <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <div data-replace-with-modal-template="advanced_deadline_template"></div>
@@ -392,8 +393,9 @@
                     <div class="form-group">
                         <label for="claim_currency_amount" data-i18n="currency_units_to_claim">Number of units to claim</label> <i><span id="claimAvailable"></span></i>
                         <label for="claim_currency_amount" data-i18n="currency_claim_rate">Claim rate</label> <i><span id="claimRate"></span></i>
-                        <input type="text" class="form-control" name="units" id="claim_currency_amount" placeholder="Number of units" data-i18n="units" tabindex="1" />
+                        <input class="form-control" data-i18n="units" id="claim_currency_amount" name="unitsQNT" placeholder="Number of units" tabindex="1" type="text" />
                     </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
                     <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <div data-replace-with-modal-template="advanced_deadline_template"></div>
@@ -448,6 +450,7 @@
                         <label for="reserve_currency_total" data-i18n="amount_nxt_reserved">Reserve per Unit</label>
                         <input id="reserve_currency_total" name="amountPerUnitNQT" readonly style="border: none"/>
                     </div>
+                    <div data-replace-with-modal-template="add_message_modal_template"></div>
                     <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
                     <div data-replace-with-modal-template="advanced_deadline_template"></div>

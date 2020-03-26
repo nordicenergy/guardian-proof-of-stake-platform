@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -16,13 +17,16 @@
 package nxt.http;
 
 import nxt.Constants;
-import nxt.HoldingType;
+import nxt.account.HoldingType;
+import nxt.util.BooleanExpression;
 import nxt.util.Convert;
 import nxt.util.JSON;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
 import java.util.Arrays;
+import java.util.List;
 
 public final class JSONResponses {
 
@@ -42,7 +46,6 @@ public final class JSONResponses {
     public static final JSONStreamAware MISSING_HALLMARK = missing("hallmark");
     public static final JSONStreamAware INCORRECT_HALLMARK = incorrect("hallmark");
     public static final JSONStreamAware MISSING_WEBSITE = missing("website");
-    public static final JSONStreamAware INCORRECT_WEBSITE = incorrect("website");
     public static final JSONStreamAware MISSING_TOKEN = missing("token");
     public static final JSONStreamAware INCORRECT_TOKEN = incorrect("token");
     public static final JSONStreamAware MISSING_ACCOUNT = missing("account");
@@ -128,9 +131,9 @@ public final class JSONResponses {
     public static final JSONStreamAware INCORRECT_SHUFFLING = incorrect("shuffling");
     public static final JSONStreamAware RESPONSE_STREAM_ERROR = responseError("responseOutputStream");
     public static final JSONStreamAware RESPONSE_WRITE_ERROR = responseError("responseWrite");
-    public static final JSONStreamAware MISSING_TRANSACTION_FULL_HASH = missing("transactionFullHash");
+    public static final JSONStreamAware MISSING_PHASED_TRANSACTION = missing("phasedTransaction");
     public static final JSONStreamAware UNKNOWN_TRANSACTION_FULL_HASH = unknown("transactionFullHash");
-    public static final JSONStreamAware INCORRECT_LINKED_FULL_HASH = incorrect("phasingLinkedFullHash");
+    public static final JSONStreamAware INCORRECT_LINKED_TRANSACTION = incorrect("phasingLinkedTransaction");
     public static final JSONStreamAware INCORRECT_TAGGED_DATA_NAME = incorrect("name", "(length must be not longer than " + Constants.MAX_TAGGED_DATA_NAME_LENGTH + " characters)");
     public static final JSONStreamAware INCORRECT_TAGGED_DATA_DESCRIPTION = incorrect("description", "(length must be not longer than " + Constants.MAX_TAGGED_DATA_DESCRIPTION_LENGTH + " characters)");
     public static final JSONStreamAware INCORRECT_TAGGED_DATA_TAGS = incorrect("tags", "(length must be not longer than " + Constants.MAX_TAGGED_DATA_TAGS_LENGTH + " characters)");
@@ -149,10 +152,18 @@ public final class JSONResponses {
     public static final JSONStreamAware MISSING_RECIPIENT_PUBLIC_KEY = missing("recipientPublicKey");
     public static final JSONStreamAware INCORRECT_ACCOUNT_PROPERTY_NAME_LENGTH = incorrect("property", "(length must be > 0 but less than " + Constants.MAX_ACCOUNT_PROPERTY_NAME_LENGTH + " characters)");
     public static final JSONStreamAware INCORRECT_ACCOUNT_PROPERTY_VALUE_LENGTH = incorrect("value", "(length must be less than " + Constants.MAX_ACCOUNT_PROPERTY_VALUE_LENGTH + " characters)");
+    public static final JSONStreamAware INCORRECT_ASSET_PROPERTY_NAME_LENGTH = incorrect("property", "(length must be > 0 but less than " + Constants.MAX_ASSET_PROPERTY_NAME_LENGTH + " characters)");
+    public static final JSONStreamAware INCORRECT_ASSET_PROPERTY_VALUE_LENGTH = incorrect("value", "(length must be less than " + Constants.MAX_ASSET_PROPERTY_VALUE_LENGTH + " characters)");
     public static final JSONStreamAware INCORRECT_PROPERTY = incorrect("property", "(cannot be deleted by this account)");
     public static final JSONStreamAware UNKNOWN_PROPERTY = unknown("property");
     public static final JSONStreamAware MISSING_PROPERTY = missing("property");
     public static final JSONStreamAware INCORRECT_EC_BLOCK = incorrect("ecBlockId", "ecBlockId does not match the block id at ecBlockHeight");
+    public static final JSONStreamAware UNKNOWN_CHAIN = unknown("chain");
+    public static final JSONStreamAware INCORRECT_CHAIN = incorrect("chain");
+    public static final JSONStreamAware MISSING_CHAIN = missing("chain");
+    public static final JSONStreamAware UNKNOWN_PHASED_TRANSACTION = unknown("phasedTransaction");
+    public static final JSONStreamAware INCORRECT_CONTRACT_NAME_LENGTH = incorrect("name", "(length must be > 0 but less than " + Constants.MAX_CONTRACT_NAME_LENGTH + " characters)");
+    public static final JSONStreamAware INCORRECT_CONTRACT_PARAMS_LENGTH = incorrect("params", "(length must be less than " + Constants.MAX_CONTRACT_PARAMS_LENGTH + " characters)");
 
     public static final JSONStreamAware NOT_ENOUGH_FUNDS;
     static {
@@ -168,6 +179,14 @@ public final class JSONResponses {
         response.put("errorCode", 6);
         response.put("errorDescription", "Not enough assets");
         NOT_ENOUGH_ASSETS = JSON.prepare(response);
+    }
+
+    public static final JSONStreamAware NO_COST_ORDER;
+    static {
+        JSONObject response = new JSONObject();
+        response.put("errorCode", 6);
+        response.put("errorDescription", "Order value is zero");
+        NO_COST_ORDER = JSON.prepare(response);
     }
 
     public static final JSONStreamAware ASSET_NOT_ISSUED_YET;
@@ -426,6 +445,14 @@ public final class JSONResponses {
         PEER_NOT_OPEN_API = JSON.prepare(response);
     }
 
+    public static final JSONStreamAware PEERS_NETWORKING_DISABLED;
+    static {
+        JSONObject response = new JSONObject();
+        response.put("errorCode", 24);
+        response.put("errorDescription", "Network connection to peers is disabled");
+        PEERS_NETWORKING_DISABLED = JSON.prepare(response);
+    }
+
     static JSONStreamAware missing(String... paramNames) {
         JSONObject response = new JSONObject();
         response.put("errorCode", 3);
@@ -437,7 +464,7 @@ public final class JSONResponses {
         return JSON.prepare(response);
     }
 
-    static JSONStreamAware either(String... paramNames) {
+    public static JSONStreamAware either(String... paramNames) {
         JSONObject response = new JSONObject();
         response.put("errorCode", 6);
         response.put("errorDescription", "Not more than one of " + Arrays.toString(paramNames) + " can be specified");
@@ -494,7 +521,7 @@ public final class JSONResponses {
 
     static JSONStreamAware notEnoughHolding(HoldingType holdingType) {
         switch (holdingType) {
-            case NXT:
+            case COIN:
                 return JSONResponses.NOT_ENOUGH_FUNDS;
             case ASSET:
                 return JSONResponses.NOT_ENOUGH_ASSETS;
@@ -503,6 +530,30 @@ public final class JSONResponses {
             default:
                 throw new RuntimeException();
         }
+    }
+
+    static JSONStreamAware booleanExpressionError(BooleanExpression expression) {
+        JSONObject response = new JSONObject();
+        BooleanExpression.BadSyntaxException exception = expression.getSyntaxException();
+        if (exception != null) {
+            response.put("errorCode", 23);
+            response.put("errorDescription", "Boolean expression syntax error at position " + exception.getPosition() + ": " + exception.getMessage());
+            return JSON.prepare(response);
+        } else {
+            List<BooleanExpression.SemanticWarning> warnings = expression.getSemanticWarnings();
+            if (!warnings.isEmpty()) {
+                response.put("errorCode", 22);
+                response.put("errorDescription", "Boolean expression not optimal: " + warnings.get(0).getMessage() +
+                        (warnings.size() > 1 ? ("; and " + (warnings.size() - 1) + " other warning(s)") : ""));
+                JSONArray warningsJson = new JSONArray();
+                warnings.forEach(w -> warningsJson.add("At position " + w.getPosition() + ": " + w.getMessage()));
+                response.put("semanticWarnings", warningsJson);
+                return JSON.prepare(response);
+            } else {
+                throw new RuntimeException();
+            }
+        }
+
     }
 
     public static final JSONStreamAware MONITOR_ALREADY_STARTED;
@@ -520,6 +571,26 @@ public final class JSONResponses {
         response.put("errorDescription", "Account monitor not started");
         MONITOR_NOT_STARTED = JSON.prepare(response);
     }
+
+    public static final JSONStreamAware NO_TRADES_FOUND;
+    static {
+        JSONObject response = new JSONObject();
+        response.put("errorCode", 8);
+        response.put("errorDescription", "No trades found");
+        NO_TRADES_FOUND = JSON.prepare(response);
+    }
+
+    public static final JSONStreamAware INCORRECT_RECIPIENTS_PUBLIC_KEY = incorrect("recipientsPublicKey",
+            "all specified recipient accounts are used");
+
+    public static final JSONStreamAware INCORRECT_PROCESS_FILE;
+    static {
+        JSONObject response = new JSONObject();
+        response.put("errorCode", 10);
+        response.put("errorDescription", "Encrypted configuration data does not exist");
+        INCORRECT_PROCESS_FILE = JSON.prepare(response);
+    }
+
 
     private JSONResponses() {} // never
 

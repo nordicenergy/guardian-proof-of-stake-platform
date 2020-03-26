@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,8 +16,9 @@
 
 package nxt.http;
 
-import nxt.Alias;
 import nxt.NxtException;
+import nxt.aliases.AliasHome;
+import nxt.blockchain.ChildChain;
 import nxt.db.FilteringIterator;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -38,9 +40,10 @@ public final class GetAliases extends APIServlet.APIRequestHandler {
         final long accountId = ParameterParser.getAccountId(req, true);
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONArray aliases = new JSONArray();
-        try (FilteringIterator<Alias> aliasIterator = new FilteringIterator<>(Alias.getAliasesByOwner(accountId, 0, -1),
+        try (FilteringIterator<AliasHome.Alias> aliasIterator = new FilteringIterator<>(childChain.getAliasHome().getAliasesByOwner(accountId, 0, -1),
                 alias -> alias.getTimestamp() >= timestamp, firstIndex, lastIndex)) {
             while(aliasIterator.hasNext()) {
                 aliases.add(JSONData.alias(aliasIterator.next()));

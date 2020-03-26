@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -20,14 +21,21 @@ import com.izforge.izpack.api.data.Pack;
 import com.izforge.izpack.api.event.ProgressListener;
 import com.izforge.izpack.api.event.ProgressNotifiers;
 import com.izforge.izpack.event.AbstractProgressInstallerListener;
+import com.izforge.izpack.event.RegistryInstallerListener;
 
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static nxt.installer.ConfigHandler.VAR_CLEAN_INSTALL_DIR;
 import static nxt.installer.ConfigHandler.VAR_SHUTDOWN_SERVER;
 
+/**
+ * Defined in setup.xml
+ */
+@SuppressWarnings("unused")
 public class InstallListener extends AbstractProgressInstallerListener {
-
+    private static final Logger logger = Logger.getLogger(RegistryInstallerListener.class.getName());
     private final ConfigHandler handler = new ConfigHandler();
 
     public InstallListener(InstallData installData, ProgressNotifiers notifiers) {
@@ -37,8 +45,10 @@ public class InstallListener extends AbstractProgressInstallerListener {
     @Override
     public void beforePacks(List<Pack> packs) {
         boolean shutdownServer = getVariable(VAR_SHUTDOWN_SERVER);
-        if (shutdownServer && ! handler.shutdownServer()) {
-            error("Failed to stop server");
+        if (shutdownServer && !handler.shutdownServer()) {
+            String msg = "Failed to stop server";
+            logger.log(Level.SEVERE, msg);
+            error(msg);
         }
 
         if (getVariable(VAR_CLEAN_INSTALL_DIR)) {
@@ -53,10 +63,10 @@ public class InstallListener extends AbstractProgressInstallerListener {
     public void afterPacks(List<Pack> packs, ProgressListener listener) {
         ConfigHandler handler = new ConfigHandler();
         String config = getInstallData().getVariable(ConfigHandler.VAR_FILE_CONTENTS);
-        if (config != null && ! config.isEmpty() &&
-            ! handler.writeSettingsFile(config, getInstallData().getInstallPath()))
-        {
-            error("Failed to write settings file");
+        if (config != null) {
+            if (!handler.writeSettingsFile(config, getInstallData().getInstallPath())) {
+                error("Failed to write settings file");
+            }
         }
     }
 

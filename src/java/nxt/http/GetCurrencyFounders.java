@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -15,10 +16,11 @@
 
 package nxt.http;
 
-import nxt.CurrencyFounder;
 import nxt.NxtException;
+import nxt.blockchain.ChildChain;
 import nxt.db.DbIterator;
 import nxt.db.DbUtils;
+import nxt.ms.CurrencyFounderHome;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -42,27 +44,28 @@ public final class GetCurrencyFounders extends APIServlet.APIRequestHandler {
         }
         int firstIndex = ParameterParser.getFirstIndex(req);
         int lastIndex = ParameterParser.getLastIndex(req);
+        ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONObject response = new JSONObject();
         JSONArray foundersJSONArray = new JSONArray();
         response.put("founders", foundersJSONArray);
 
         if (currencyId != 0 && accountId != 0) {
-            CurrencyFounder currencyFounder = CurrencyFounder.getFounder(currencyId, accountId);
+            CurrencyFounderHome.CurrencyFounder currencyFounder = childChain.getCurrencyFounderHome().getFounder(currencyId, accountId);
             if (currencyFounder != null) {
                 foundersJSONArray.add(JSONData.currencyFounder(currencyFounder));
             }
             return response;
         }
 
-        DbIterator<CurrencyFounder> founders = null;
+        DbIterator<CurrencyFounderHome.CurrencyFounder> founders = null;
         try {
             if (accountId == 0) {
-                founders = CurrencyFounder.getCurrencyFounders(currencyId, firstIndex, lastIndex);
+                founders = childChain.getCurrencyFounderHome().getCurrencyFounders(currencyId, firstIndex, lastIndex);
             } else if (currencyId == 0) {
-                founders = CurrencyFounder.getFounderCurrencies(accountId, firstIndex, lastIndex);
+                founders = childChain.getCurrencyFounderHome().getFounderCurrencies(accountId, firstIndex, lastIndex);
             }
-            for (CurrencyFounder founder : founders) {
+            for (CurrencyFounderHome.CurrencyFounder founder : founders) {
                 foundersJSONArray.add(JSONData.currencyFounder(founder));
             }
         } finally {

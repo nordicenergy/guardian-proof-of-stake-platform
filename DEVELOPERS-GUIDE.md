@@ -7,24 +7,24 @@
   - create pull requests
   - review pull requests
   - help users on issues
-  - ask us, the dev team
+  - mail us at info@jelurida.com
 
 ----
 ## Tools and Tips ##
 ### Usable URLs ###
 
-  - **API** - http://localhost:7876/test
-  - **DB Interface** - http://localhost:7876/dbshell
-  - **Java Class Browser** - http://localhost:7876/doc
+  - **API** - http://localhost:27876/test
+  - **DB Interface** - http://localhost:27876/dbshell
+  - **Java Class Browser** - http://localhost:27876/doc
 
 ### Database ###
   
   - H2 embedded database
   - main database: `nxt_db/`
   - test database: `nxt_test_db/`
+  - unit tests database: `nxt_unit_test_db/`
   - the database directories do not contain user specific data and can be safely deleted
   - but no need to delete them on upgrade, the DbVersion code takes care of schema updates
-  - use the nxt.db framework when accessing the database from your code
 
 ----
 ## Coding Process ##
@@ -35,7 +35,7 @@
   - [Vincent Driessen's Branching Model](http://nvie.com/posts/a-successful-git-branching-model/)
   - **tl;dr:**
     - master is release branch
-    - develop is maintained by Jean-Luc
+    - develop is for integration and testnet
     - feature/abc is yours
 
 ### Design ###
@@ -56,10 +56,10 @@
 
 ### Testing ###
 
-  - [to be filled by Lior, kushti]
-  - all API calls can be tested manually from the auto-generated http://localhost:7876/test page
+  - all API calls can be tested manually from the auto-generated http://localhost:27876/test page
   - many tests need blocks to be generated, see the examples how to fake the forging process
   - write your tests against the http API or the public java API, which are relatively stable
+  - review existing unit tests
   
 ### Documentation ###
 
@@ -149,18 +149,18 @@ For providing new translation strings on the platform for the community to trans
 
 ### Mobile App ###
 
-The NXT wallet UI run as a mobile app.
+The Ardor wallet UI run as a mobile app.
 
-To build the Android APK application follow these steps (Tested on Windows 7 64 bit):
-1. Install node.js (tested with Node 4.4.7 and npm 2.15.8), Apache Cordova (tested with Cordova 6.3.1) - see https://cordova.apache.org/
-2. Install Android SDK Manager (tested with version 25.2.2) - follow the guidelines regarding necessary USB device drivers and modules to install
-3. Make sure the commands: node, npm and cordova are available from the command prompt
-4. On Windows make sure the adb.exe is in your search path (c:\Users\<Username>\AppData\Local\Android\sdk\platform-tools), probably also required on Linux
-5. Special care should be taken in order to work without root privileges on Linux and Mac (the current procedure assumes Windows administrator permissions), we recommend that you work with root privileges initially.
-6. Under the <NXTRoot>\mobile\app folder execute the command:
-createapp.bat
-See that the process completes without errors and that a default Cordova application is deployed to your connected mobile device or the Android emulator
-
-7. To run the app invoke runapp.bat and to update the app resources after making changes to the web wallet use the updateapp.bat
-
-8. Debug the application on the device or emulator using Chrome desktop development tools, open the options menu, more tools --> Inspect Devices choose the device and click inspect
+To build the Android APK application follow these steps (Tested on Windows 10 64 bit):
+1. Install node.js (tested with Node v8.11.3 and npm 5.6.0), Apache Cordova (tested with Cordova 8.1.1 (cordova-lib@8.1.0)) - see https://cordova.apache.org/
+2. Install Android SDK Manager (tested with Android Studio 3.2) - follow the guidelines regarding necessary USB device drivers and modules to install to connect a physical mobile device or use the AVD Manager to setup an emulator. 
+2.1 Use the SDK Manager utility to download the necessary dependencies. Make sure to always accept the licenses. 
+3. Make sure the commands: node, npm, cordova are available from the command prompt.
+4. On Windows make sure the adb.exe is in your search path (c:\Users\%Username%\AppData\Local\Android\sdk\platform-tools), probably also required on other platforms.
+5 To generate icons and splash screens: 
+  5.1 Install imagemagick https://www.imagemagick.org and check "install legacy utilities (e.g. convert)" in the "Select Additional Tasks" panel
+  5.2 Install node packages cordova-icon and cordova-splash
+6. Under the <NXTRoot>\mobile\app folder execute the command: createapp.bat, see that all the plugins dependencies are downloaded and that the process completes without errors. If necessary adjust the plugin dependencies in 
+   ./html/config.xml this file is copied to the wallet folder by the script.
+7. To run the app invoke the command: runapp.bat, to update the app resources after making changes to the web wallet use updateapp.bat
+8. Debug the application on the device or emulator using Chrome desktop development tools, open the options menu, more tools --> Remote Devices choose the device and click "Inspect"

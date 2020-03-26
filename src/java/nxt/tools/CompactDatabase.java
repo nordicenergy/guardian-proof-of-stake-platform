@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -18,6 +19,7 @@ package nxt.tools;
 import nxt.Constants;
 import nxt.Nxt;
 import nxt.util.Logger;
+import nxt.util.security.BlockchainPermission;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,6 +47,11 @@ public class CompactDatabase {
      * @param   args                Command line arguments
      */
     public static void main(String[] args) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("tools"));
+        }
+
         //
         // Initialize Nxt properties and logging
         //
@@ -81,9 +88,6 @@ public class CompactDatabase {
         }
         String dbParams = Nxt.getStringProperty(dbPrefix + "Params");
         dbUrl += ";" + dbParams;
-        if (!dbUrl.contains("MV_STORE=")) {
-            dbUrl += ";MV_STORE=FALSE";
-        }
         String dbUsername = Nxt.getStringProperty(dbPrefix + "Username", "sa");
         String dbPassword = Nxt.getStringProperty(dbPrefix + "Password", "sa", true);
         //
@@ -130,7 +134,7 @@ public class CompactDatabase {
             return 1;
         }
         dbDir = dbDir.substring(0, endPos);
-        Logger.logInfoMessage("Database directory is '" + dbDir + '"');
+        Logger.logInfoMessage("Database directory is \"" + dbDir + '"');
         //
         // Create our files
         //
@@ -172,6 +176,7 @@ public class CompactDatabase {
                     Statement s = conn.createStatement()) {
                 s.execute("RUNSCRIPT FROM '" + sqlFile.getPath() + "' COMPRESSION GZIP CHARSET 'UTF-8'");
                 s.execute("ANALYZE");
+                s.execute("SHUTDOWN COMPACT");
             }
             //
             // New database has been created

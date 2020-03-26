@@ -5,8 +5,8 @@
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
  *                                                                            *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,*
- * no part of the Nxt software, including this file, may be copied, modified, *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,*
+ * no part of this software, including this file, may be copied, modified,    *
  * propagated, or distributed except according to the terms contained in the  *
  * LICENSE.txt file.                                                          *
  *                                                                            *
@@ -48,7 +48,7 @@ var NRS = (function(NRS, $, undefined) {
                 namePrefix = "unsigned";
             }
             var unsignedTransactionJson = $("#raw_transaction_modal_transaction_json");
-            var jsonStr = JSON.stringify(transaction.transactionJSON);
+            var jsonStr = JSON.stringify(transaction.transactionJSON, null, 2);
             unsignedTransactionJson.val(jsonStr);
             var downloadLink = $("#raw_transaction_modal_transaction_json_download");
             if (window.URL && NRS.isFileReaderSupported()) {
@@ -80,22 +80,214 @@ var NRS = (function(NRS, $, undefined) {
             $("#raw_transaction_modal_transaction_bytes_container").hide();
         }
 
-		if (transaction.fullHash) {
-			$("#raw_transaction_modal_full_hash").val(transaction.fullHash);
-			$("#raw_transaction_modal_full_hash_container").show();
-		} else {
-			$("#raw_transaction_modal_full_hash_container").hide();
-		}
+        if (transaction.fullHash) {
+            $("#raw_transaction_modal_full_hash").val(transaction.fullHash);
+            $("#raw_transaction_modal_full_hash_container").show();
+        } else {
+            $("#raw_transaction_modal_full_hash_container").hide();
+        }
 
-		if (transaction.signatureHash) {
-			$("#raw_transaction_modal_signature_hash").val(transaction.signatureHash);
-			$("#raw_transaction_modal_signature_hash_container").show();
-		} else {
-			$("#raw_transaction_modal_signature_hash_container").hide();
-		}
+        if (transaction.signatureHash) {
+            $("#raw_transaction_modal_signature_hash").val(transaction.signatureHash);
+            $("#raw_transaction_modal_signature_hash_container").show();
+        } else {
+            $("#raw_transaction_modal_signature_hash_container").hide();
+        }
 
-		$("#raw_transaction_modal").modal("show");
+        $("#raw_transaction_modal").modal("show");
 	};
+
+	NRS.showVoucherModal = function (transaction, signature, publicKey, requestType) {
+		var voucher = {};
+		voucher.transactionJSON = $.extend(true, {}, transaction.transactionJSON);
+		voucher.unsignedTransactionBytes = transaction.unsignedTransactionBytes;
+		voucher.signature = signature;
+		voucher.publicKey = publicKey;
+        voucher.requestType = requestType;
+        delete voucher.transactionJSON.height;
+        delete voucher.transactionJSON.senderRS;
+        delete voucher.transactionJSON.recipientRS;
+        delete voucher.transactionJSON.signatureHash;
+        delete voucher.transactionJSON.fullHash;
+        delete voucher.transactionJSON.signature;
+
+        var jsonStr = JSON.stringify(voucher, null, 2);
+        var voucherField = $("#generated_voucher_json");
+        voucherField.html(jsonStr);
+        hljs.highlightBlock(voucherField[0]);
+        var downloadLink = $("#voucher_json_download");
+        if (window.URL && NRS.isFileReaderSupported()) {
+            var jsonAsBlob = new Blob([jsonStr], {type: 'text/plain'});
+            downloadLink.prop("download", "voucher." + Date.now() + ".json");
+            try {
+                downloadLink.prop('href', window.URL.createObjectURL(jsonAsBlob));
+            } catch(e) {
+                NRS.logConsole("Desktop Application in Java 8 does not support createObjectURL");
+                downloadLink.hide();
+            }
+        } else {
+            downloadLink.hide();
+        }
+        var qrData = pako.deflate(JSON.stringify(voucher), { to: 'string' });
+        NRS.generateQRCode("#voucher_qr_code", qrData, 14);
+        $("#generate_voucher_modal").modal("show");
+	};
+
+
+    var loadVoucherModal = $("#load_voucher_modal");
+    loadVoucherModal.on("show.bs.modal", function() {
+        $(this).find("#voucher_reader").hide();
+        $(this).find("#parse_voucher_output").hide();
+        $(this).find("#voucher_submit_btn").prop("disabled", true);
+        if (!NRS.isFileReaderSupported()) {
+            $(this).find(".file-reader-support").hide();
+            $(this).find(".info_message").html($.t("voucher_in_desktop_wallet")).show();
+        } else {
+            $(this).find(".file-reader-support").show();
+            $(this).find(".info_message").html("").hide();
+        }
+        if (!NRS.isVideoSupported()) {
+            $(this).find(".video-support").hide();
+        }
+    });
+
+    loadVoucherModal.on("hidden.bs.modal", function() {
+        NRS.stopScanQRCode();
+    });
+
+    $('#voucher_json').change(function() {
+        var $modal = $(this).closest(".modal");
+        $modal.find(".error_message").html("").hide();
+        var voucherText = $('#voucher_json').val();
+        voucherText = voucherText.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"'); // Replace unicode quotes with Ascii ones
+        var msg;
+        try {
+            var voucher = JSON.parse(voucherText);
+        } catch (e) {
+            msg = $.t("cannot_parse_voucher", { voucher: voucherText });
+            $modal.find(".error_message").html(msg).show();
+            NRS.logConsole(msg);
+            return;
+        }
+        var transactionJSON = voucher.transactionJSON;
+        if (!NRS.verifySignature(voucher.signature, voucher.unsignedTransactionBytes, voucher.publicKey)) {
+            msg = $.t("invalid_signature", { signature: voucher.signature, publicKey: voucher.publicKey });
+            $modal.find(".error_message").html(msg).show();
+            NRS.logConsole(msg);
+            return;
+        }
+        var details = $.extend({}, transactionJSON);
+        details = NRS.flattenObject(details, ["version."]);
+        details.exchange = details.exchangeChain;
+        var result = NRS.verifyTransactionBytes(voucher.unsignedTransactionBytes, voucher.requestType, details, transactionJSON.attachment, false);
+        if (result.fail) {
+            msg = $.t("cannot_verify_voucher_content", { param: result.param, expected: result.expected, actual: result.actual });
+            $modal.find(".error_message").html(msg).show();
+            NRS.logConsole(msg);
+            return;
+        }
+        delete transactionJSON.signature;
+        delete transactionJSON.senderPublicKey;
+        $("#voucher_creator_account").val(NRS.getAccountIdFromPublicKey(voucher.publicKey, true));
+        $("#voucher_request_type").val(voucher.requestType);
+        var feeNXT = NRS.convertToNXT(voucher.transactionJSON.feeNQT);
+        delete voucher.transactionJSON.feeNQT;
+        $("#load_voucher_fee").val(feeNXT);
+        $("#parse_voucher_output_table").find("tbody").empty().append(NRS.createInfoTable(details));
+        $("#parse_voucher_output").show();
+        $("#voucher_submit_btn").prop("disabled", false);
+    });
+
+    var encryptToSelfAttachmentTemplate = {
+        "version.EncryptToSelfMessage": 1,
+        "encryptToSelfMessage": {
+            "data": "",
+            "nonce": "",
+            "isText": true,
+            "isCompressed": true
+        }
+    };
+
+    NRS.forms.loadVoucher = function($modal, $btn) {
+        var data = NRS.getFormData($modal.find("form:first"));
+        if (data.voucher == "") {
+            return { error: $.t("no_voucher") };
+        }
+        var voucherJson = JSON.parse(data.voucher);
+        delete data.voucher;
+        var transactionJSON = voucherJson.transactionJSON;
+        transactionJSON.timestamp = NRS.toEpochTime();
+        transactionJSON.deadline = parseInt(data.deadline);
+        delete data.deadline;
+        var rc = {};
+        try {
+            NRS.processNoteToSelf(data);
+        } catch (e) {
+            rc.error = e.message;
+            return rc;
+        }
+        if (data.encryptToSelfMessageData) {
+            var attachment = $.extend({}, encryptToSelfAttachmentTemplate);
+            attachment.encryptToSelfMessage.data = data.encryptToSelfMessageData;
+            attachment.encryptToSelfMessage.nonce = data.encryptToSelfMessageNonce;
+            Object.assign(transactionJSON.attachment, attachment);
+        }
+        transactionJSON.feeNQT = NRS.convertToNQT($("#load_voucher_fee").val());
+        data.unsignedTransactionJSON = JSON.stringify(transactionJSON);
+        if ($btn.attr("id") == "voucher_submit_btn") {
+            if (data.doNotBroadcast) {
+                data.broadcast = false;
+                delete data.doNotBroadcast;
+            } else {
+                data.broadcast = true;
+            }
+            NRS.sendRequest("signTransaction", {
+                unsignedTransactionJSON: data.unsignedTransactionJSON,
+                secretPhrase: data.secretPhrase,
+                broadcast: data.broadcast
+            }, function (signResponse) {
+                if (NRS.isErrorResponse(signResponse)) {
+                    rc.error = NRS.getErrorMessage(signResponse);
+                    return;
+                }
+                if (data.broadcast) {
+                    NRS.broadcastTransactionBytes(signResponse.transactionBytes, function (broadcastResponse) {
+                        if (NRS.isErrorResponse(broadcastResponse)) {
+                            rc.error = NRS.getErrorMessage(broadcastResponse);
+                            return;
+                        }
+                        if (broadcastResponse.fullHash) {
+                            NRS.addUnconfirmedTransaction(broadcastResponse.fullHash, function() {
+                                NRS.forms.loadVoucherComplete();
+                            });
+                        }
+                    }, signResponse, {});
+                } else {
+                    NRS.showRawTransactionModal(signResponse);
+                }
+                rc.stop = true;
+            }, {isAsync: false});
+        } else if ($btn.hasClass("btn-calculate-fee")) {
+            NRS.sendRequest("calculateFee", {
+                transactionJSON: data.unsignedTransactionJSON
+            }, function (calculateFeeResponse) {
+                if (NRS.isErrorResponse(calculateFeeResponse)) {
+                    rc.error = NRS.getErrorMessage(calculateFeeResponse);
+                    return;
+                }
+                var feeNQT = calculateFeeResponse.feeNQT;
+                var $feeField = $("#" + $modal.attr('id').replace('_modal', '') + "_fee");
+                $feeField.val(NRS.convertToNXT(feeNQT));
+                rc.stop = true;
+                rc.keepOpen = true;
+            }, {isAsync: false})
+        }
+        return rc;
+    };
+
+    NRS.forms.loadVoucherComplete = function() {
+        $.growl($.t("voucher_processed"));
+    };
 
     $(".qr_code_reader_link").click(function(e) {
         e.preventDefault();
@@ -107,7 +299,21 @@ var NRS = (function(NRS, $, undefined) {
         });
     });
 
-    $("#broadcast_transaction_json_file, #unsigned_transaction_json_file").change(function(e) {
+    $("#voucher_reader_link").click(function(e) {
+        e.preventDefault();
+        var readerId = "voucher_reader";
+        NRS.scanQRCode(readerId, function(data) {
+            var jsonStr = pako.inflate(data, { to: 'string' });
+            try {
+                JSON.parse(jsonStr);
+                $("#voucher_json").val(jsonStr).change();
+            } catch(e) {
+                $("#voucher_json").val($.t("voucher_scan_error"));
+            }
+        });
+    });
+
+    $("#broadcast_transaction_json_file, #unsigned_transaction_json_file, #voucher_json_file").change(function(e) {
         e.preventDefault();
         var fileInputId = $(this).attr('id');
         var textAreaId = fileInputId.substring(0, fileInputId.lastIndexOf("_"));
@@ -120,7 +326,7 @@ var NRS = (function(NRS, $, undefined) {
         var fileReader = new FileReader();
         fileReader.onload = function(fileLoadedEvent) {
             var textFromFile = fileLoadedEvent.target.result;
-            $("#" + textAreaId).val(textFromFile);
+            $("#" + textAreaId).val(textFromFile).change();
         };
         fileReader.readAsText(file, "UTF-8");
     });
@@ -161,43 +367,48 @@ var NRS = (function(NRS, $, undefined) {
 			} else {
 				$modal.find('.phasing_safe_alert').show();
 			}
-		}
-
-		var minDuration = 0;
-		var maxDuration = 0;
-
-		if (NRS.accountInfo.phasingOnly) {
-			minDuration = NRS.accountInfo.phasingOnly.minDuration;
-			maxDuration = NRS.accountInfo.phasingOnly.maxDuration;
-		}
-
-		if (maxDuration == 0) {
-			maxDuration = NRS.constants.SERVER.maxPhasingDuration;
-		}
+			if (!NRS.accountInfo.publicKey) {
+                $modal.find(".is_voucher").hide();
+            } else {
+                $modal.find(".is_voucher").show();
+            }
+		} else {
+            var isEnableVoucher = $modal.data('enableVoucher');
+            if (isEnableVoucher) {
+                $modal.find(".is_voucher").show();
+            } else {
+                $modal.find(".is_voucher").hide();
+            }
+        }
+        var $feeCalculationBtn = $(".btn-calculate-fee");
+        if ($modal.data('disableFeeCalculation')) {
+            $feeCalculationBtn.prop("disabled", true);
+        } else {
+            $feeCalculationBtn.prop("disabled", false);
+        }
 
 		var context = {
 			labelText: "Finish Height",
 			labelI18n: "finish_height",
 			helpI18n: "approve_transaction_finish_height_help",
 			inputName: "phasingFinishHeight",
-			initBlockHeight: NRS.lastBlockHeight + Math.round(minDuration + (maxDuration - minDuration) / 2),
-			changeHeightBlocks: 500
+			phasingType: "advanced",
+			initBlockHeight: NRS.lastBlockHeight + 1440,
+			changeHeightBlocks: 60
 		};
-		var $elems = NRS.initModalUIElement($modal, '.phasing_finish_height_group', 'block_height_modal_ui_element', context);
-		$elems.find('input').prop("disabled", true);
-
-		$elems = NRS.initModalUIElement($modal, '.mandatory_approval_finish_height_group', 'block_height_modal_ui_element', context);
-		$elems.find('input').prop("disabled", true);
+		NRS.initModalUIElement($modal, '.phasing_finish_height_group', 'block_height_modal_ui_element', context);
+		context.phasingType = "mandatory_approval";
+		NRS.initModalUIElement($modal, '.mandatory_approval_finish_height_group', 'block_height_modal_ui_element', context);
 
 		context = {
-			labelText: "Amount NXT",
+			labelText: "Amount",
 			labelI18n: "amount_nxt",
 			helpI18n: "approve_transaction_amount_help",
 			inputName: "phasingQuorumNXT",
-			addonText: "NXT",
+			addonText: NRS.getActiveChainName(),
 			addonI18n: "nxt_unit"
 		};
-		$elems = NRS.initModalUIElement($modal, '.approve_transaction_amount_nxt', 'simple_input_with_addon_modal_ui_element', context);
+		var $elems = NRS.initModalUIElement($modal, '.approve_transaction_amount_nxt', 'simple_input_with_addon_modal_ui_element', context);
 		$elems.find('input').prop("disabled", true);
 
 		context = {
@@ -232,6 +443,15 @@ var NRS = (function(NRS, $, undefined) {
 		$elems.find('input').prop("disabled", true);
 
 		context = {
+			labelText: "PIECES",
+			labelI18n: "pieces",
+			helpI18n: "pieces_requested_help",
+			inputName: "piece"
+		};
+		$elems = NRS.initModalUIElement($modal, '.piece_entry_group', 'multi_piece_modal_ui_element', context);
+		$elems.find('input').prop("disabled", true);
+
+		context = {
 			labelText: "Min Balance Type",
 			labelI18n: "min_balance_type",
 			helpI18n: "approve_transaction_min_balance_type_help",
@@ -262,7 +482,7 @@ var NRS = (function(NRS, $, undefined) {
 			addonI18n: ""
 		};
 		context['inputName'] = 'phasingMinBalanceNXT';
-		context['addonText'] = 'NXT';
+		context['addonText'] = NRS.getActiveChainName();
 		context['addonI18n'] = 'nxt_unit';
 		$elems = NRS.initModalUIElement($modal, '.approve_min_balance_nxt', 'simple_input_with_addon_modal_ui_element', context);
 		$elems.find('input').prop("disabled", true);
@@ -316,26 +536,65 @@ var NRS = (function(NRS, $, undefined) {
 		};
 		NRS.initModalUIElement($modal, '.hash_algorithm_model_group', 'hash_algorithm_model_modal_ui_element', context);
 
-		_setMandatoryApproval($modal);
+		context = {
+			labelText: "PHASING APPROVAL MODEL",
+			labelI18n: "phasing_approval_model",
+			selectName: "phasingApprovalModel"
+		};
+		NRS.initModalUIElement($modal, '.phasing_model_group', 'approval_model_modal_ui_element', context);
+
+		context = {
+			labelText: "CONTROL APPROVAL MODEL",
+			labelI18n: "control_approval_model",
+			selectName: "controlApprovalModel"
+		};
+		NRS.initModalUIElement($modal, '.control_model_group', 'approval_model_modal_ui_element', context);
+
+        $modal.one('shown.bs.modal', function() {
+            NRS.setupModalMandatoryApproval($modal);
+        });
 	};
 
-	function _setMandatoryApproval($modal) {
-		$modal.one('shown.bs.modal', function() {
-			var requestType = $modal.find('input[name="request_type"]').val();
+    NRS.setupModalMandatoryApproval = function($modal) {
+        var requestType = $modal.find('input[name="request_type"]').val();
+        var hasAccountControl = requestType != "approveTransaction" && NRS.hasAccountControl();
+        if (requestType == "orderAsset") {
+            requestType = $modal.find('input[name="asset_order_type"]').val();
+        }
+        var hasAssetControl = NRS.isSubjectToAssetControl(requestType);
+        if (hasAccountControl && hasAssetControl
+                && (NRS.accountInfo.phasingOnly.controlParams.phasingVotingModel == 6
+                    || NRS.getCurrentAssetControl().phasingVotingModel == 6)) {
+            //If both asset and account control are set, and if one or both requires composite phasing,
+            //it is not trivial to build phasing parameters that satisfy both controls. So require the user to
+            //do this manually
+            $modal.find('.advanced_mandatory_approval input').prop('disabled', true);
+            $modal.find('.advanced_mandatory_approval').show();
+            $modal.find('.phasing_finish_height_group input').prop('disabled', false);
+            $modal.find('#auto_phasing_possible_group').hide();
+            $modal.find('#auto_phasing_not_possible_group').show();
+        } else if (hasAccountControl || hasAssetControl) {
+            $modal.find('.advanced_mandatory_approval input').prop('disabled', false);
+            $modal.find('.advanced_mandatory_approval').show();
+            $modal.find('.phasing_finish_height_group input').prop('disabled', true);
+            $modal.find('#auto_phasing_possible_group').show();
+            $modal.find('#auto_phasing_not_possible_group').hide();
 
-			if (requestType != "approveTransaction"
-				&& NRS.accountInfo.accountControls && $.inArray('PHASING_ONLY', NRS.accountInfo.accountControls) > -1
-				&& NRS.accountInfo.phasingOnly
-				&& NRS.accountInfo.phasingOnly.votingModel >= 0) {
-
-				$modal.find('.advanced_mandatory_approval input').prop('disabled', false);
-				$modal.find('.advanced_mandatory_approval').show();
-
-			} else {
-				$modal.find('.advanced_mandatory_approval').hide();
-			}
-		});
-	}
+            if (hasAccountControl) {
+                $modal.find('#account_control_enabled_info').show();
+                $modal.find('#account_control_details_link').show();
+                $modal.find('#asset_control_enabled_info').hide();
+            } else {
+                $modal.find('#account_control_enabled_info').hide();
+                $modal.find('#account_control_details_link').hide();
+                $modal.find('#asset_control_enabled_info').show();
+            }
+        } else {
+            $modal.find('.advanced_mandatory_approval input').prop('disabled', true);
+            $modal.find('.advanced_mandatory_approval').hide();
+            $modal.find('.phasing_finish_height_group input').prop('disabled', false);
+        }
+	};
 
 	$('.approve_tab_list a[data-toggle="tab"]').on('shown.bs.tab', function () {
         var $am = $(this).closest('.approve_modal');
@@ -349,6 +608,8 @@ var NRS = (function(NRS, $, undefined) {
         	$am.find('.approve_whitelist_accounts').show();
         }
         $('.modal .approve_modal .approve_min_balance_model_group:visible select').trigger('change');
+
+        $('li.show_popover').popover('hide');
     });
 
 	$('body').on('change', '.modal .approve_modal .approve_min_balance_model_group select', function() {
@@ -380,11 +641,8 @@ var NRS = (function(NRS, $, undefined) {
 	});
 
     transactionJSONModal.on("hidden.bs.modal", function() {
-		var reader = $('#unsigned_transaction_bytes_reader');
-		if (reader.data('stream')) {
-		    reader.html5_qrcode_stop();
-        }
-		$(this).find(".tab_content").hide();
+        NRS.stopScanQRCode();
+        $(this).find(".tab_content").hide();
 		$(this).find("ul.nav li.active").removeClass("active");
 		$(this).find("ul.nav li:first").addClass("active");
 		$(this).find(".output").hide();
@@ -416,11 +674,9 @@ var NRS = (function(NRS, $, undefined) {
 	NRS.forms.parseTransactionComplete = function(response) {
 		$("#parse_transaction_form").find(".error_message").hide();
         var details = $.extend({}, response);
-        if (response.attachment) {
-            delete details.attachment;
-        }
-        $("#parse_transaction_output_table").find("tbody").empty().append(NRS.createInfoTable(details, true));
-		$("#parse_transaction_output").show();
+        details = NRS.flattenObject(details, ["version.", "signature"], ["RS"]);
+        $("#parse_transaction_output_table").find("tbody").empty().append(NRS.createInfoTable(details, { fixed: true }));
+        $("#parse_transaction_output").show();
 	};
 
 	NRS.forms.parseTransactionError = function() {
@@ -430,7 +686,7 @@ var NRS = (function(NRS, $, undefined) {
 
 	NRS.forms.calculateFullHashComplete = function(response) {
 		$("#calculate_full_hash_form").find(".error_message").hide();
-		$("#calculate_full_hash_output_table").find("tbody").empty().append(NRS.createInfoTable(response, true));
+		$("#calculate_full_hash_output_table").find("tbody").empty().append(NRS.createInfoTable(response, { fixed: true }));
 		$("#calculate_full_hash_output").show();
 	};
 
@@ -479,7 +735,8 @@ var NRS = (function(NRS, $, undefined) {
 			var output = {};
 			var secretPhrase = (NRS.rememberPassword ? _password : data.secretPhrase);
 			var isOffline = $(".mobile-offline").val();
-			if (NRS.getAccountId(secretPhrase) == NRS.account || isOffline) {
+            var accountId = NRS.getAccountId(secretPhrase, true);
+            if (accountId == NRS.accountRS || isOffline) {
 				try {
 					var signature = NRS.signBytes(data.unsignedTransactionBytes, converters.stringToHexString(secretPhrase));
 					updateSignature(signature);
@@ -487,15 +744,15 @@ var NRS = (function(NRS, $, undefined) {
 					output.errorMessage = e.message;
 				}
 			} else {
-				output.errorMessage = $.t("error_passphrase_incorrect");
+				output.errorMessage = $.t("error_passphrase_incorrect_v2", { account: accountId });
 			}
 			output.stop = true;
-			output.keepOpen = true;
+			output. keepOpen = true;
 			return output;
 		}
         data.validate = (data.validate ? "true" : "false");
         return { data: data };
     };
 
-	return NRS;
+    return NRS;
 }(NRS || {}, jQuery));

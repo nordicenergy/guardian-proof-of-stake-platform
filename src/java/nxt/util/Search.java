@@ -1,11 +1,12 @@
 /*
- * Copyright © 2020-2020 The Nordic Energy Core Developers
+ * Copyright © 2013-2016 The Nxt Core Developers.
+ * Copyright © 2016-2019 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
  *
- * Unless otherwise agreed in a custom licensing agreement with Nordic Energy.,
- * no part of the Nxt software, including this file, may be copied, modified,
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
  * propagated, or distributed except according to the terms contained in the
  * LICENSE.txt file.
  *
@@ -24,6 +25,8 @@ import org.apache.tika.Tika;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import nxt.Constants;
 
 public final class Search {
 
@@ -52,11 +55,22 @@ public final class Search {
     }
 
     public static String detectMimeType(byte[] data, String filename) {
+        if (Constants.DISABLE_METADATA_DETECTION) {
+            throw new UnsupportedOperationException("Metadata detection is disabled");
+        }
         Tika tika = new Tika();
-        return tika.detect(data, filename);
+        try {
+            return tika.detect(data, filename);
+        } catch (NoClassDefFoundError e) {
+            Logger.logErrorMessage("Error running Tika parsers", e);
+            return null;
+        }
     }
 
     public static String detectMimeType(byte[] data) {
+        if (Constants.DISABLE_METADATA_DETECTION) {
+            throw new UnsupportedOperationException("Metadata detection is disabled");
+        }
         Tika tika = new Tika();
         try {
             return tika.detect(data);

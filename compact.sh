@@ -1,6 +1,6 @@
 #!/bin/sh
 echo "***********************************************************************"
-echo "* This shell script will compact and reorganize the Net NRS database. *"
+echo "* This shell script will compact and reorganize the Ardor database.   *"
 echo "* This process can take a long time.  Do not interrupt the script     *"
 echo "* or shutdown the computer until it finishes.                         *"
 echo "*                                                                     *"
@@ -9,5 +9,11 @@ echo "* under ~/.nxt/ , invoke this script as:                              *"
 echo "* ./compact.sh -Dnxt.runtime.mode=desktop                             *"
 echo "***********************************************************************"
 
-java -Xmx1024m -cp "classes:lib/*:conf" $@ nxt.tools.CompactDatabase
+if [ -x jdk/bin/java ]; then
+    JAVA=./jdk/bin/java
+else
+    JAVA=java
+fi
+
+${JAVA} -Xmx1024m -cp "classes:lib/*:conf" $@ nxt.tools.CompactDatabase
 exit $?
